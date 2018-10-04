@@ -32,11 +32,14 @@ ifeq ($(OS),Windows_NT)
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
 	SQL_FLAGS = -lmysql
+	PNG_FLAGS = -I "C:/libs/lpng1635/" "C:/libs/lpng1635/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
+#		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" "C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib/libSDL2_ttf.a" -lSDL2main -lSDL2 -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -lfreetype -static-libgcc"
 		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
+#		SDL_FLAGS = "C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib/libSDL2.dll.a" "C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib/libSDL2main.a" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
         CCFLAGS += -DMACHINE_32
@@ -59,6 +62,7 @@ else
     ifeq ($(UNAME_S),Linux)
         CCFLAGS += -DLINUX
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
+		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a"
     endif
     ifeq ($(UNAME_S),Darwin)
         CCFLAGS += -DOSX
@@ -152,5 +156,9 @@ mysql_lib:
 clipboard:
 	$(CC) -Os -s Clipboard_dni.c vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
+
+png:
+	$(CC) -Os -s PNGLib_dni.c vmi_util.c PNGLib.c -o PNGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(PNG_FLAGS)
+	$(CP_CMD) PNGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 all: $(ALL_RULES)

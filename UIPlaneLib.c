@@ -178,6 +178,7 @@ typedef struct{
 	SDL_Surface *surface;
 	int x;
 	int y;
+	int rotation;
 	} UIBitmap;
 
 typedef struct{
@@ -619,7 +620,7 @@ SDL_Texture* renderText(char *msg, TTF_Font *font, SDL_Color color, SDL_Renderer
 * @param w The width of the texture to draw
 * @param h The height of the texture to draw
 */
-void renderTextureWH(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, int h)
+void renderTextureWH(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, int h, int r)
 	{
 	//Setup the destination rectangle to be at the position we want
 	SDL_Rect dst;
@@ -627,7 +628,7 @@ void renderTextureWH(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, i
 	dst.y = y;
 	dst.w = w;
 	dst.h = h;
-	SDL_RenderCopy(ren, tex, NULL, &dst);
+	SDL_RenderCopyEx(ren, tex, NULL, &dst, r, NULL, SDL_FLIP_NONE);
 	}
 
 /**
@@ -638,11 +639,11 @@ void renderTextureWH(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, i
 * @param x The x coordinate to draw to
 * @param y The y coordinate to draw to
 */
-void renderTexture(SDL_Texture *tex, SDL_Renderer *ren, int x, int y)
+void renderTexture(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int r)
 	{
 	int w, h;
 	SDL_QueryTexture(tex, NULL, NULL, &w, &h);
-	renderTextureWH(tex, ren, x, y, w, h);
+	renderTextureWH(tex, ren, x, y, w, h, r);
 	}
 
 static void cleanupBuffer(UIObject *buf)
@@ -751,7 +752,7 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 			SDL_Texture *image = renderText(poly -> text, poly -> font, color, myRenderer);
 			if (image != NULL)
 				{
-				renderTexture(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll);
+				renderTexture(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, 0);
 				SDL_DestroyTexture(image);
 				}
 			}
@@ -765,7 +766,7 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 
 			if (image != NULL)
 				{
-				renderTexture(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll);
+				renderTexture(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, 0);
 				SDL_DestroyTexture(image);
 				}
 			}
@@ -775,7 +776,8 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 
 			SDL_Texture *texture = SDL_CreateTextureFromSurface(myRenderer, poly -> surface);
 
-			renderTexture(texture, myRenderer, poly -> x - xScroll, poly -> y - yScroll);
+			renderTexture(texture, myRenderer, poly -> x - xScroll, poly -> y - yScroll, poly -> rotation);
+			
 			SDL_DestroyTexture(texture);
 			}
 
@@ -854,7 +856,7 @@ int DrawScene(WindowInstance *instance)
 				SDL_Texture *image = renderText(poly -> text, poly -> font, color, instance -> renderer);
 				if (image != NULL)
 					{
-					renderTexture(image, instance -> renderer, poly -> x, poly -> y);
+					renderTexture(image, instance -> renderer, poly -> x, poly -> y, 0);
 					SDL_DestroyTexture(image);
 					}
 				}
@@ -868,7 +870,7 @@ int DrawScene(WindowInstance *instance)
 
 				if (image != NULL)
 					{
-					renderTexture(image, instance -> renderer, poly -> x, poly -> y);
+					renderTexture(image, instance -> renderer, poly -> x, poly -> y, 0);
 					SDL_DestroyTexture(image);
 					}
 				}
@@ -878,7 +880,7 @@ int DrawScene(WindowInstance *instance)
 
 				SDL_Texture *texture = SDL_CreateTextureFromSurface(instance -> renderer, poly -> surface);
 
-				renderTexture(texture, instance -> renderer, poly -> x, poly -> y);
+				renderTexture(texture, instance -> renderer, poly -> x, poly -> y, poly -> rotation);
 				SDL_DestroyTexture(texture);
 				}
 
@@ -925,7 +927,7 @@ int DrawScene(WindowInstance *instance)
 
 	SDL_SetRenderTarget(instance -> renderer, NULL);
 
-	renderTexture(instance -> baseTexture, instance -> renderer, 0, 0);
+	renderTexture(instance -> baseTexture, instance -> renderer, 0, 0, 0);
 
 	SDL_RenderPresent(instance -> renderer);
 
@@ -1079,6 +1081,8 @@ typedef struct{
 	UIBitmap *bitmapData;
 	VFrame *vframe;
 	unsigned char *sourceData;
+	size_t scaledWidth;
+	size_t scaledHeight;
 #ifdef WINDOWS
 	HANDLE sem;
 #endif
@@ -1143,6 +1147,7 @@ static unsigned int DX_NEW_WINDOW_EVENT = 0;
 static unsigned int DX_SWAP_BUFFERS_EVENT = 0;
 static unsigned int DX_SET_WINDOW_POSITION = 0;
 static unsigned int DX_SET_WINDOW_TITLE = 0;
+static unsigned int DX_SET_WINDOW_ICON = 0;
 static unsigned int DX_MAXIMISE_WINDOW = 0;
 static unsigned int DX_MINIMISE_WINDOW = 0;
 static unsigned int DX_SHOW_WINDOW = 0;
@@ -1162,6 +1167,76 @@ static unsigned int DX_GET_TEXT_WIDTH = 0;
 static bool shutdown_event_loop = false;
 
 static bool resizeAvailable = true;
+
+static SDL_Surface* pixelMapToSurface(LiveData *pm)
+	{
+	LiveData *bitmapData = pm;
+	LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
+	LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
+	unsigned char *pixelArray = pixelArrayH -> data;
+
+	size_t *dr_width = (size_t*) whData -> data;
+	size_t *dr_height = (size_t*) (whData -> data + sizeof(size_t));
+
+	size_t w = 0;
+	size_t h = 0;
+
+	copyHostInteger((unsigned char*) &w, (unsigned char*) dr_width, sizeof(size_t));
+	copyHostInteger((unsigned char*) &h, (unsigned char*) dr_height, sizeof(size_t));
+
+	//printf(" -- draw bitmap -- %u pixels in %u:%u --\n", pixelArrayH -> length, w, h);
+
+	//printf("creating %u * %u surface\n", w, h);
+
+	// -- generate the surface with matching pixel data
+	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+		Uint32 rmask = 0xff000000;
+		Uint32 gmask = 0x00ff0000;
+		Uint32 bmask = 0x0000ff00;
+		Uint32 amask = 0x000000ff;
+	#else
+		Uint32 rmask = 0x000000ff;
+		Uint32 gmask = 0x0000ff00;
+		Uint32 bmask = 0x00ff0000;
+		Uint32 amask = 0xff000000;
+	#endif
+
+	SDL_Surface *primarySurface = SDL_CreateRGBSurface(0, w, h, 32, rmask, gmask, bmask, amask);
+
+	if (primarySurface == NULL)
+		{
+		return NULL;
+		}
+
+	// -- write the pixels
+	SDL_LockSurface(primarySurface);
+	int i = 0;
+	int j = 0;
+	int ndx = 0;
+	for (i = 0;  i < h; i++)
+		{
+		for (j = 0; j < w; j++)
+			{
+			Uint32 pixel = 0;
+
+			unsigned char *cdata = &pixelArray[ndx];
+
+			((unsigned char*) &pixel)[0] = cdata[0];
+			((unsigned char*) &pixel)[1] = cdata[1];
+			((unsigned char*) &pixel)[2] = cdata[2];
+			((unsigned char*) &pixel)[3] = cdata[3];
+
+			//printf("pixel %u is %u:%u:%u:%u\n", (i*w)+j, cdata[0], cdata[1], cdata[2], cdata[3]);
+
+			((Uint32*) primarySurface -> pixels)[(i*w)+j] = pixel;
+
+			ndx += 4;
+			}
+		}
+	SDL_UnlockSurface(primarySurface);
+	
+	return primarySurface;
+	}
 
 #ifdef WINDOWS
 DWORD WINAPI render_thread(LPVOID ptr)
@@ -1189,6 +1264,7 @@ static void* render_thread(void *ptr)
 	DX_SWAP_BUFFERS_EVENT = SDL_RegisterEvents(1);
 	DX_SET_WINDOW_POSITION = SDL_RegisterEvents(1);
 	DX_SET_WINDOW_TITLE = SDL_RegisterEvents(1);
+	DX_SET_WINDOW_ICON = SDL_RegisterEvents(1);
 	DX_MAXIMISE_WINDOW = SDL_RegisterEvents(1);
 	DX_MINIMISE_WINDOW = SDL_RegisterEvents(1);
 	DX_SHOW_WINDOW = SDL_RegisterEvents(1);
@@ -1408,6 +1484,18 @@ static void* render_thread(void *ptr)
 				SDL_SetWindowTitle(wi -> win, (char*) e.user.data2);
 				free(e.user.data2);
 				}
+				else if (e.type == DX_SET_WINDOW_ICON)
+				{
+				WindowInstance *wi = (WindowInstance*) e.user.data1;
+				
+				LiveData *pixelMap = (LiveData*) e.user.data2;
+				
+				SDL_Surface *surface = pixelMapToSurface(pixelMap);
+				
+				SDL_SetWindowIcon(wi -> win, surface);
+				
+				SDL_FreeSurface(surface);
+				}
 				else if (e.type == DX_MAXIMISE_WINDOW)
 				{
 				//WindowInstance *wi = (WindowInstance*) e.user.data1;
@@ -1626,24 +1714,8 @@ static void* render_thread(void *ptr)
 				{
 				GenerateBitmapSurfaceData *data = (GenerateBitmapSurfaceData*) e.user.data1;
 
-				LiveData *bitmapData = (LiveData*) data -> sourceData;
-				LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
-				LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
-				unsigned char *pixelArray = pixelArrayH -> data;
-
-				size_t *dr_width = (size_t*) whData -> data;
-				size_t *dr_height = (size_t*) (whData -> data + sizeof(size_t));
-
-				size_t w = 0;
-				size_t h = 0;
-
-				copyHostInteger((unsigned char*) &w, (unsigned char*) dr_width, sizeof(size_t));
-				copyHostInteger((unsigned char*) &h, (unsigned char*) dr_height, sizeof(size_t));
-
-				//printf(" -- draw bitmap -- %u pixels in %u:%u --\n", pixelArrayH -> length, w, h);
-
-				//printf("creating %u * %u surface\n", w, h);
-
+				SDL_Surface *primarySurface = pixelMapToSurface((LiveData*) data -> sourceData);
+				
 				// -- generate the surface with matching pixel data
 				#if SDL_BYTEORDER == SDL_BIG_ENDIAN
 					Uint32 rmask = 0xff000000;
@@ -1656,41 +1728,22 @@ static void* render_thread(void *ptr)
 					Uint32 bmask = 0x00ff0000;
 					Uint32 amask = 0xff000000;
 				#endif
-
-				data -> bitmapData -> surface = SDL_CreateRGBSurface(0, w, h, 32, rmask, gmask, bmask, amask);
-
-				if (data -> bitmapData -> surface == NULL)
+				SDL_Surface *finalSurface = NULL;
+				
+				if (data -> scaledWidth != primarySurface -> w || data -> scaledHeight != primarySurface -> h)
 					{
-					printf("FAIL!\n");
+					//printf("rescaling %u/%u...\n", data -> scaledWidth, data -> scaledHeight);
+					finalSurface = SDL_CreateRGBSurface(0, data -> scaledWidth, data -> scaledHeight, 32, rmask, gmask, bmask, amask);
+					SDL_BlitScaled(primarySurface, NULL, finalSurface, NULL);
+					SDL_FreeSurface(primarySurface);
 					}
-
-				// -- write the pixels
-				SDL_LockSurface(data -> bitmapData -> surface);
-				int i = 0;
-				int j = 0;
-				int ndx = 0;
-				for (i = 0;  i < h; i++)
+					else
 					{
-					for (j = 0; j < w; j++)
-						{
-						Uint32 pixel = 0;
-
-						unsigned char *cdata = &pixelArray[ndx];
-
-						((unsigned char*) &pixel)[0] = cdata[0];
-						((unsigned char*) &pixel)[1] = cdata[1];
-						((unsigned char*) &pixel)[2] = cdata[2];
-						((unsigned char*) &pixel)[3] = cdata[3];
-
-						//printf("pixel %u is %u:%u:%u:%u\n", (i*w)+j, cdata[0], cdata[1], cdata[2], cdata[3]);
-
-						((Uint32*) data -> bitmapData -> surface -> pixels)[(i*w)+j] = pixel;
-
-						ndx += 4;
-						}
+					finalSurface = primarySurface;
 					}
-				SDL_UnlockSurface(data -> bitmapData -> surface);
-
+				
+				data -> bitmapData -> surface = finalSurface;
+				
 				// -- clean up and return
 
 				#ifdef WINDOWS
@@ -2098,10 +2151,19 @@ INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
 		WindowInstance *instance = (WindowInstance*) hnd;
 
 		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 2), sizeof(size_t));
+		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 3), sizeof(size_t));
 
 		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 3), sizeof(size_t));
+		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 4), sizeof(size_t));
+		
+		size_t sWidth = 0;
+		copyHostInteger((unsigned char*) &sWidth, getVariableContent(cframe, 5), sizeof(size_t));
+
+		size_t sHeight = 0;
+		copyHostInteger((unsigned char*) &sHeight, getVariableContent(cframe, 6), sizeof(size_t));
+		
+		size_t rotation = 0;
+		copyHostInteger((unsigned char*) &rotation, getVariableContent(cframe, 7), sizeof(size_t));
 
 		// -- create the container --
 
@@ -2116,12 +2178,15 @@ INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
 
 		poly -> x = x;
 		poly -> y = y;
+		poly -> rotation = rotation;
 
 		GenerateBitmapSurfaceData *gb = malloc(sizeof(GenerateBitmapSurfaceData));
 		memset(gb, '\0', sizeof(GenerateBitmapSurfaceData));
 		gb -> sourceData = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 		gb -> vframe = cframe;
 		gb -> bitmapData = poly;
+		gb -> scaledHeight = sHeight;
+		gb -> scaledWidth = sWidth;
 		
 		#ifdef WINDOWS
 		gb -> sem = CreateSemaphore(NULL, 0, 1, NULL);
@@ -2853,6 +2918,27 @@ INSTRUCTION_DEF op_set_title(VFrame *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_set_icon(VFrame *cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		SDL_Event newEvent;
+		SDL_zero(newEvent);
+		newEvent.type = DX_SET_WINDOW_ICON;
+		newEvent.user.data1 = instance;
+		newEvent.user.data2 = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+
+		SDL_PushEvent(&newEvent);
+		}
+	
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_maximise_window(VFrame *cframe)
 	{
 	size_t hnd = 0;
@@ -3031,6 +3117,13 @@ INSTRUCTION_DEF op_set_background_colour(VFrame *cframe)
 INSTRUCTION_DEF op_load_font(VFrame *cframe)
 	{
 	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	
+	if (array == NULL)
+		{
+		api -> throwException(cframe, "font '' not found");
+		return RETURN_OK;
+		}
+	
 	size_t tlen = array != NULL ? array -> length : 0;
 
 	char *path = (char*) malloc(tlen + 1);
@@ -3046,7 +3139,7 @@ INSTRUCTION_DEF op_load_font(VFrame *cframe)
 
 	if (!findFont(path, fontPath, 2048))
 		{
-		printf("open font error: could not find font '%s'\n", path);
+		api -> throwException(cframe, "open font error: could not find font");
 		free(fontPath);
 		//return of 0 is automatic
 		}
@@ -3281,6 +3374,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("setResizable", op_set_resizable);
 	setInterfaceFunction("setFullScreen", op_set_fullscreen);
 	setInterfaceFunction("setTitle", op_set_title);
+	setInterfaceFunction("setIcon", op_set_icon);
 	setInterfaceFunction("commitBuffer", op_commit_buffer);
 	setInterfaceFunction("setBackgroundColor", op_set_background_colour);
 	setInterfaceFunction("maximiseWindow", op_maximise_window);
