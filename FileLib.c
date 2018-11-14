@@ -375,7 +375,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 	
 	LiveData *data = (LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	Component *dataOwner = cframe -> blocking -> instance;
+	DanaComponent *dataOwner = cframe -> blocking -> instance;
 	
 	FileInfoItem *itemList = NULL;
 	FileInfoItem *lastItem = NULL;

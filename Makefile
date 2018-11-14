@@ -13,11 +13,10 @@ SDL_FLAGS=
 NET_FLAGS=
 MATH_FLAGS=
 SQL_FLAGS=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib png clipboard
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
-	CCFLAGS += -DPC
 	CCFLAGS += -DLIB_PLATFORM_NAME=\"win7\"
 	CCFLAGS += -DMACHINE_ENDIAN_LITTLE
 	OUTPUT_FILE = dana.exe
@@ -51,7 +50,6 @@ else
     UNAME_S := $(shell uname -s)
 	OUTPUT_FILE = dana
 	CCFLAGS += -ldl
-	CCFLAGS += -DPC
 	CCFLAGS += -DMACHINE_ENDIAN_LITTLE
 	INSTALL_PATH = ~/dana/
 	CP_CMD = cp
@@ -63,6 +61,7 @@ else
         CCFLAGS += -DLINUX
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
 		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a"
+		CLIPBOARD_FLAGS = -lX11
     endif
     ifeq ($(UNAME_S),Darwin)
         CCFLAGS += -DOSX
@@ -75,6 +74,8 @@ else
 		CHIP = x64
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
 		SQL_FLAGS = -L/usr/local/mysql-8.0.12-macos10.13-x86_64/lib/ -lmysqlclient
+		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz
+		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
     endif
     ifneq ($(UNAME_S),Darwin)
 		ALL_RULES += uiplane
@@ -153,12 +154,16 @@ mysql_lib:
 	$(CC) -Os -s MySQLLib_dni.c vmi_util.c MySQLLib.c -o MySQLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(MYSQL_INCLUDE) $(CCFLAGS) $(SQL_FLAGS)
 	$(CP_CMD) MySQLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
-clipboard:
-	$(CC) -Os -s Clipboard_dni.c vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
-	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
-
 png:
 	$(CC) -Os -s PNGLib_dni.c vmi_util.c PNGLib.c -o PNGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(PNG_FLAGS)
 	$(CP_CMD) PNGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
+
+clipboard:
+	$(CC) -Os -s Clipboard_dni.c vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_FLAGS)
+	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
+
+audio:
+	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)
+	$(CP_CMD) AudioLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 all: $(ALL_RULES)

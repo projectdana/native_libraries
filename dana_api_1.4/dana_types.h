@@ -264,7 +264,7 @@ typedef struct component{
 	void *cs;
 	size_t rc;
 	unsigned char fg;
-	} Component;
+	} DanaComponent;
 
 typedef struct intfdet{
 	char *name;

@@ -1321,15 +1321,20 @@ static void* render_thread(void *ptr)
 		{
 		do
 			{
+			//printf("%u\n", e.type);
 			if (e.type == SDL_QUIT)
 				{
 				if (shutdown_event_loop) quit = true;
 				}
 				else if (e.type == SDL_WINDOWEVENT)
 				{
+				//printf(" -- %u\n", e.window.event);
+				//printf(" -- [%u][%u][%u][%u][%u][%u][%u][%u][%u]\n", SDL_WINDOWEVENT_SHOWN, SDL_WINDOWEVENT_HIDDEN, SDL_WINDOWEVENT_EXPOSED, SDL_WINDOWEVENT_MOVED, SDL_WINDOWEVENT_RESIZED, SDL_WINDOWEVENT_SIZE_CHANGED, SDL_WINDOWEVENT_MINIMIZED, SDL_WINDOWEVENT_MAXIMIZED, SDL_WINDOWEVENT_RESTORED);
+				
 				if (e.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
 					e.window.event == SDL_WINDOWEVENT_RESTORED ||
-					e.window.event == SDL_WINDOWEVENT_EXPOSED)
+					e.window.event == SDL_WINDOWEVENT_EXPOSED ||
+					e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
 					{
 					newFrame = true;
 					}
@@ -1361,6 +1366,8 @@ static void* render_thread(void *ptr)
 						
 						pushMouseEvent(myInstance, 5, 0, x, y);
 						}
+					
+					newFrame = true;
 					}
 					//for active / inactive notifications (?):
 					//SDL_WINDOWEVENT_FOCUS_GAINED
@@ -1539,6 +1546,14 @@ static void* render_thread(void *ptr)
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
 				SDL_SetWindowFullscreen(wi -> win, SDL_WINDOW_FULLSCREEN_DESKTOP );
+				
+				SDL_DisplayMode DM;
+				SDL_GetCurrentDisplayMode(0, &DM);
+
+				if (wi != NULL)
+					{
+					pushMouseEvent(wi, 4, 0, DM.w, DM.h);
+					}
 				}
 				else if (e.type == DX_WINDOWED_WINDOW)
 				{
@@ -2545,7 +2560,7 @@ INSTRUCTION_DEF op_get_font_metrics(VFrame *cframe)
 
 	int sdl_x;
 	size_t x;
-	size_t *xs = (size_t*) cnt;
+	size_t *xs = (size_t*) ((LiveData*) cnt) -> data;
 
 	//TODO: don't use any TTF_ functions outside of the main rendering loop?
 

@@ -347,7 +347,7 @@ static unsigned char op_isFontFixedWidth_thread_spec[sizeof(VFrameHeader)+sizeof
 static unsigned char op_getTextBitmapWith_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_unloadFont_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static SourceHeader header;
-static Component self;
+static DanaComponent self;
 static size_t interfaceFunctions[] = {
 (size_t) op_clone_thread_spec,
 (size_t) op_equals_thread_spec,

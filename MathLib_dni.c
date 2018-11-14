@@ -166,7 +166,7 @@ static unsigned char op_acosh_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_asinh_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_atanh_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static SourceHeader header;
-static Component self;
+static DanaComponent self;
 static size_t interfaceFunctions[] = {
 (size_t) op_clone_thread_spec,
 (size_t) op_equals_thread_spec,

@@ -104,7 +104,7 @@ static unsigned char op_getHostName_thread_spec[sizeof(VFrameHeader)+sizeof(VFra
 static unsigned char op_getVar_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getSystemFont_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static SourceHeader header;
-static Component self;
+static DanaComponent self;
 static size_t interfaceFunctions[] = {
 (size_t) op_clone_thread_spec,
 (size_t) op_equals_thread_spec,

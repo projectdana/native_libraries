@@ -474,11 +474,18 @@ INSTRUCTION_DEF op_tcp_accept(VFrame *cframe)
 	
 	if ((socket = accept(masterSocket, NULL, NULL)) < 0)
 		{
+		//here we do nothing if it's an interrupt, which happens if we intentionally unbind an accept()ing socket
+		// - we assume this is not exceptional behaviour from the perspective of the programmer
+		
 		#ifdef WINDOWS
-		api -> throwException(cframe, getSocketError(WSAGetLastError()));
+		unsigned int ec = WSAGetLastError();
+		if (ec != WSAEINTR)
+			api -> throwException(cframe, getSocketError(ec));
 		#endif
 		#ifdef LINUX
-		api -> throwException(cframe, strerror(errno));
+		unsigned int ec = errno;
+		if (ec != EINTR && ec != EINVAL)
+			api -> throwException(cframe, strerror(ec));
 		#endif
 		
 		socket = 0;
