@@ -604,6 +604,8 @@ SDL_Texture* renderText(char *msg, TTF_Font *font, SDL_Color color, SDL_Renderer
 		printf("create texture error\n");
 		return NULL;
 		}
+	
+	SDL_SetTextureAlphaMod(texture, color.a);
 
 	//Clean up the surface and font
 	SDL_FreeSurface(surf);
@@ -748,6 +750,7 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 			color.r = poly -> r;
 			color.g = poly -> g;
 			color.b = poly -> b;
+			color.a = poly -> a;
 			
 			SDL_Texture *image = renderText(poly -> text, poly -> font, color, myRenderer);
 			if (image != NULL)
@@ -852,6 +855,7 @@ int DrawScene(WindowInstance *instance)
 				color.r = poly -> r;
 				color.g = poly -> g;
 				color.b = poly -> b;
+				color.a = poly -> a;
 
 				SDL_Texture *image = renderText(poly -> text, poly -> font, color, instance -> renderer);
 				if (image != NULL)
