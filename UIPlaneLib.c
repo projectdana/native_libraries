@@ -230,6 +230,11 @@ typedef struct{
 
 	size_t windowWidth;
 	size_t windowHeight;
+	
+	size_t windowedWidth;
+	size_t windowedHeight;
+	
+	bool fullScreen;
 
 #ifdef WINDOWS
 	HWND windowHandle;
@@ -243,6 +248,17 @@ typedef struct{
 	Display *displayHandle;
 #endif
 #endif
+
+	#ifdef WINDOWS
+		HANDLE stateSem;
+	#endif
+	#ifdef OSX
+		dispatch_semaphore_t stateSem;
+	#else
+	#ifdef LINUX
+		sem_t stateSem;
+	#endif
+	#endif
 
 	SDL_Window *win;
 	SDL_Renderer *renderer;
@@ -968,6 +984,22 @@ static WindowInstance* createNewWindow()
 	myInstance -> windowWidth = 500;
 	myInstance -> windowHeight = 500;
 	
+	myInstance -> windowedWidth = 500;
+	myInstance -> windowedHeight = 500;
+	
+	#ifdef WINDOWS
+	myInstance -> stateSem = CreateSemaphore(NULL, 0, 1, NULL);
+	#endif
+	#ifdef OSX
+	dispatch_semaphore_t *sem;
+	sem = &myInstance -> stateSem;
+	*sem = dispatch_semaphore_create(0);
+	#else
+	#ifdef LINUX
+	sem_init(&myInstance -> stateSem, 0, 0);
+	#endif
+	#endif
+	
 	#ifdef WINDOWS
 	myInstance -> renderLock = CreateSemaphore(NULL, 1, 1, NULL);
 	#endif
@@ -1161,6 +1193,7 @@ static unsigned int DX_RESIZABLE_WINDOW = 0;
 static unsigned int DX_FIXED_SIZE_WINDOW = 0;
 static unsigned int DX_FULLSCREEN_WINDOW = 0;
 static unsigned int DX_WINDOWED_WINDOW = 0;
+static unsigned int DX_GET_RESOLUTION = 0;
 static unsigned int DX_CLOSE_WINDOW = 0;
 static unsigned int DX_GENERATE_TEXT_BITMAP = 0;
 static unsigned int DX_GENERATE_BITMAP_SURFACE = 0;
@@ -1278,6 +1311,7 @@ static void* render_thread(void *ptr)
 	DX_FIXED_SIZE_WINDOW = SDL_RegisterEvents(1);
 	DX_FULLSCREEN_WINDOW = SDL_RegisterEvents(1);
 	DX_WINDOWED_WINDOW = SDL_RegisterEvents(1);
+	DX_GET_RESOLUTION = SDL_RegisterEvents(1);
 	DX_CLOSE_WINDOW = SDL_RegisterEvents(1);
 	DX_GENERATE_TEXT_BITMAP = SDL_RegisterEvents(1);
 	DX_GENERATE_BITMAP_SURFACE = SDL_RegisterEvents(1);
@@ -1523,16 +1557,45 @@ static void* render_thread(void *ptr)
 				SDL_ShowWindow(wi -> win);
 
 				newFrame = true;
+				
+				#ifdef WINDOWS
+				ReleaseSemaphore(wi -> stateSem, 1, NULL);
+				#endif
+				#ifdef OSX
+				dispatch_semaphore_signal(wi -> stateSem);
+				#else
+				#ifdef LINUX
+				sem_post(&wi -> stateSem);
+				#endif
+				#endif
 				}
 				else if (e.type == DX_HIDE_WINDOW)
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
 				SDL_HideWindow(wi -> win);
+				
+				#ifdef WINDOWS
+				ReleaseSemaphore(wi -> stateSem, 1, NULL);
+				#endif
+				#ifdef OSX
+				dispatch_semaphore_signal(wi -> stateSem);
+				#else
+				#ifdef LINUX
+				sem_post(&wi -> stateSem);
+				#endif
+				#endif
 				}
 				else if (e.type == DX_SET_WINDOW_SIZE)
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
-				SDL_SetWindowSize(wi -> win, wi -> windowWidth, wi -> windowHeight);
+				
+				if (!wi -> fullScreen)
+					{
+					wi -> windowWidth = wi -> windowedWidth;
+					wi -> windowHeight = wi -> windowedHeight;
+					
+					SDL_SetWindowSize(wi -> win, wi -> windowWidth, wi -> windowHeight);
+					}
 				
 				newFrame = true;
 				}
@@ -1549,20 +1612,79 @@ static void* render_thread(void *ptr)
 				else if (e.type == DX_FULLSCREEN_WINDOW)
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
-				SDL_SetWindowFullscreen(wi -> win, SDL_WINDOW_FULLSCREEN_DESKTOP );
 				
 				SDL_DisplayMode DM;
 				SDL_GetCurrentDisplayMode(0, &DM);
-
-				if (wi != NULL)
-					{
-					pushMouseEvent(wi, 4, 0, DM.w, DM.h);
-					}
+				
+				wi -> windowWidth = DM.w;
+				wi -> windowHeight = DM.h;
+				
+				SDL_SetWindowFullscreen(wi -> win, SDL_WINDOW_FULLSCREEN_DESKTOP );
+				
+				wi -> fullScreen = true;
+				
+				#ifdef WINDOWS
+				ReleaseSemaphore(wi -> stateSem, 1, NULL);
+				#endif
+				#ifdef OSX
+				dispatch_semaphore_signal(wi -> stateSem);
+				#else
+				#ifdef LINUX
+				sem_post(&wi -> stateSem);
+				#endif
+				#endif
 				}
 				else if (e.type == DX_WINDOWED_WINDOW)
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
-				SDL_SetWindowFullscreen(wi -> win, 0 );
+				
+				wi -> windowWidth = wi -> windowedWidth;
+				wi -> windowHeight = wi -> windowedHeight;
+				
+				SDL_SetWindowFullscreen(wi -> win, 0);
+				
+				wi -> fullScreen = false;
+				
+				#ifdef WINDOWS
+				ReleaseSemaphore(wi -> stateSem, 1, NULL);
+				#endif
+				#ifdef OSX
+				dispatch_semaphore_signal(wi -> stateSem);
+				#else
+				#ifdef LINUX
+				sem_post(&wi -> stateSem);
+				#endif
+				#endif
+				}
+				else if (e.type == DX_GET_RESOLUTION)
+				{
+				WindowInstance *wi = (WindowInstance*) e.user.data1;
+				
+				SDL_DisplayMode DM;
+				SDL_GetCurrentDisplayMode(0, &DM);
+				//SDL_GetDesktopDisplayMode(0, &DM);
+				
+				LiveData *data = (LiveData*) e.user.data2;
+				size_t *v = (size_t*) data -> data;
+				
+				size_t xv = DM.w;
+				copyHostInteger((unsigned char*) v, (unsigned char*) &xv, sizeof(size_t));
+				
+				v ++;
+				
+				xv = DM.h;
+				copyHostInteger((unsigned char*) v, (unsigned char*) &xv, sizeof(size_t));
+				
+				#ifdef WINDOWS
+				ReleaseSemaphore(wi -> stateSem, 1, NULL);
+				#endif
+				#ifdef OSX
+				dispatch_semaphore_signal(wi -> stateSem);
+				#else
+				#ifdef LINUX
+				sem_post(&wi -> stateSem);
+				#endif
+				#endif
 				}
 				else if (e.type == DX_CLOSE_WINDOW)
 				{
@@ -2785,9 +2907,9 @@ INSTRUCTION_DEF op_set_size(VFrame *cframe)
 
 		size_t y = 0;
 		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
-
-		instance -> windowWidth = x;
-		instance -> windowHeight = y;
+		
+		instance -> windowedWidth = x;
+		instance -> windowedHeight = y;
 		
 		SDL_Event newEvent;
 		SDL_zero(newEvent);
@@ -2846,6 +2968,17 @@ INSTRUCTION_DEF op_set_visible(VFrame *cframe)
 		newEvent.user.data1 = instance;
 
 		SDL_PushEvent(&newEvent);
+		
+		#ifdef WINDOWS
+		WaitForSingleObject(instance -> stateSem, INFINITE);
+		#endif
+		#ifdef OSX
+		dispatch_semaphore_wait(instance -> stateSem, DISPATCH_TIME_FOREVER);
+		#else
+		#ifdef LINUX
+		sem_wait(&instance -> stateSem);
+		#endif
+		#endif
 		}
 
 	return RETURN_OK;
@@ -2894,8 +3027,52 @@ INSTRUCTION_DEF op_set_fullscreen(VFrame *cframe)
 		SDL_zero(newEvent);
 		newEvent.type = v ? DX_FULLSCREEN_WINDOW : DX_WINDOWED_WINDOW;
 		newEvent.user.data1 = instance;
+		newEvent.user.data2 = ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
 
 		SDL_PushEvent(&newEvent);
+		
+		#ifdef WINDOWS
+		WaitForSingleObject(instance -> stateSem, INFINITE);
+		#endif
+		#ifdef OSX
+		dispatch_semaphore_wait(instance -> stateSem, DISPATCH_TIME_FOREVER);
+		#else
+		#ifdef LINUX
+		sem_wait(&instance -> stateSem);
+		#endif
+		#endif
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_get_resolution(VFrame *cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		SDL_Event newEvent;
+		SDL_zero(newEvent);
+		newEvent.type = DX_GET_RESOLUTION;
+		newEvent.user.data1 = instance;
+		newEvent.user.data2 = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+
+		SDL_PushEvent(&newEvent);
+		
+		#ifdef WINDOWS
+		WaitForSingleObject(instance -> stateSem, INFINITE);
+		#endif
+		#ifdef OSX
+		dispatch_semaphore_wait(instance -> stateSem, DISPATCH_TIME_FOREVER);
+		#else
+		#ifdef LINUX
+		sem_wait(&instance -> stateSem);
+		#endif
+		#endif
 		}
 
 	return RETURN_OK;
@@ -3392,6 +3569,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("setVisible", op_set_visible);
 	setInterfaceFunction("setResizable", op_set_resizable);
 	setInterfaceFunction("setFullScreen", op_set_fullscreen);
+	setInterfaceFunction("getResolution", op_get_resolution);
 	setInterfaceFunction("setTitle", op_set_title);
 	setInterfaceFunction("setIcon", op_set_icon);
 	setInterfaceFunction("commitBuffer", op_commit_buffer);
