@@ -607,7 +607,7 @@ SDL_Texture* renderText(char *msg, TTF_Font *font, SDL_Color color, SDL_Renderer
 	//first render to a surface as that's what TTF_RenderText returns, then load that surface into a texture
 
 	//SDL_Surface *surf = TTF_RenderText_Solid(font, msg, color); //looks bad sometimes in general (inconsistent baseline)
-	SDL_Surface *surf = TTF_RenderText_Blended(font, msg, color); //looks bad with complex fonts at "small" sizes (<= 12pt)
+	SDL_Surface *surf = TTF_RenderUTF8_Blended(font, msg, color); //looks bad with complex fonts at "small" sizes (<= 12pt)
 	if (surf == NULL)
 		{
 		printf("SDL surface error from RT for '%s': %s\n", msg, SDL_GetError());
