@@ -38,7 +38,8 @@ sudo apt-get install libfreetype6-dev
 
 And the procedure is:
 
-../configure
+./configure
+(add -fPIC to Makefile, if not done via configure)
 make
 make install
 */
