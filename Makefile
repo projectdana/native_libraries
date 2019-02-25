@@ -13,7 +13,7 @@ SDL_FLAGS=
 NET_FLAGS=
 MATH_FLAGS=
 SQL_FLAGS=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib png jpg clipboard
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib png jpg zlib clipboard
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -33,6 +33,7 @@ ifeq ($(OS),Windows_NT)
 	SQL_FLAGS = -lmysql
 	PNG_FLAGS = -I "C:/libs/lpng1635/" "C:/libs/lpng1635/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
 	JPG_FLAGS = -I "C:/libs/jpeg-9c" "C:/libs/jpeg-9c/libjpeg.a"
+	ZLIB_FLAGS = -I "C:/libs/zlib-1.2.11" "C:/libs/zlib-1.2.11/libz.a"
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
@@ -63,6 +64,7 @@ else
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
 		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a"
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
+		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -lX11
     endif
     ifeq ($(UNAME_S),Darwin)
@@ -78,6 +80,7 @@ else
 		SQL_FLAGS = -L/usr/local/mysql-8.0.12-macos10.13-x86_64/lib/ -lmysqlclient
 		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
+		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
     endif
     ifneq ($(UNAME_S),Darwin)
@@ -168,6 +171,10 @@ jpg:
 clipboard:
 	$(CC) -Os -s Clipboard_dni.c vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_FLAGS)
 	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
+
+zlib:
+	$(CC) -Os -s ZLib_dni.c vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_FLAGS)
+	$(CP_CMD) ZLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 audio:
 	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)
