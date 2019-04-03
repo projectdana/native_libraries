@@ -61,7 +61,17 @@ static void returnDouble(VFrame *f, double d)
 	char *res = malloc(100);
 	memset(res, '\0', 100);
 	
-	snprintf(res, 99, "%.20f", d);
+	if (isinf(d))
+		{
+		if (d < 0.0)
+			strcpy(res, "-inf");
+			else
+			strcpy(res, "inf");
+		}
+		else
+		{
+		snprintf(res, 99, "%.20f", d);
+		}
 	
 	LiveArray *array = malloc(sizeof(LiveArray));
 	memset(array, '\0', sizeof(LiveArray));

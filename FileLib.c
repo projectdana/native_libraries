@@ -164,8 +164,21 @@ INSTRUCTION_DEF op_file_seek(VFrame *cframe)
 	
 	size_t seekpos = 0;
 	copyHostInteger((unsigned char*) &seekpos, getVariableContent(cframe, 1), sizeof(size_t));
-	size_t fpos = ftell(fd);
 	
+	//check size
+	size_t fpos = ftell(fd);
+	fseek(fd, 0, SEEK_END);
+	size_t sz = ftell(fd);
+	fseek(fd, fpos, SEEK_SET);
+	
+	//check we're not seeking past the end of the file (some OSs will allow this; we don't)
+	if (seekpos > sz)
+		{
+		api -> throwException(cframe, "attempt to seek beyond end of file");
+		return RETURN_OK;
+		}
+	
+	//try to seek at an OS level
 	unsigned char res = 0;
 	
 	if (fseek(fd, seekpos, SEEK_SET) == 0)
