@@ -820,7 +820,9 @@ int DrawScene(WindowInstance *instance)
 	{
 	//background colour
 	SDL_SetRenderDrawColor(instance -> renderer, instance -> backgroundColour.r, instance -> backgroundColour.g, instance -> backgroundColour.b, 255);
-
+	
+	SDL_SetRenderDrawBlendMode(instance -> renderer, SDL_BLENDMODE_BLEND);
+	
 	SDL_RenderClear(instance -> renderer);
 
 	if (instance -> sceneChanged || instance -> baseTexture == NULL)
@@ -832,6 +834,7 @@ int DrawScene(WindowInstance *instance)
 		SDL_SetRenderTarget(instance -> renderer, instance -> baseTexture);
 
 		SDL_SetTextureBlendMode(instance -> baseTexture, SDL_BLENDMODE_BLEND);
+		
 		//SDL_SetRenderDrawColor(instance -> renderer, 0, 0, 0, 0);
 		SDL_SetRenderDrawColor(instance -> renderer, instance -> backgroundColour.r, instance -> backgroundColour.g, instance -> backgroundColour.b, 255);
 		SDL_RenderClear(instance -> renderer);
@@ -907,41 +910,6 @@ int DrawScene(WindowInstance *instance)
 
 			pw = pw -> next;
 			}
-			
-		#ifdef STATS
-		char statString[512];
-
-		SDL_SetRenderDrawColor(instance -> renderer, 255, 240, 240, 100);
-		SDL_Rect r; r.x = 10; r.y = instance -> windowHeight - 43; r.w = 300; r.h = 40;
-		SDL_RenderFillRect(instance -> renderer, &r);
-
-		SDL_Color color;
-		color.r = 60;
-		color.g = 0;
-		color.b = 0;
-
-		memset(statString, '\0', 512);
-		snprintf(statString, 512, "FPS: %u / IPS: %u", stats.lastFPS, stats.lastIPS);
-
-		SDL_Texture *image = renderText(statString, stats.font, color, instance -> renderer);
-		if (image != NULL)
-			{
-			renderTexture(image, instance -> renderer, 10, instance -> windowHeight - 40);
-			SDL_DestroyTexture(image);
-			}
-
-		memset(statString, '\0', 512);
-		snprintf(statString, 512, "DXPS: %u / OCPS: %u / LCPS: %u", stats.lastDXPS, stats.lastOCPS, stats.lastLCPS);
-
-		image = renderText(statString, stats.font, color, instance -> renderer);
-		if (image != NULL)
-			{
-			renderTexture(image, instance -> renderer, 10, instance -> windowHeight - 20);
-			SDL_DestroyTexture(image);
-			}
-
-		stats.framesRendered ++;
-		#endif
 
 		instance -> sceneChanged = false;
 		}
