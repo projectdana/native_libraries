@@ -80,7 +80,8 @@ INSTRUCTION_DEF op_file_open(VFrame *cframe)
 		}
 		else if (mode == 2)
 		{
-		fd = fopen(path, "ab");
+		//create the file from scratch, erasing contents if it already exists
+		fd = fopen(path, "wb+");
 		}
 	
 	if (fd == NULL)
