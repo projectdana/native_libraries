@@ -173,6 +173,7 @@ typedef struct{
 	int g;
 	int b;
 	int a;
+	int rotation;
 	} UIText;
 
 typedef struct{
@@ -650,6 +651,21 @@ void renderTextureWH(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, i
 	SDL_RenderCopyEx(ren, tex, NULL, &dst, r, NULL, SDL_FLIP_NONE);
 	}
 
+//rotation around the x/y position
+void renderTextureWHRZ(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w, int h, int r)
+	{
+	//Setup the destination rectangle to be at the position we want
+	SDL_Rect dst;
+	dst.x = x;
+	dst.y = y;
+	dst.w = w;
+	dst.h = h;
+	SDL_Point pnt;
+	pnt.x = 0;
+	pnt.y = 0;
+	SDL_RenderCopyEx(ren, tex, NULL, &dst, r, &pnt, SDL_FLIP_NONE);
+	}
+
 /**
 * Draw an SDL_Texture to an SDL_Renderer at position x, y, preserving
 * the texture's width and height
@@ -663,6 +679,16 @@ void renderTexture(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int r)
 	int w, h;
 	SDL_QueryTexture(tex, NULL, NULL, &w, &h);
 	renderTextureWH(tex, ren, x, y, w, h, r);
+	}
+
+/**
+* rotation around the x/y position
+*/
+void renderTextureRZ(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int r)
+	{
+	int w, h;
+	SDL_QueryTexture(tex, NULL, NULL, &w, &h);
+	renderTextureWHRZ(tex, ren, x, y, w, h, r);
 	}
 
 static void cleanupBuffer(UIObject *buf)
@@ -772,7 +798,7 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 			SDL_Texture *image = renderText(poly -> text, poly -> font, color, myRenderer);
 			if (image != NULL)
 				{
-				renderTexture(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, 0);
+				renderTextureRZ(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, poly -> rotation);
 				SDL_DestroyTexture(image);
 				}
 			}
@@ -880,7 +906,7 @@ int DrawScene(WindowInstance *instance)
 				SDL_Texture *image = renderText(poly -> text, poly -> font, color, instance -> renderer);
 				if (image != NULL)
 					{
-					renderTexture(image, instance -> renderer, poly -> x, poly -> y, 0);
+					renderTextureRZ(image, instance -> renderer, poly -> x, poly -> y, poly -> rotation);
 					SDL_DestroyTexture(image);
 					}
 				}
@@ -2348,70 +2374,6 @@ INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_text(VFrame *cframe)
-	{
-	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
-
-	if (hnd != 0)
-		{
-		WindowInstance *instance = (WindowInstance*) hnd;
-
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 1), sizeof(size_t));
-
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
-
-		LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 3)) -> content;
-
-		size_t r = 0;
-		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 4), 1);
-
-		size_t g = 0;
-		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 5), 1);
-
-		size_t b = 0;
-		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 6), 1);
-
-		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 7), 1);
-
-		size_t tlen = array != NULL ? array -> length : 0;
-
-		if (tlen > 0)
-			{
-			// -- create the container --
-
-			UIText *poly = (UIText*) malloc(sizeof(UIText));
-			UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
-			memset(uio, '\0', sizeof(UIObject));
-
-			addUIObject(instance, uio);
-
-			//poly -> font = defaultFont;
-
-			uio -> type = UI_TYPE_TEXT;
-			uio -> object = poly;
-
-			poly -> textLen = tlen;
-			poly -> text = (char*) malloc(tlen + 1);
-			memset(poly -> text, '\0', tlen + 1);
-			memcpy(poly -> text, array -> data, array -> length);
-
-			poly -> x = x;
-			poly -> y = y;
-
-			poly -> r = r;
-			poly -> g = g;
-			poly -> b = b;
-			poly -> a = a;
-			}
-		}
-
-	return RETURN_OK;
-	}
-
 INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 	{
 	size_t hnd = 0;
@@ -2430,20 +2392,23 @@ INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 
 		size_t y = 0;
 		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 3), sizeof(size_t));
+		
+		size_t rotation = 0;
+		copyHostInteger((unsigned char*) &rotation, getVariableContent(cframe, 4), sizeof(size_t));
 
-		LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 4)) -> content;
+		LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 5)) -> content;
 
 		size_t r = 0;
-		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 5), 1);
+		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 6), 1);
 
 		size_t g = 0;
-		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 6), 1);
+		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 7), 1);
 
 		size_t b = 0;
-		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 7), 1);
+		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 8), 1);
 
 		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 8), 1);
+		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 9), 1);
 
 		size_t tlen = array != NULL ? array -> length : 0;
 
@@ -2474,6 +2439,8 @@ INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 			poly -> g = g;
 			poly -> b = b;
 			poly -> a = a;
+			
+			poly -> rotation = rotation;
 			}
 		}
 
@@ -3529,7 +3496,6 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("addLine", op_add_line);
 	setInterfaceFunction("addPoint", op_add_point);
 	setInterfaceFunction("addBitmap", op_add_bitmap);
-	setInterfaceFunction("addText", op_add_text);
 	setInterfaceFunction("addTextWith", op_add_text_with);
 	setInterfaceFunction("pushSurface", op_push_surface);
 	setInterfaceFunction("popSurface", op_pop_surface);
