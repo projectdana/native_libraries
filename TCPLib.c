@@ -400,9 +400,8 @@ INSTRUCTION_DEF op_tcp_connect(VFrame *cframe)
 		else
 		{
 		newSocket = socket(adr_result->ai_family, adr_result->ai_socktype, adr_result->ai_protocol);
-		connected = true;
 		
-		if (connect(newSocket, adr_result->ai_addr, (int) adr_result->ai_addrlen) < 0)
+		if (newSocket < 0)
 			{
 			#ifdef WINDOWS
 			api -> throwException(cframe, getSocketError(WSAGetLastError()));
@@ -410,16 +409,30 @@ INSTRUCTION_DEF op_tcp_connect(VFrame *cframe)
 			#ifdef LINUX
 			api -> throwException(cframe, strerror(errno));
 			#endif
+			}
+			else
+			{		
+			connected = true;
 			
-			#ifdef WINDOWS
-			closesocket(newSocket);
-			#endif
-			
-			#ifdef LINUX
-			close(newSocket);
-			#endif
-			
-			connected = false;
+			if (connect(newSocket, adr_result->ai_addr, (int) adr_result->ai_addrlen) < 0)
+				{
+				#ifdef WINDOWS
+				api -> throwException(cframe, getSocketError(WSAGetLastError()));
+				#endif
+				#ifdef LINUX
+				api -> throwException(cframe, strerror(errno));
+				#endif
+				
+				#ifdef WINDOWS
+				closesocket(newSocket);
+				#endif
+				
+				#ifdef LINUX
+				close(newSocket);
+				#endif
+				
+				connected = false;
+				}
 			}
 		
 		freeaddrinfo(adr_result);
