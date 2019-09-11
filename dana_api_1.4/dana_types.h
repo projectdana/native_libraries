@@ -5,21 +5,21 @@
 
 #include "dana_semaphore.h"
 
-#define TYPE_NULL		0
-#define TYPE_LITERAL	1
-#define TYPE_PATTERN	2
-#define TYPE_FUNCTION	3
-#define TYPE_BINDPOINT	4
-#define TYPE_OBJECT		5
-#define TYPE_DATA		6
-#define TYPE_ARRAY		7
-#define TYPE_VAR		8
-#define TYPE_THREAD		9
-#define TYPE_MUTEX		10
-#define TYPE_VLH_LNK	11
-#define TYPE_VLH_CNT	12
-#define TYPE_PTRH		13
-#define TYPE_DECIMAL	14
+#define TYPE_NULL			0
+#define TYPE_LITERAL		1
+#define TYPE_PATTERN		2
+#define TYPE_FUNCTION		3
+#define TYPE_UNA			4
+#define TYPE_OBJECT			5
+#define TYPE_DATA			6
+#define TYPE_ARRAY			7
+#define TYPE_VAR			8
+#define TYPE_UND			9
+#define TYPE_EVENTSOURCE	10
+#define TYPE_UNC			11
+#define TYPE_UNB			12
+#define TYPE_PTRH			13
+#define TYPE_DECIMAL		14
 
 #define X_FLAT				0
 #define X_VLIST_CNT			1
@@ -163,12 +163,15 @@ typedef struct _p_danaField{
 
 typedef struct thrhdr{
 	size_t frameSize;
-	size_t registerCount;
+	struct thrhdr *sub;
 	size_t formalParamsCount;
 	unsigned char *pcLoc;
 	void *el;
 	size_t localsDef;
 	char *functionName;
+	size_t xr;
+	size_t xrr;
+	size_t xrd;
 	} VFrameHeader;
 
 typedef struct __est{

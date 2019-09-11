@@ -59,43 +59,43 @@ static const DanaTypeField PixelMap_fields[] = {
 {(DanaType*) &byte_array_def, NULL, 0, 0, 0}};
 static const DanaType PixelMap_def = 
 {TYPE_DATA, 0, 80, (DanaTypeField*) PixelMap_fields, 2};
-static const DanaTypeField function_PNGLib_clone_fields[] = {
+static const DanaTypeField function_JPGLib_clone_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
-static const DanaTypeField function_PNGLib_equals_fields[] = {
+static const DanaTypeField function_JPGLib_equals_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
-static const DanaTypeField function_PNGLib_toString_fields[] = {
+static const DanaTypeField function_JPGLib_toString_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaTypeField function_PNGLib_getID_fields[] = {
+static const DanaTypeField function_JPGLib_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaTypeField function_PNGLib_loadImage_fields[] = {
+static const DanaTypeField function_JPGLib_loadImage_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 8},
 {(DanaType*) &PixelMap_def, NULL, 0, 0, 48}};
-static const DanaTypeField function_PNGLib_saveImage_fields[] = {
+static const DanaTypeField function_JPGLib_saveImage_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 8},
 {(DanaType*) &PixelMap_def, NULL, 0, 0, 48}};
-static const DanaType object_PNGLib_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_PNGLib_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_PNGLib_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_PNGLib_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_PNGLib_getID_fields, 1},
-{TYPE_FUNCTION, 0, 88, (DanaTypeField*) &function_PNGLib_loadImage_fields, 3},
-{TYPE_FUNCTION, 0, 88, (DanaTypeField*) &function_PNGLib_saveImage_fields, 3}};
+static const DanaType object_JPGLib_functions_spec[] = {
+{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_JPGLib_clone_fields, 2},
+{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_JPGLib_equals_fields, 2},
+{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_JPGLib_toString_fields, 1},
+{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_JPGLib_getID_fields, 1},
+{TYPE_FUNCTION, 0, 88, (DanaTypeField*) &function_JPGLib_loadImage_fields, 3},
+{TYPE_FUNCTION, 0, 88, (DanaTypeField*) &function_JPGLib_saveImage_fields, 3}};
 static const DanaTypeField intf_functions_def[] = {
-{(DanaType*) &object_PNGLib_functions_spec[0], "clone", 5},
-{(DanaType*) &object_PNGLib_functions_spec[1], "equals", 6},
-{(DanaType*) &object_PNGLib_functions_spec[2], "toString", 8},
-{(DanaType*) &object_PNGLib_functions_spec[3], "getID", 5},
-{(DanaType*) &object_PNGLib_functions_spec[4], "loadImage", 9},
-{(DanaType*) &object_PNGLib_functions_spec[5], "saveImage", 9}};
-static const DanaType PNGLib_object_spec[] = {
+{(DanaType*) &object_JPGLib_functions_spec[0], "clone", 5},
+{(DanaType*) &object_JPGLib_functions_spec[1], "equals", 6},
+{(DanaType*) &object_JPGLib_functions_spec[2], "toString", 8},
+{(DanaType*) &object_JPGLib_functions_spec[3], "getID", 5},
+{(DanaType*) &object_JPGLib_functions_spec[4], "loadImage", 9},
+{(DanaType*) &object_JPGLib_functions_spec[5], "saveImage", 9}};
+static const DanaType JPGLib_object_spec[] = {
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 6},
 {TYPE_DATA, 0, 0, NULL, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
-{(DanaType*) &PNGLib_object_spec[0], ".functions", 10},
-{(DanaType*) &PNGLib_object_spec[1], ".events", 7},
-{(DanaType*) &PNGLib_object_spec[2], ".state", 6},
+{(DanaType*) &JPGLib_object_spec[0], ".functions", 10},
+{(DanaType*) &JPGLib_object_spec[1], ".events", 7},
+{(DanaType*) &JPGLib_object_spec[2], ".state", 6},
 };
 static unsigned char op_clone_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_equals_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
@@ -119,27 +119,33 @@ static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, 0, (size_t) &empty
 Interface* getPublicInterface(){
 ((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
-((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[0];
+((VFrameHeader*) op_clone_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_JPGLib_functions_spec[0];
 ((VFrameHeader*) op_clone_thread_spec) -> functionName = "clone";
 ((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_equals_thread_spec) -> formalParamsCount = 1;
-((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[1];
+((VFrameHeader*) op_equals_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_JPGLib_functions_spec[1];
 ((VFrameHeader*) op_equals_thread_spec) -> functionName = "equals";
 ((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_toString_thread_spec) -> formalParamsCount = 0;
-((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[2];
+((VFrameHeader*) op_toString_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_JPGLib_functions_spec[2];
 ((VFrameHeader*) op_toString_thread_spec) -> functionName = "toString";
 ((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_getID_thread_spec) -> formalParamsCount = 0;
-((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[3];
+((VFrameHeader*) op_getID_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_JPGLib_functions_spec[3];
 ((VFrameHeader*) op_getID_thread_spec) -> functionName = "getID";
 ((VFrameHeader*) op_loadImage_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 88;
 ((VFrameHeader*) op_loadImage_thread_spec) -> formalParamsCount = 2;
-((VFrameHeader*) op_loadImage_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[4];
+((VFrameHeader*) op_loadImage_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_loadImage_thread_spec) -> localsDef = (size_t) &object_JPGLib_functions_spec[4];
 ((VFrameHeader*) op_loadImage_thread_spec) -> functionName = "loadImage";
 ((VFrameHeader*) op_saveImage_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 88;
 ((VFrameHeader*) op_saveImage_thread_spec) -> formalParamsCount = 2;
-((VFrameHeader*) op_saveImage_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[5];
+((VFrameHeader*) op_saveImage_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_saveImage_thread_spec) -> localsDef = (size_t) &object_JPGLib_functions_spec[5];
 ((VFrameHeader*) op_saveImage_thread_spec) -> functionName = "saveImage";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
@@ -164,7 +170,7 @@ int i = 0;
 for (i = 0; i < sizeof(interfaceMappings) / sizeof(Fable); i ++){
 if (strcmp(interfaceMappings[i].name, name) == 0){
 interfaceMappings[i].hdr -> pcLoc = (unsigned char*) ptr;
-interfaceMappings[i].hdr -> registerCount = 1;
+interfaceMappings[i].hdr -> sub = NULL;
 interfaceMappings[i].hdr -> localsDef = 0;
 break;
 }

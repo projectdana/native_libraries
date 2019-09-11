@@ -1382,7 +1382,7 @@ static void* render_thread(void *ptr)
 					
 					if (myInstance != NULL)
 						{
-						pushMouseEvent(myInstance, 4, 0, e.window.data1, e.window.data2);
+						pushMouseEvent(myInstance, 5, 0, e.window.data1, e.window.data2);
 						}
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_MOVED)
@@ -1397,7 +1397,7 @@ static void* render_thread(void *ptr)
 						if (x < 0) x = 0;
 						if (y < 0) y = 0;
 						
-						pushMouseEvent(myInstance, 5, 0, x, y);
+						//pushMouseEvent(myInstance, 4, 0, x, y);
 						}
 					
 					newFrame = true;
@@ -1422,7 +1422,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 2, button, screenX, screenY);
+					pushMouseEvent(myInstance, 1, button, screenX, screenY);
 					}
 				}
 				else if (e.type == SDL_MOUSEBUTTONUP)
@@ -1441,7 +1441,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 1, button, screenX, screenY);
+					pushMouseEvent(myInstance, 0, button, screenX, screenY);
 					}
 				}
 				else if (e.type == SDL_MOUSEMOTION)
@@ -1453,7 +1453,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 3, 0, screenX, screenY);
+					pushMouseEvent(myInstance, 2, 0, screenX, screenY);
 					}
 				}
 				else if (e.type == SDL_KEYDOWN)
@@ -1464,7 +1464,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 7, keyID, 0, 0);
+					pushMouseEvent(myInstance, 3, keyID, 0, 0);
 					}
 				}
 				else if (e.type == SDL_KEYUP)
@@ -1475,7 +1475,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 8, keyID, 0, 0);
+					pushMouseEvent(myInstance, 4, keyID, 0, 0);
 					}
 				}
 				else if (e.type == DX_NEW_WINDOW_EVENT)
@@ -2067,7 +2067,7 @@ INSTRUCTION_DEF op_make_window(VFrame *cframe)
 	memcpy(result, &xs, sizeof(size_t));
 	
 	if (mwInfo -> instanceResult != NULL)
-		mwInfo -> instanceResult -> eqObject = cframe -> blocking -> io;
+		mwInfo -> instanceResult -> eqObject = cframe -> io;
 	
 	free(mwInfo);
 	

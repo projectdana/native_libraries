@@ -22,10 +22,6 @@
 
 #include <math.h>
 
-#include "alu.h"
-
-#include "int_util.h"
-
 #define PI 3.14159265
 
 static CoreAPI *api;

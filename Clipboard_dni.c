@@ -101,26 +101,32 @@ static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, 0, (size_t) &empty
 Interface* getPublicInterface(){
 ((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_clone_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_Clipboard_functions_spec[0];
 ((VFrameHeader*) op_clone_thread_spec) -> functionName = "clone";
 ((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_equals_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_equals_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_Clipboard_functions_spec[1];
 ((VFrameHeader*) op_equals_thread_spec) -> functionName = "equals";
 ((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_toString_thread_spec) -> formalParamsCount = 0;
+((VFrameHeader*) op_toString_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_Clipboard_functions_spec[2];
 ((VFrameHeader*) op_toString_thread_spec) -> functionName = "toString";
 ((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_getID_thread_spec) -> formalParamsCount = 0;
+((VFrameHeader*) op_getID_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_Clipboard_functions_spec[3];
 ((VFrameHeader*) op_getID_thread_spec) -> functionName = "getID";
 ((VFrameHeader*) op_setContent_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_setContent_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_setContent_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_setContent_thread_spec) -> localsDef = (size_t) &object_Clipboard_functions_spec[4];
 ((VFrameHeader*) op_setContent_thread_spec) -> functionName = "setContent";
 ((VFrameHeader*) op_getContent_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_getContent_thread_spec) -> formalParamsCount = 0;
+((VFrameHeader*) op_getContent_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getContent_thread_spec) -> localsDef = (size_t) &object_Clipboard_functions_spec[5];
 ((VFrameHeader*) op_getContent_thread_spec) -> functionName = "getContent";
 memset(&self, '\0', sizeof(self));
@@ -146,7 +152,7 @@ int i = 0;
 for (i = 0; i < sizeof(interfaceMappings) / sizeof(Fable); i ++){
 if (strcmp(interfaceMappings[i].name, name) == 0){
 interfaceMappings[i].hdr -> pcLoc = (unsigned char*) ptr;
-interfaceMappings[i].hdr -> registerCount = 1;
+interfaceMappings[i].hdr -> sub = NULL;
 interfaceMappings[i].hdr -> localsDef = 0;
 break;
 }
