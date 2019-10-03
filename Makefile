@@ -77,7 +77,7 @@ else
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
-		SQL_FLAGS = -L/usr/local/mysql-8.0.12-macos10.13-x86_64/lib/ -lmysqlclient
+		SQL_FLAGS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
 		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
