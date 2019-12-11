@@ -64,6 +64,7 @@ static char *setValue = NULL;
 
 pthread_mutexattr_t mAttr;
 pthread_mutex_t clipboardLock;
+pthread_mutex_t pendingGetLock;
 
 sem_t sem;
 
@@ -86,33 +87,38 @@ static void* clip_thread(void *ptr)
 
 		//printf("::event\n");
 
-		if (pendingGet && event.type == SelectionNotify && event.xselection.selection == bufid)
+		if (event.type == SelectionNotify && event.xselection.selection == bufid)
 			{
 			unsigned long ressize, restail;
 			int resbits;
-
-			if (event.xselection.property)
+			
+			pthread_mutex_lock(&pendingGetLock);
+			if (pendingGet)
 				{
-				XGetWindowProperty(display, window, propid, 0, LONG_MAX/4, False, AnyPropertyType,
-				  &fmtid, &resbits, &ressize, &restail, (unsigned char**)&resultGet);
-
-				if (fmtid == incrid)
+				if (event.xselection.property)
 					{
-					//TODO: add support for this! (incremental reading of content in chunks)
+					XGetWindowProperty(display, window, propid, 0, LONG_MAX/4, False, AnyPropertyType,
+					  &fmtid, &resbits, &ressize, &restail, (unsigned char**)&resultGet);
+
+					if (fmtid == incrid)
+						{
+						//TODO: add support for this! (incremental reading of content in chunks)
+						}
+
+					//resume lock
+
+					pendingGet = false;
+					sem_post(&sem);
 					}
+					else // request failed, e.g. owner can't convert to the target format
+					{
+					//resume lock
 
-				//resume lock
-
-				pendingGet = false;
-				sem_post(&sem);
+					pendingGet = false;
+					sem_post(&sem);
+					}
 				}
-				else // request failed, e.g. owner can't convert to the target format
-				{
-				//resume lock
-
-				pendingGet = false;
-				sem_post(&sem);
-				}
+			pthread_mutex_unlock(&pendingGetLock);
 			}
 			else if (event.type == SelectionRequest && setValue != NULL)
 			{
@@ -204,6 +210,12 @@ INSTRUCTION_DEF op_set_content(VFrame *cframe)
 
 	#ifdef LINUX
 	#ifndef OSX
+	if (display == NULL)
+		{
+		api -> throwException(cframe, "clipboard unavailable (requires x11)");
+		return RETURN_OK;
+		}
+	
 	pthread_mutex_lock(&clipboardLock);
 
 	//pop this content into a global variable and respond to SelectionRequest events...
@@ -264,9 +276,15 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 		CloseClipboard();
 		}
 	#endif
-
+	
 	#ifdef LINUX
 	#ifndef OSX
+	if (display == NULL)
+		{
+		api -> throwException(cframe, "clipboard unavailable (requires x11)");
+		return RETURN_OK;
+		}
+	
 	pthread_mutex_lock(&clipboardLock);
 
 	struct timespec ts;
@@ -279,21 +297,25 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 		ts.tv_nsec-=1000000000;
 	}
 
-	//NOTE: this would be better done with a condition variable...
 	pendingGet = true;
 
 	XConvertSelection(display, bufid, fmtid, propid, window, CurrentTime);
 	XFlush(display);
 
 	sem_timedwait(&sem, &ts);
+	
+	pthread_mutex_lock(&pendingGetLock);
 
+	if (!pendingGet && resultGet != NULL)
+		{
+		return_char_array(cframe, api, resultGet);
+		XFree(resultGet);
+		}
+	
 	pendingGet = false;
-
-	if (resultGet != NULL) return_char_array(cframe, api, resultGet);
-
-	XFree(resultGet);
-
 	resultGet = NULL;
+	
+	pthread_mutex_unlock(&pendingGetLock);
 
 	pthread_mutex_unlock(&clipboardLock);
 	#endif
@@ -344,23 +366,28 @@ Interface* load(CoreAPI *capi)
 	#ifndef OSX
 	XInitThreads();
     display = XOpenDisplay(NULL);
-    color = BlackPixel(display, DefaultScreen(display));
-    window = XCreateSimpleWindow(display, DefaultRootWindow(display), 0, 0, 1, 1, 0, color, color);
+	
+	if (display != NULL)
+		{
+		color = BlackPixel(display, DefaultScreen(display));
+		window = XCreateSimpleWindow(display, DefaultRootWindow(display), 0, 0, 1, 1, 0, color, color);
 
-	pthread_mutexattr_settype(&mAttr, PTHREAD_MUTEX_RECURSIVE_NP);
-	pthread_mutex_init(&clipboardLock, &mAttr);
+		pthread_mutexattr_settype(&mAttr, PTHREAD_MUTEX_RECURSIVE_NP);
+		pthread_mutex_init(&clipboardLock, &mAttr);
+		pthread_mutex_init(&pendingGetLock, &mAttr);
+		
+		sem_init(&sem, 0, 0);
 
-	sem_init(&sem, 0, 0);
+		bufid = XInternAtom(display, "CLIPBOARD", False);
+		fmtid = XInternAtom(display, "UTF8_STRING", False);
+		incrid = XInternAtom(display, "INCR", False);
+		propid = XInternAtom(display, "XSEL_DATA", False);
+		xtargets = XInternAtom(display, "TARGETS", False);
 
-	bufid = XInternAtom(display, "CLIPBOARD", False);
-	fmtid = XInternAtom(display, "UTF8_STRING", False);
-	incrid = XInternAtom(display, "INCR", False);
-	propid = XInternAtom(display, "XSEL_DATA", False);
-	xtargets = XInternAtom(display, "TARGETS", False);
-
-	int err = 0;
-	memset(&threadHandle, '\0', sizeof(pthread_t));
-	if ((err = pthread_create(&threadHandle, NULL, clip_thread, NULL)) != 0){}
+		int err = 0;
+		memset(&threadHandle, '\0', sizeof(pthread_t));
+		if ((err = pthread_create(&threadHandle, NULL, clip_thread, NULL)) != 0){}
+		}
 	#endif
 	#endif
 
@@ -371,12 +398,18 @@ void unload()
 	{
 	#ifdef LINUX
 	#ifndef OSX
-	dwe.type = DestroyNotify;
-	XSendEvent(display, window, 0, 0, (XEvent*) &dwe);
-	XDestroyWindow(display, window);
-	XFlush(display);
-	pthread_join(threadHandle, NULL);
-	XCloseDisplay(display);
+	if (display != NULL)
+		{
+		dwe.type = DestroyNotify;
+		XSendEvent(display, window, 0, 0, (XEvent*) &dwe);
+		XDestroyWindow(display, window);
+		XFlush(display);
+		pthread_join(threadHandle, NULL);
+		XCloseDisplay(display);
+		
+		pthread_mutex_destroy(&clipboardLock);
+		pthread_mutex_destroy(&pendingGetLock);
+		}
 	#endif
 	#endif
 	}
