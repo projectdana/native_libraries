@@ -1,18 +1,6 @@
-//Written by Barry Porter, 2016, last updated 2018
+//Written by Barry Porter, 2016, last updated 2020
 
 //This is a graphics library using SDL2 for its rendering.
-
-//NOTE: this component does not work on Mac OS X due to a "non main thread" exception
-// - this is hard to fix; the render/event loop can't be guaranteed to run in the main thread by the language
-// - we seem to have two options:
-//    1. We make Canvas such that it must be run from the main thread, and all render calls come directly from Canvas in that thread...except we need to run the event loop somewhere, and so Canvas would have to somehow integrate into that event loop in its main thread. This would probably work, but then Canvas itself would have to be documented as only being runnable from the main thread, and would cause an immediate uncatchable whole-system-crash if it was called from any other thread. In other words, the language itself cannot defend against this unless we had some sort of runtime dana.isMainThread() check for Canvas to call before proceeding.
-//   2. We require a special case in the Dana interpreter for a graphics library such that, if loaded at all, it has a special function that can take over the main interpreter thread. Only one library (the first to ask??) could do this from all those that are loaded. This works around the special documentation issue above, since any language-level thread could spawn windows without errors. However, presumably the interpreter would have to yield program flow control to the native library's special function.
-//   - it's also worth noting that, unfortunately, there are OTHER OS X APIs that have the same "main thread" requirement, which perhaps precludes option (2) above from being workable as multiple different libraries might need this "privilege"
-//   - this would leave us only with option (1), which has the undesirable side-effect of (assuming you want platform-independent code) forcing all platforms into this documentation-based corner for the sake of a peculiarity in OS X
-//   - a third option might be to mark libraries as main-thread-only, and actually launch them in their own process and then set up IPC channels to those libraries (or I suppose the library itself might be able to arrange this without needing interpreter support); this would need an IPC abstraction layer which makes all processes look the same from Dana-land
-//   - there's a good discussion of the OS X issues here: https://www.mikeash.com/pyblog/friday-qa-2009-01-09.html
-// - a compromise might be to directly expose the event loop from Canvas (or from e.g. a new component MediaLayer) to the App; so we just have a function like processEvent() which returns true if there's stuff to do, or false if we're quitting the application - then you can just do while(processEvent())
-//   - the issue here is that only one thread can do this, and all meta-composers would have to ensure that the app is run in their main thread with meta-duties in a background thread; meta-composers would also be unable to launch multiple apps
 
 /*
 NOTE: Since Dana v222 we need to statically link against the SDL libraries, to avoid additional dependency installs outside of Dana. On Linux, we need to download the SDL2 and SDL2ttf source code, and configure+make+make-install them. For SDL2 and SDL2ttf we need to update CFLAGS to include -fPIC because we're linking against a .so; for SDL itself we use --configure-sndio=no in configure to avoid linking against this extra library. We currently assume that lfreetype is installed on Linux as standard. We're aware that, in general, there are good reasons not to statically link SDL; we don't think these reasons apply here because the Dana runtime already dynamically links against this library, so it can be swapped out easily at the Dana level.
@@ -324,6 +312,8 @@ typedef struct __li{
 static ListItem *instances = NULL;
 static ListItem *lastInstance = NULL;
 
+static void *systemEventObject = NULL;
+
 #ifdef STATS
 typedef struct{
 	TTF_Font *font;
@@ -341,6 +331,18 @@ typedef struct{
 static StatList stats;
 #endif
 
+#ifdef WINDOWS
+static HANDLE frameworkShutdownLock;
+#endif
+
+#ifdef OSX
+static dispatch_semaphore_t frameworkShutdownLock;
+#else
+#ifdef LINUX
+static sem_t frameworkShutdownLock;
+#endif
+#endif
+
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
 	LiveArray *array = malloc(sizeof(LiveArray));
@@ -353,7 +355,8 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	api -> incrementGTRefCount(array -> gtLink);
 	array -> owner = f -> blocking -> instance;
 	
-	array -> refCount ++;
+	array -> refi.refCount ++;
+	array -> refi.type = array -> gtLink -> typeLink;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
@@ -1009,32 +1012,7 @@ static WindowInstance* createNewWindow()
 	SDL_VERSION(&info.version);
 	myInstance -> win = SDL_CreateWindow("Dana UI", myInstance -> windowX, myInstance -> windowY, myInstance -> windowWidth, myInstance -> windowHeight, SDL_WINDOW_HIDDEN);
 	myInstance -> ID = SDL_GetWindowID(myInstance -> win);
-
-	if(SDL_GetWindowWMInfo(myInstance -> win, &info)) {
-		switch(info.subsystem) {
-			  case SDL_SYSWM_UNKNOWN:   break;
-			  #ifdef WINDOWS
-			  case SDL_SYSWM_WINDOWS:   myInstance -> windowHandle = info.info.win.window;
-			  							break;
-			  #endif
-			  #ifdef OSX
-			  case SDL_SYSWM_COCOA:		myInstance -> windowHandle = info.info.cocoa.window;
-			  							break;
-			  #else
-			  #ifdef LINUX
-			  case SDL_SYSWM_X11:       myInstance -> windowHandle = info.info.x11.window;
-			  							myInstance -> displayHandle = info.info.x11.display;
-			  							break;
-			  #endif
-			  #endif
-			  case SDL_SYSWM_DIRECTFB:
-			  							break;
-			  case SDL_SYSWM_UIKIT:
-			  							break;
-			  default: break;
-			}
-		}
-
+	
 	if (myInstance -> win == NULL){
 		printf("null window\n");
 		//SDL_GetError()
@@ -1056,8 +1034,6 @@ static WindowInstance* createNewWindow()
 		printf("Critical error in GUI rendering subsystem: RCE 001 [%s]\n", SDL_GetError());
 		return NULL;
 		}
-
-	// -- insert our custom windowproc in between Windows and SDL (for proper mouse capture) --
 
 	return myInstance;
 	}
@@ -1159,21 +1135,6 @@ typedef struct{
 #endif
 	} GetTextWidthInfo;
 
-#ifdef WINDOWS
-static HANDLE graphicsShutdownLock;
-static HANDLE graphicsStartupLock;
-#endif
-
-#ifdef OSX
-static dispatch_semaphore_t graphicsShutdownLock;
-static dispatch_semaphore_t graphicsStartupLock;
-#else
-#ifdef LINUX
-static sem_t graphicsShutdownLock;
-static sem_t graphicsStartupLock;
-#endif
-#endif
-
 static unsigned int DX_NEW_WINDOW_EVENT = 0;
 static unsigned int DX_SWAP_BUFFERS_EVENT = 0;
 static unsigned int DX_SET_WINDOW_POSITION = 0;
@@ -1195,8 +1156,7 @@ static unsigned int DX_GENERATE_BITMAP_SURFACE = 0;
 static unsigned int DX_LOAD_FONT = 0;
 static unsigned int DX_UNLOAD_FONT = 0;
 static unsigned int DX_GET_TEXT_WIDTH = 0;
-
-static bool shutdown_event_loop = false;
+static unsigned int DX_SYSTEM_SHUTDOWN = 0;
 
 static bool resizeAvailable = true;
 
@@ -1270,74 +1230,8 @@ static SDL_Surface* pixelMapToSurface(LiveData *pm)
 	return primarySurface;
 	}
 
-#ifdef WINDOWS
-DWORD WINAPI render_thread(LPVOID ptr)
-#else
-static void* render_thread(void *ptr)
-#endif
+static void render_thread()
 	{
-	#ifdef LINUX
-	pthread_detach(pthread_self());
-	#endif
-
-	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC) != 0)
-	//if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
-		{
-		printf("SDL INIT FAILED");
-		//std::cout << "SDL_Init Error: " << SDL_GetError() << std::endl;
-		}
-
-	if (TTF_Init() != 0)
-		{
-		//logSDLError(std::cout, "TTF_Init");
-		}
-
-	DX_NEW_WINDOW_EVENT = SDL_RegisterEvents(1);
-	DX_SWAP_BUFFERS_EVENT = SDL_RegisterEvents(1);
-	DX_SET_WINDOW_POSITION = SDL_RegisterEvents(1);
-	DX_SET_WINDOW_TITLE = SDL_RegisterEvents(1);
-	DX_SET_WINDOW_ICON = SDL_RegisterEvents(1);
-	DX_MAXIMISE_WINDOW = SDL_RegisterEvents(1);
-	DX_MINIMISE_WINDOW = SDL_RegisterEvents(1);
-	DX_SHOW_WINDOW = SDL_RegisterEvents(1);
-	DX_HIDE_WINDOW = SDL_RegisterEvents(1);
-	DX_SET_WINDOW_SIZE = SDL_RegisterEvents(1);
-	DX_RESIZABLE_WINDOW = SDL_RegisterEvents(1);
-	DX_FIXED_SIZE_WINDOW = SDL_RegisterEvents(1);
-	DX_FULLSCREEN_WINDOW = SDL_RegisterEvents(1);
-	DX_WINDOWED_WINDOW = SDL_RegisterEvents(1);
-	DX_GET_RESOLUTION = SDL_RegisterEvents(1);
-	DX_CLOSE_WINDOW = SDL_RegisterEvents(1);
-	DX_GENERATE_TEXT_BITMAP = SDL_RegisterEvents(1);
-	DX_GENERATE_BITMAP_SURFACE = SDL_RegisterEvents(1);
-	DX_LOAD_FONT = SDL_RegisterEvents(1);
-	DX_UNLOAD_FONT = SDL_RegisterEvents(1);
-	DX_GET_TEXT_WIDTH = SDL_RegisterEvents(1);
-
-	#ifdef WINDOWS
-	graphicsShutdownLock = CreateSemaphore(NULL, 0, 1, NULL);
-	#endif
-	#ifdef OSX
-	dispatch_semaphore_t *sem;
-    sem = &graphicsShutdownLock;
-    *sem = dispatch_semaphore_create(0);
-	#else
-	#ifdef LINUX
-	sem_init(&graphicsShutdownLock, 0, 0);
-	#endif
-	#endif
-
-	#ifdef WINDOWS
-	ReleaseSemaphore(graphicsStartupLock, 1, NULL);
-	#endif
-	#ifdef OSX
-	dispatch_semaphore_signal(graphicsStartupLock);
-	#else
-	#ifdef LINUX
-	sem_post(&graphicsStartupLock);
-	#endif
-	#endif
-
 	SDL_Event e;
 	bool quit = false;
 
@@ -1345,10 +1239,15 @@ static void* render_thread(void *ptr)
 	bool newFrame = true;
 
 	fflush(stdout);
-
+	
+	//notify any event listeners that the renderer is now ready to go...
+	api -> pushEvent(systemEventObject, 0, 0, NULL);
+	
 	while (!quit)
 		{
 		//Read user input & handle it
+		
+		//printf("wait-event\n");
 		
 		if (SDL_WaitEvent(&e)) //does this make things more jittery?
 		{
@@ -1357,7 +1256,12 @@ static void* render_thread(void *ptr)
 			//printf("%u\n", e.type);
 			if (e.type == SDL_QUIT)
 				{
-				if (shutdown_event_loop) quit = true;
+				//notify any event listeners that the system has received a shutdown request
+				api -> pushEvent(systemEventObject, 0, 8, NULL);
+				}
+				else if (e.type == DX_SYSTEM_SHUTDOWN)
+				{
+				quit = true;
 				}
 				else if (e.type == SDL_WINDOWEVENT)
 				{
@@ -1374,7 +1278,7 @@ static void* render_thread(void *ptr)
 					else if (e.window.event == SDL_WINDOWEVENT_CLOSE)
 					{
 					WindowInstance *myInstance = findWindow(e.window.windowID);
-					pushEvent(myInstance, 6);
+					pushEvent(myInstance, 7);
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
@@ -1382,7 +1286,7 @@ static void* render_thread(void *ptr)
 					
 					if (myInstance != NULL)
 						{
-						pushMouseEvent(myInstance, 5, 0, e.window.data1, e.window.data2);
+						pushMouseEvent(myInstance, 6, 0, e.window.data1, e.window.data2);
 						}
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_MOVED)
@@ -1397,7 +1301,7 @@ static void* render_thread(void *ptr)
 						if (x < 0) x = 0;
 						if (y < 0) y = 0;
 						
-						//pushMouseEvent(myInstance, 4, 0, x, y);
+						//pushMouseEvent(myInstance, 5, 0, x, y);
 						}
 					
 					newFrame = true;
@@ -1422,7 +1326,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 1, button, screenX, screenY);
+					pushMouseEvent(myInstance, 2, button, screenX, screenY);
 					}
 				}
 				else if (e.type == SDL_MOUSEBUTTONUP)
@@ -1441,7 +1345,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 0, button, screenX, screenY);
+					pushMouseEvent(myInstance, 1, button, screenX, screenY);
 					}
 				}
 				else if (e.type == SDL_MOUSEMOTION)
@@ -1453,7 +1357,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 2, 0, screenX, screenY);
+					pushMouseEvent(myInstance, 3, 0, screenX, screenY);
 					}
 				}
 				else if (e.type == SDL_KEYDOWN)
@@ -1464,7 +1368,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 3, keyID, 0, 0);
+					pushMouseEvent(myInstance, 4, keyID, 0, 0);
 					}
 				}
 				else if (e.type == SDL_KEYUP)
@@ -1475,7 +1379,7 @@ static void* render_thread(void *ptr)
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 4, keyID, 0, 0);
+					pushMouseEvent(myInstance, 5, keyID, 0, 0);
 					}
 				}
 				else if (e.type == DX_NEW_WINDOW_EVENT)
@@ -1766,7 +1670,8 @@ static void* render_thread(void *ptr)
 				pixelArrayH -> owner = frame -> blocking -> instance;
 
 				arrayPTR -> content = (unsigned char*) pixelArrayH;
-				pixelArrayH -> refCount ++;
+				pixelArrayH -> refi.refCount ++;
+				pixelArrayH -> refi.type = pixelArrayH -> gtLink -> typeLink;
 				arrayPTR -> typeLink = pixelArrayH -> gtLink -> typeLink;
 
 				//printf("size: %u | %u\n", totalPixels, ((StructuredType*) pixelArrayH -> gtLink -> typeLink -> definition.content) -> size);
@@ -1964,7 +1869,11 @@ static void* render_thread(void *ptr)
 				#endif
 				#endif
 				}
-			} while(SDL_PollEvent(&e)); //power through all other events to clear the queue
+			} while(SDL_PollEvent(&e)); //go through all other events to clear the queue
+		}
+		else
+		{
+		//printf(SDL_GetError());
 		}
 
 		if (newFrame)
@@ -1992,24 +1901,15 @@ static void* render_thread(void *ptr)
 		lw = lw -> next;
 		}
 
-	//it's over
-	SDL_Quit();
-
 	#ifdef WINDOWS
-	ReleaseSemaphore(graphicsShutdownLock, 1, NULL);
+	ReleaseSemaphore(frameworkShutdownLock, 1, NULL);
 	#endif
 	#ifdef OSX
-	dispatch_semaphore_signal(graphicsShutdownLock);
+	dispatch_semaphore_signal(frameworkShutdownLock);
 	#else
 	#ifdef LINUX
-	sem_post(&graphicsShutdownLock);
+	sem_post(&frameworkShutdownLock);
 	#endif
-	#endif
-
-	#ifdef WINDOWS
-	return 0;
-	#else
-	return NULL;
 	#endif
 	}
 
@@ -2812,6 +2712,7 @@ static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, siz
 	
 	nd -> gtLink = windowDataGT;
 	api -> incrementGTRefCount(nd -> gtLink);
+	nd -> refi.type = nd -> gtLink -> typeLink;
 	
 	unsigned char *wd_bid = nd -> data;
 	unsigned char *wd_x = nd -> data + sizeof(size_t);
@@ -3401,80 +3302,93 @@ INSTRUCTION_DEF op_unload_font(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-static void initRendering()
+INSTRUCTION_DEF op_init_media_layer(VFrame *cframe)
 	{
+	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC) != 0)
+	//if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+		{
+		printf("SDL INIT FAILED\n");
+		}
+
+	if (TTF_Init() != 0)
+		{
+		//logSDLError(std::cout, "TTF_Init");
+		}
+
+	DX_NEW_WINDOW_EVENT = SDL_RegisterEvents(1);
+	DX_SWAP_BUFFERS_EVENT = SDL_RegisterEvents(1);
+	DX_SET_WINDOW_POSITION = SDL_RegisterEvents(1);
+	DX_SET_WINDOW_TITLE = SDL_RegisterEvents(1);
+	DX_SET_WINDOW_ICON = SDL_RegisterEvents(1);
+	DX_MAXIMISE_WINDOW = SDL_RegisterEvents(1);
+	DX_MINIMISE_WINDOW = SDL_RegisterEvents(1);
+	DX_SHOW_WINDOW = SDL_RegisterEvents(1);
+	DX_HIDE_WINDOW = SDL_RegisterEvents(1);
+	DX_SET_WINDOW_SIZE = SDL_RegisterEvents(1);
+	DX_RESIZABLE_WINDOW = SDL_RegisterEvents(1);
+	DX_FIXED_SIZE_WINDOW = SDL_RegisterEvents(1);
+	DX_FULLSCREEN_WINDOW = SDL_RegisterEvents(1);
+	DX_WINDOWED_WINDOW = SDL_RegisterEvents(1);
+	DX_GET_RESOLUTION = SDL_RegisterEvents(1);
+	DX_CLOSE_WINDOW = SDL_RegisterEvents(1);
+	DX_GENERATE_TEXT_BITMAP = SDL_RegisterEvents(1);
+	DX_GENERATE_BITMAP_SURFACE = SDL_RegisterEvents(1);
+	DX_LOAD_FONT = SDL_RegisterEvents(1);
+	DX_UNLOAD_FONT = SDL_RegisterEvents(1);
+	DX_GET_TEXT_WIDTH = SDL_RegisterEvents(1);
+	DX_SYSTEM_SHUTDOWN = SDL_RegisterEvents(1);
+	
+	systemEventObject = cframe -> io;
+	
 	#ifdef WINDOWS
-	graphicsStartupLock = CreateSemaphore(NULL, 0, 1, NULL);
+	frameworkShutdownLock = CreateSemaphore(NULL, 0, 1, NULL);
 	#endif
 	#ifdef OSX
 	dispatch_semaphore_t *sem;
-	sem = &graphicsStartupLock;
+    sem = &frameworkShutdownLock;
     *sem = dispatch_semaphore_create(0);
 	#else
 	#ifdef LINUX
-	sem_init(&graphicsStartupLock, 0, 0);
+	sem_init(&frameworkShutdownLock, 0, 0);
 	#endif
 	#endif
-
-	//fire off the single unified rendering thread
-	#ifdef WINDOWS
-	HANDLE th = CreateThread(
-            NULL,               // default security attributes
-            0,                  // use default stack size
-            render_thread,      // thread function name
-            NULL,               // argument to thread function
-            0,                  // use default creation flags
-            NULL);              // returns the thread identifier
-
-	CloseHandle(th);
 	
-	/*
-	th = CreateThread(
-            NULL,               // default security attributes
-            0,                  // use default stack size
-            sleep_thread,      // thread function name
-            NULL,               // argument to thread function
-            0,                  // use default creation flags
-            NULL);              // returns the thread identifier
+	unsigned char ok = 1;
+	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
+	memcpy(result, &ok, sizeof(unsigned char));
+	
+	return RETURN_OK;
+	}
 
-	CloseHandle(th);
-	*/
-	#else
-	int err = 0;
-	pthread_t th;
-	memset(&th, '\0', sizeof(pthread_t));
-	if ((err = pthread_create(&th, NULL, render_thread, NULL)) != 0){}
-	#endif
+INSTRUCTION_DEF op_run_system_loop(VFrame *cframe)
+	{
+	render_thread();
+	
+	return RETURN_OK;
+	}
 
-	//wait for good init
+INSTRUCTION_DEF op_shutdown(VFrame *cframe)
+	{
+	SDL_Event newEvent;
+	newEvent.type = DX_SYSTEM_SHUTDOWN;
+
+	SDL_PushEvent(&newEvent);
+	
+	//wait for close-confirm (otherwise our event loop can fail to exit, if we call SDL_Quit() before it's received the shutdown event)
 	#ifdef WINDOWS
-	WaitForSingleObject(graphicsStartupLock, INFINITE);
+	WaitForSingleObject(frameworkShutdownLock, INFINITE);
 	#endif
 	#ifdef OSX
-	dispatch_semaphore_wait(graphicsStartupLock, DISPATCH_TIME_FOREVER);
+	dispatch_semaphore_wait(frameworkShutdownLock, DISPATCH_TIME_FOREVER);
 	#else
 	#ifdef LINUX
-	sem_wait(&graphicsStartupLock);
+	sem_wait(&frameworkShutdownLock);
 	#endif
 	#endif
-
-	#ifdef STATS
-	#ifdef WINDOWS
-	th = CreateThread(
-            NULL,               // default security attributes
-            0,                  // use default stack size
-            stats_thread,      // thread function name
-            NULL,               // argument to thread function
-            0,                  // use default creation flags
-            NULL);              // returns the thread identifier
-
-	CloseHandle(th);
-	#else
-	memset(&th, '\0', sizeof(pthread_t));
-
-	if ((err = pthread_create(&th, NULL, stats_thread, NULL)) != 0){}
-	#endif
-	#endif
+	
+	SDL_Quit();
+	
+	return RETURN_OK;
 	}
 
 Interface* load(CoreAPI *capi)
@@ -3514,6 +3428,10 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("getMaximisedScreenRect", op_get_maximised_screen_rect);
 	setInterfaceFunction("closeWindow", op_close_window);
 	
+	setInterfaceFunction("initMediaLayer", op_init_media_layer);
+	setInterfaceFunction("runSystemLoop", op_run_system_loop);
+	setInterfaceFunction("shutdown", op_shutdown);
+	
 	setInterfaceFunction("loadFont", op_load_font);
 	setInterfaceFunction("getTextWidth", op_get_text_width_with);
 	setInterfaceFunction("getFontMetrics", op_get_font_metrics);
@@ -3536,32 +3454,11 @@ Interface* load(CoreAPI *capi)
 
 	
 	primeFontDirectories();
-
-	initRendering();
 	
 	return getPublicInterface();
 	}
 
 void unload()
 	{
-	shutdown_event_loop = true;
-	SDL_Event quit_event;
-	quit_event.type=SDL_QUIT;
-	SDL_PushEvent(&quit_event);
-	
-	//wait for all close locks...
-	#ifdef WINDOWS
-	WaitForSingleObject(graphicsShutdownLock, INFINITE);
-	#endif
-	#ifdef OSX
-	dispatch_semaphore_wait(graphicsShutdownLock, DISPATCH_TIME_FOREVER);
-	#else
-	#ifdef LINUX
-	sem_wait(&graphicsShutdownLock);
-	#endif
-	#endif
-
-	SDL_Quit();
-	
 	api -> decrementGTRefCount(charArrayGT);
 	}

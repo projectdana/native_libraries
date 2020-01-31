@@ -38,7 +38,8 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	api -> incrementGTRefCount(array -> gtLink);
 	array -> owner = f -> blocking -> instance;
 	
-	array -> refCount ++;
+	array -> refi.refCount ++;
+	array -> refi.type = array -> gtLink -> typeLink;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
@@ -447,7 +448,8 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 					
 					ptrh -> content = (unsigned char*) itemArray;
 					ptrh -> typeLink = itemArray -> gtLink -> typeLink;
-					itemArray -> refCount ++;
+					itemArray -> refi.refCount ++;
+					itemArray -> refi.type = itemArray -> gtLink -> typeLink;
 					
 					if (itemList == NULL)
 						itemList = newItem;
@@ -506,7 +508,8 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				
 				ptrh -> content = (unsigned char*) itemArray;
 				ptrh -> typeLink = itemArray -> gtLink -> typeLink;
-				itemArray -> refCount ++;
+				itemArray -> refi.refCount ++;
+				itemArray -> refi.type = itemArray -> gtLink -> typeLink;
 				
 				if (itemList == NULL)
 					itemList = newItem;
@@ -530,6 +533,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 		newArray -> data = malloc(sizeof(VVarLivePTR) * count);
 		memset(newArray -> data, '\0', sizeof(VVarLivePTR) * count);
 		newArray -> length = count;
+		newArray -> refi.type = newArray -> gtLink -> typeLink;
 		
 		FileInfoItem *fw = itemList;
 		int i = 0;
@@ -538,8 +542,9 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 			VVarLivePTR *ptrh = (VVarLivePTR*) (&newArray -> data[sizeof(VVarLivePTR) * i]);
 			ptrh -> content = (unsigned char*) fw -> data;
 			ptrh -> typeLink = fw -> data -> gtLink -> typeLink;
-			fw -> data -> refCount ++;
-			
+			fw -> data -> refi.refCount ++;
+			fw -> data -> refi.type = fw -> data -> gtLink -> typeLink;
+		
 			FileInfoItem *td = fw;
 			fw = fw -> next;
 			free(td);
@@ -548,7 +553,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 		VVarLivePTR *ptrh = (VVarLivePTR*) data -> data;
 		ptrh -> content = (unsigned char*) newArray;
 		ptrh -> typeLink = newArray -> gtLink -> typeLink;
-		newArray -> refCount ++;
+		newArray -> refi.refCount ++;
 		}
 	
 	free(path);

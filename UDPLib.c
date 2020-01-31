@@ -13,7 +13,7 @@
 
 #ifdef WINDOWS
 // this is required to access getaddrinfo and other IPv6 functions
-# if !defined( _WIN32_WINNT ) || ( _WIN32_WINNT < 0x0501 )
+# if !defined( _WIN32_WINNT ) || ( _WIN332_WINNT < 0x0501 )
 #  undef  _WIN32_WINNT
 #  define _WIN32_WINNT 0x0501
 # endif
@@ -365,7 +365,8 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
 	
 	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refCount ++;
+	newArray -> refi.refCount ++;
+	newArray -> refi.type = newArray -> gtLink -> typeLink;
 	ptrh -> typeLink = newArray -> gtLink -> typeLink;
 	
 	//Datagram.port
@@ -391,7 +392,8 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	ptrh = (VVarLivePTR*) (((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data + sizeof(VVarLivePTR) + sizeof(size_t));
 	
 	ptrh -> content = (unsigned char*) newContentArray;
-	newContentArray -> refCount ++;
+	newContentArray -> refi.refCount ++;
+	newContentArray -> refi.type = newContentArray -> gtLink -> typeLink;
 	ptrh -> typeLink = newContentArray -> gtLink -> typeLink;
 	
 	

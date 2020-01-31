@@ -35,7 +35,8 @@ static void returnString(VFrame *f, char *value) {
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
 	array -> owner = f -> blocking -> instance;
-	array -> refCount ++;
+	array -> refi.refCount ++;
+	array -> refi.type = array -> gtLink -> typeLink;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
 	ptrh -> typeLink = array -> gtLink -> typeLink;

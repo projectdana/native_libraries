@@ -89,14 +89,34 @@ typedef struct rvv{
 	struct _s_danaType *typeLink;
 	} VVarR;
 
+typedef struct __refi {
+	
+	struct _s_danaType *type;
+	
+	size_t refCount;
+	
+	bool p;
+	bool v;
+	bool w;
+	
+	size_t z;
+	size_t q;
+	size_t a;
+	struct __refi *n;
+	struct __refi *d;
+	struct __refi *c;
+	
+	} ReFI;
+
 typedef struct oi{
-	VVarLivePTR bindpoint;
-	struct lo *home;
-	struct oi *next;
+	void *wv;
+	void *wt;
+	void *nx;
 	size_t knr;
 	} ObjectIdentity;
 
 typedef struct lo{
+	ReFI refi;
 	ObjectIdentity identity;
 	ObjectIdentity *identities;
 	unsigned char *state;
@@ -109,16 +129,15 @@ typedef struct lo{
 	void *lcj;
 	void *ts;
 	size_t flags;
-	size_t refCount;
 	struct component *owner;
 	LiveScope scope;
 	} LiveObject;
 
 typedef struct _live_data{
+	ReFI refi;
 	unsigned char *data;
 	struct __globalTypeLink *gtLink;
 	size_t flags;
-	size_t refCount;
 	struct component *owner;
 	
 	size_t csa;
@@ -137,10 +156,10 @@ typedef struct _live_data{
 	} LiveData;
 
 typedef struct{
+	ReFI refi;
 	unsigned char *data;
 	struct __globalTypeLink *gtLink;
 	size_t flags;
-	size_t refCount;
 	struct component *owner;
 	size_t length;
 	} LiveArray;

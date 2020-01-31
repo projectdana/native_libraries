@@ -151,7 +151,8 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	api -> incrementGTRefCount(array -> gtLink);
 	array -> owner = f -> blocking -> instance;
 	
-	array -> refCount ++;
+	array -> refi.refCount ++;
+	array -> refi.type = array -> gtLink -> typeLink;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
@@ -660,7 +661,8 @@ INSTRUCTION_DEF op_tcp_get_local_address(VFrame *cframe)
 	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
 	
 	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refCount ++;
+	newArray -> refi.refCount ++;
+	newArray -> refi.type = newArray -> gtLink -> typeLink;
 	ptrh -> typeLink = newArray -> gtLink -> typeLink;
 	
 	xs = port;
@@ -746,7 +748,8 @@ INSTRUCTION_DEF op_tcp_get_remote_address(VFrame *cframe)
 	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
 	
 	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refCount ++;
+	newArray -> refi.refCount ++;
+	newArray -> refi.type = newArray -> gtLink -> typeLink;
 	ptrh -> typeLink = newArray -> gtLink -> typeLink;
 	
 	xs = port;

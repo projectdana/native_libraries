@@ -13,7 +13,7 @@ SDL_FLAGS=
 NET_FLAGS=
 MATH_FLAGS=
 SQL_FLAGS=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib png jpg zlib clipboard
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -27,7 +27,6 @@ ifeq ($(OS),Windows_NT)
 	PLATFORM = win7
 	CCFLAGS += -shared
 	NET_FLAGS = -lws2_32
-	ALL_RULES += uiplane
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
 	SQL_FLAGS = -lmysql
@@ -73,7 +72,7 @@ else
         PLATFORM = osx
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"osx\"
         CCFLAGS += -DMACHINE_64
-		SDL_FLAGS = -framework SDL2 -framework SDL2_ttf
+		SDL_FLAGS = -F/Library/Frameworks/ -framework SDL2 -framework SDL2_ttf -Wl,-rpath,'@executable_path/resources-ext' -I~/Desktop/libs/
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
@@ -84,7 +83,6 @@ else
 		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
     endif
     ifneq ($(UNAME_S),Darwin)
-		ALL_RULES += uiplane
 		
         UNAME_P := $(shell uname -p)
         ifeq ($(UNAME_P),x86_64)
