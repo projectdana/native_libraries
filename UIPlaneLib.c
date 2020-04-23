@@ -353,7 +353,7 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
-	array -> owner = f -> blocking -> instance;
+	array -> refi.ocm = f -> blocking -> instance;
 	
 	array -> refi.refCount ++;
 	array -> refi.type = array -> gtLink -> typeLink;
@@ -1667,7 +1667,7 @@ static void render_thread()
 				pixelArrayH -> gtLink = charArrayGT;
 				api -> incrementGTRefCount(pixelArrayH -> gtLink);
 
-				pixelArrayH -> owner = frame -> blocking -> instance;
+				pixelArrayH -> refi.ocm = frame -> blocking -> instance;
 
 				arrayPTR -> content = (unsigned char*) pixelArrayH;
 				pixelArrayH -> refi.refCount ++;

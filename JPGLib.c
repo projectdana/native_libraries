@@ -263,7 +263,7 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	
 	array -> gtLink = byteArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
-	array -> owner = cframe -> blocking -> instance;
+	array -> refi.ocm = cframe -> blocking -> instance;
 	
 	array -> refi.refCount ++;
 	array -> refi.type = array -> gtLink -> typeLink;

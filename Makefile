@@ -33,6 +33,7 @@ ifeq ($(OS),Windows_NT)
 	PNG_FLAGS = -I "C:/libs/lpng1635/" "C:/libs/lpng1635/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
 	JPG_FLAGS = -I "C:/libs/jpeg-9c" "C:/libs/jpeg-9c/libjpeg.a"
 	ZLIB_FLAGS = -I "C:/libs/zlib-1.2.11" "C:/libs/zlib-1.2.11/libz.a"
+	SSL_FLAGS = -I C:/libs/openssl-1.1.1f/include C:/libs/openssl-1.1.1f/libssl.a C:/libs/openssl-1.1.1f/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
@@ -173,6 +174,10 @@ clipboard:
 zlib:
 	$(CC) -Os -s ZLib_dni.c vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_FLAGS)
 	$(CP_CMD) ZLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
+
+ssl_lib:
+	$(CC) -Os -s SSLLib_dni.c vmi_util.c SSLLib.c -o SSLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CP_CMD) SSLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 audio:
 	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)

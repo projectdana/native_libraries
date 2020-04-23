@@ -36,7 +36,7 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
-	array -> owner = f -> blocking -> instance;
+	array -> refi.ocm = f -> blocking -> instance;
 	
 	array -> refi.refCount ++;
 	array -> refi.type = array -> gtLink -> typeLink;
@@ -428,7 +428,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 					newItem -> data = malloc(sizeof(LiveData));
 					
 					memset(newItem -> data, '\0', sizeof(LiveData));
-					newItem -> data -> owner = dataOwner;
+					newItem -> data -> refi.ocm = dataOwner;
 					newItem -> data -> gtLink = fileEntryGT;
 					api -> incrementGTRefCount(newItem -> data -> gtLink);
 					
@@ -439,7 +439,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 					
 					LiveArray *itemArray = malloc(sizeof(LiveArray));
 					memset(itemArray, '\0', sizeof(LiveArray));
-					itemArray -> owner = dataOwner;
+					itemArray -> refi.ocm = dataOwner;
 					itemArray -> gtLink = charArrayGT;
 					api -> incrementGTRefCount(itemArray -> gtLink);
 					itemArray -> data = malloc(strlen(fi.cFileName));
@@ -489,7 +489,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				
 				newItem -> data = malloc(sizeof(LiveData));
 				memset(newItem -> data, '\0', sizeof(LiveData));
-				newItem -> data -> owner = dataOwner;
+				newItem -> data -> refi.ocm = dataOwner;
 				newItem -> data -> gtLink = fileEntryGT;
 				newItem -> data -> gtLink -> refCount ++;
 				
@@ -499,7 +499,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				
 				LiveArray *itemArray = malloc(sizeof(LiveArray));
 				memset(itemArray, '\0', sizeof(LiveArray));
-				itemArray -> owner = dataOwner;
+				itemArray -> refi.ocm = dataOwner;
 				itemArray -> gtLink = charArrayGT;
 				itemArray -> gtLink -> refCount ++;
 				itemArray -> data = malloc(strlen(dp->d_name));
@@ -527,7 +527,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 		LiveArray *newArray = malloc(sizeof(LiveArray));
 		memset(newArray, '\0', sizeof(LiveArray));
 		
-		newArray -> owner = dataOwner;
+		newArray -> refi.ocm = dataOwner;
 		newArray -> gtLink = fileEntryArrayGT;
 		newArray -> gtLink -> refCount ++;
 		newArray -> data = malloc(sizeof(VVarLivePTR) * count);

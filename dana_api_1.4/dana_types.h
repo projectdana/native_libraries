@@ -95,6 +95,8 @@ typedef struct __refi {
 	
 	size_t refCount;
 	
+	void *ocm;
+	
 	bool p;
 	bool v;
 	bool w;
@@ -129,7 +131,6 @@ typedef struct lo{
 	void *lcj;
 	void *ts;
 	size_t flags;
-	struct component *owner;
 	LiveScope scope;
 	} LiveObject;
 
@@ -138,7 +139,6 @@ typedef struct _live_data{
 	unsigned char *data;
 	struct __globalTypeLink *gtLink;
 	size_t flags;
-	struct component *owner;
 	
 	size_t csa;
 	size_t csb;
@@ -160,7 +160,6 @@ typedef struct{
 	unsigned char *data;
 	struct __globalTypeLink *gtLink;
 	size_t flags;
-	struct component *owner;
 	size_t length;
 	} LiveArray;
 

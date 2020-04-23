@@ -77,7 +77,7 @@ static void returnDouble(VFrame *f, double d)
 	
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
-	array -> owner = f -> blocking -> instance;
+	array -> refi.ocm = f -> blocking -> instance;
 	
 	array -> refi.refCount ++;
 	array -> refi.type = array -> gtLink -> typeLink;

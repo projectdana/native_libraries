@@ -360,7 +360,7 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	
 	newArray -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(newArray -> gtLink);
-	newArray -> owner = cframe -> blocking -> instance;
+	newArray -> refi.ocm = cframe -> blocking -> instance;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
 	
@@ -387,7 +387,7 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	
 	newContentArray -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(newContentArray -> gtLink);
-	newContentArray -> owner = cframe -> blocking -> instance;
+	newContentArray -> refi.ocm = cframe -> blocking -> instance;
 	
 	ptrh = (VVarLivePTR*) (((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data + sizeof(VVarLivePTR) + sizeof(size_t));
 	
