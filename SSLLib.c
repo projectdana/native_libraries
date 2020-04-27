@@ -88,6 +88,123 @@ static LiveArray* makeStringArray(unsigned char *str, size_t len, DanaComponent 
 	return result;
 	}
 
+static X509* parseCertificate(unsigned char *data, size_t len)
+	{
+	BIO *biomem = BIO_new(BIO_s_mem());
+	BIO_write(biomem, data, len);
+	X509* cert = PEM_read_bio_X509(biomem, NULL, NULL, NULL);
+	if (cert == NULL)
+		{
+		return NULL;
+		}
+
+	BIO_free(biomem);
+	//X509_free(cert);
+	
+	return cert;
+	}
+
+static STACK_OF(X509)* parseChain(unsigned char *data, size_t len)
+	{
+	STACK_OF(X509) *certStack;
+	
+	certStack = sk_X509_new_null();
+	
+	VVarLivePTR *nxt = (VVarLivePTR*) data;
+	for (int i = 0; i < len; i++)
+		{
+		LiveData *qd = (LiveData*) nxt -> content;
+		LiveArray *qa = (LiveArray*) ((VVarLivePTR*) qd -> data) -> content;
+		
+		BIO *biomem = BIO_new(BIO_s_mem());
+		BIO_write(biomem, qa -> data, qa -> length);
+		X509* cert = PEM_read_bio_X509(biomem, NULL, NULL, NULL);
+		if (cert == NULL)
+			{
+			return NULL;
+			}
+
+		sk_X509_push(certStack, cert);
+
+		BIO_free(biomem);
+		//X509_free(cert);
+		
+		nxt ++;
+		}
+	
+	return certStack;
+	}
+
+static void cleanupStack(STACK_OF(X509) *certStack)
+	{
+	unsigned int len = sk_X509_num(certStack);
+	
+	for (size_t i = 0; i < len; i++)
+		{
+		X509 *cert = sk_X509_value(certStack, i);
+		X509_free(cert);
+		}
+	
+	sk_X509_free(certStack);
+	}
+
+// -- cert store --
+
+INSTRUCTION_DEF op_create_cert_store(VFrame *cframe)
+	{
+	X509_STORE *store = X509_STORE_new();
+	
+	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
+	memcpy(result, &store, sizeof(size_t));
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_certificate(VFrame *cframe)
+	{
+	X509_STORE *store;
+	memcpy(&store, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	LiveArray *certArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	
+	X509 *cert = parseCertificate(certArray -> data, certArray -> length);
+	
+	X509_STORE_add_cert(store, cert);
+	
+	X509_free(cert);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_load_cert_location(VFrame *cframe)
+	{
+	X509_STORE *store;
+	memcpy(&store, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	
+	char *path = malloc(array -> length + 1);
+	memset(path, '\0', array -> length + 1);
+	
+	memcpy(path, array -> data, array -> length);
+	
+	X509_STORE_load_locations(store, path, NULL);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_free_cert_store(VFrame *cframe)
+	{
+	X509_STORE *store;
+	memcpy(&store, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	X509_STORE_free(store);
+	
+	return RETURN_OK;
+	}
+
+// -- contexts --
+
 INSTRUCTION_DEF op_create_context(VFrame *cframe)
 	{
 	bool serverMode = getVariableContent(cframe, 0)[0];
@@ -198,6 +315,30 @@ INSTRUCTION_DEF op_set_certificate_chain(VFrame *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_set_cipher_set(VFrame *cframe)
+	{
+	SSL_CTX *ctx;
+	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	size_t set = 0;
+	copyHostInteger((unsigned char*) &set, getVariableContent(cframe, 1), sizeof(size_t));
+	
+	if (set == 0)
+		{
+		//default
+		SSL_CTX_set_cipher_list(ctx, SSL_DEFAULT_CIPHER_LIST);
+		SSL_CTX_set_ciphersuites(ctx, TLS_DEFAULT_CIPHERSUITES);
+		}
+		else if (set == 1)
+		{
+		//all
+		SSL_CTX_set_cipher_list(ctx, "ALL");
+		SSL_CTX_set_ciphersuites(ctx, "ALL");
+		}
+	
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_free_context(VFrame *cframe)
 	{
 	SSL_CTX *ctx;
@@ -219,55 +360,12 @@ INSTRUCTION_DEF op_make_ssl(VFrame *cframe)
 	
 	if (ssl == NULL)
 		{
-		printf("::make SSL failed::\n");
+		api -> throwException(cframe, "make SSL failed");
+		return RETURN_OK;
 		}
 	
 	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
 	memcpy(result, &ssl, sizeof(size_t));
-	
-	return RETURN_OK;
-	}
-
-INSTRUCTION_DEF op_set_verify_mode(VFrame *cframe)
-	{
-	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
-	
-	unsigned char mode = getVariableContent(cframe, 1)[0];
-	
-	unsigned char res = 1;
-	
-	if (mode == 0x0)
-		{
-		SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
-		}
-		else if (mode == 0x1)
-		{
-		SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
-		SSL_set_verify_depth(ssl, 4);
-		
-		const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
-		SSL_set_options(ssl, flags);
-		}
-	
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-	
-	return RETURN_OK;
-	}
-
-INSTRUCTION_DEF op_get_verify_result(VFrame *cframe)
-	{
-	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
-	
-	unsigned char res = 0;
-	
-	if (SSL_get_verify_result(ssl) == X509_V_OK)
-		res = 1;
-	
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
 	
 	return RETURN_OK;
 	}
@@ -379,7 +477,7 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 		newArray -> length = len;
 		newArray -> refi.type = newArray -> gtLink -> typeLink;
 		
-		for (unsigned int i=0; i < len; i++)
+		for (size_t i = 0; i < len; i++)
 			{
 			// --
 			
@@ -408,6 +506,7 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 			ptrh -> content = (unsigned char*) itemArray;
 			ptrh -> typeLink = itemArray -> gtLink -> typeLink;
 			itemArray -> refi.refCount ++;
+			itemArray -> refi.ocm = dataOwner;
 			
 			// -- reference in array --
 			VVarLivePTR *ptrhA = (VVarLivePTR*) (&newArray -> data[sizeof(VVarLivePTR) * i]);
@@ -418,9 +517,6 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 			
 			// --
 			
-			return_byte_array(cframe, api, pbuf, len);
-			
-			X509_free(cert);
 			BIO_free(biomem);
 			}
 		
@@ -431,6 +527,146 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 		ptrh -> content = (unsigned char*) newArray;
 		ptrh -> typeLink = newArray -> gtLink -> typeLink;
 		}
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	X509_STORE *store;
+	memcpy(&store, getVariableContent(cframe, 1), sizeof(size_t));
+	
+	//get and parse both the certificate and chain, if provided
+	
+	LiveData *verifyResult = (LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
+	
+	LiveArray *certArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 3)) -> content;
+	
+	LiveArray *certChainArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 4)) -> content;
+	
+	DanaComponent *dataOwner = cframe -> instance;
+	
+	X509 *cert = NULL;
+	STACK_OF(X509) *certStack = NULL;
+	
+	cert = parseCertificate(certArray -> data, certArray -> length);
+	
+	if (certChainArray != NULL)
+		certStack = parseChain(certChainArray -> data, certChainArray -> length);
+	
+	X509_STORE_CTX *ctx = X509_STORE_CTX_new();
+	
+	if (!ctx)
+		{
+		api -> throwException(cframe, "internal SSL error: failed to create STORE CTX");
+		return RETURN_OK;
+		}
+	
+	if (X509_STORE_CTX_init(ctx, store, cert, certStack) != 1)
+		{
+		api -> throwException(cframe, "internal SSL error: failed to init STORE CTX");
+		X509_STORE_CTX_free(ctx);
+		return RETURN_OK;
+		}
+	
+	//X509_verify_cert: If a complete chain can be built and validated this function returns 1, otherwise it return zero, in exceptional circumstances it can also return a negative code.
+	// - If the function fails additional error information can be obtained by examining ctx using, for example X509_STORE_CTX_get_error().
+	
+	size_t core_result = 0;
+	
+	int rc = X509_verify_cert(ctx);
+	
+	if (rc != 1) core_result = 1;
+		{
+		size_t *vres = (size_t*) verifyResult -> data;
+		copyHostInteger((unsigned char*) vres, (unsigned char*) &core_result, sizeof(size_t));
+		}
+	
+	if (rc != 1) {
+		//find the certificate causing the failure
+		X509 *badCert = X509_STORE_CTX_get_current_cert(ctx);
+		
+		const char *failReason = X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx));
+		
+		/*
+		X509_NAME *certsubject = X509_get_subject_name(badCert);
+		BIO *biomem = BIO_new(BIO_s_mem());
+		X509_NAME_print_ex(biomem, certsubject, 0, XN_FLAG_ONELINE & ~ASN1_STRFLGS_ESC_MSB); //~ASN1_STRFLGS_ESC_MSB is for UTF8 terminals
+		
+		unsigned char *pbuf = NULL;
+		size_t len = BIO_get_mem_data(biomem, &pbuf);
+		
+		char *strn = malloc(len+1);
+		memset(strn, '\0', len+1);
+		memcpy(strn, pbuf, len);
+		
+		printf("%s\n", failReason);
+		printf("%s\n", strn);
+		
+		free(strn);
+		
+		BIO_free(biomem);
+		*/
+		
+		//find which certificate failed on the verify
+		VVarLivePTR *aptr = (VVarLivePTR*) (verifyResult -> data + sizeof(size_t));
+		
+		if (badCert == cert)
+			{
+			aptr -> content = (unsigned char*) certArray;
+			certArray -> refi.refCount ++;
+			}
+			else if (certStack != NULL)
+			{
+			unsigned int len = sk_X509_num(certStack);
+			VVarLivePTR *kp = (VVarLivePTR*) certChainArray -> data;
+			
+			for (size_t i = 0; i < len; i++)
+				{
+				X509 *cert = sk_X509_value(certStack, i);
+				
+				if (cert == badCert)
+					{
+					LiveData *cfd = (LiveData*) kp -> content;
+					LiveArray *cfa = (LiveArray*) ((VVarLivePTR*) cfd -> data) -> content;
+					
+					aptr -> content = (unsigned char*) cfa;
+					aptr -> typeLink = cfa -> gtLink -> typeLink;
+					cfa -> refi.refCount ++;
+					
+					break;
+					}
+				
+				kp ++;
+				}
+			}
+			else
+			{
+			//TODO: it's something from the CertStore; get the raw certificate... (?)
+			}
+		
+		aptr ++;
+		
+		//get a string reason for verify failure, if any
+		LiveArray *reason = makeStringArray((unsigned char*) failReason, strlen(failReason), dataOwner);
+		
+		aptr -> content = (unsigned char*) reason;
+		aptr -> typeLink = reason -> gtLink -> typeLink;
+		reason -> refi.refCount ++;
+		reason -> refi.ocm = dataOwner;
+		}
+	
+	if (certStack != NULL)
+		{
+		cleanupStack(certStack);
+		}
+	
+	X509_free(cert);
+	
+	X509_STORE_CTX_free(ctx);
 	
 	return RETURN_OK;
 	}
@@ -537,22 +773,25 @@ Interface* load(CoreAPI *capi)
 	stringArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("String[]"));
 	stringItemGT = api -> resolveGlobalTypeMapping(getTypeDefinition("String"));
 	
+	setInterfaceFunction("createCertStore", op_create_cert_store);
+	setInterfaceFunction("addCertificate", op_add_certificate);
+	setInterfaceFunction("loadLocation", op_load_cert_location);
+	setInterfaceFunction("freeCertStore", op_free_cert_store);
+	
 	setInterfaceFunction("createContext", op_create_context);
 	setInterfaceFunction("setCertificate", op_set_certificate);
 	setInterfaceFunction("setCertificateChain", op_set_certificate_chain);
+	setInterfaceFunction("setCipherSet", op_set_cipher_set);
 	setInterfaceFunction("freeContext", op_free_context);
 	
 	setInterfaceFunction("makeSSL", op_make_ssl);
-	
 	setInterfaceFunction("accept", op_accept);
 	setInterfaceFunction("connect", op_connect);
 	setInterfaceFunction("getPeerCertificate", op_get_peer_cert);
 	setInterfaceFunction("getPeerCertChain", op_get_peer_cert_chain);
-	setInterfaceFunction("setVerifyMode", op_set_verify_mode);
-	setInterfaceFunction("getResultResult", op_get_verify_result);
+	setInterfaceFunction("verifyCertificate", op_verify_certificate);
 	setInterfaceFunction("write", op_write);
 	setInterfaceFunction("read", op_read);
-	
 	setInterfaceFunction("closeSSL", op_close_ssl);
 	
 	return getPublicInterface();

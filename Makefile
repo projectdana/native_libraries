@@ -13,7 +13,7 @@ SDL_FLAGS=
 NET_FLAGS=
 MATH_FLAGS=
 SQL_FLAGS=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -66,6 +66,7 @@ else
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -lX11
+		SSL_FLAGS = -I ~/libs/openssl-1.1.1f/include ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
     endif
     ifeq ($(UNAME_S),Darwin)
         CCFLAGS += -DOSX
@@ -82,6 +83,7 @@ else
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
+		SSL_FLAGS = -I ~/Desktop/libs/openssl-1.1.1f/include ~/Desktop/libs/openssl-1.1.1f/libssl.a ~/Desktop/libs/openssl-1.1.1f/libcrypto.a
     endif
     ifneq ($(UNAME_S),Darwin)
 		
