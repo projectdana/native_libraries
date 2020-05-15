@@ -66,6 +66,7 @@ else
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -lX11
+		SQL_FLAGS = ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
 		SSL_FLAGS = -I ~/libs/openssl-1.1.1f/include ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
     endif
     ifeq ($(UNAME_S),Darwin)

@@ -110,8 +110,9 @@ static STACK_OF(X509)* parseChain(unsigned char *data, size_t len)
 	
 	certStack = sk_X509_new_null();
 	
+	int i = 0;
 	VVarLivePTR *nxt = (VVarLivePTR*) data;
-	for (int i = 0; i < len; i++)
+	for (i = 0; i < len; i++)
 		{
 		LiveData *qd = (LiveData*) nxt -> content;
 		LiveArray *qa = (LiveArray*) ((VVarLivePTR*) qd -> data) -> content;
@@ -139,7 +140,8 @@ static void cleanupStack(STACK_OF(X509) *certStack)
 	{
 	unsigned int len = sk_X509_num(certStack);
 	
-	for (size_t i = 0; i < len; i++)
+	size_t i = 0;
+	for (i = 0; i < len; i++)
 		{
 		X509 *cert = sk_X509_value(certStack, i);
 		X509_free(cert);
@@ -213,9 +215,9 @@ INSTRUCTION_DEF op_create_context(VFrame *cframe)
     SSL_CTX *ctx;
 	
 	if (serverMode)
-		method = SSLv23_server_method();
+		method = TLS_server_method();
 		else
-		method = SSLv23_client_method();
+		method = TLS_client_method();
 
     ctx = SSL_CTX_new(method);
     if (!ctx) {
@@ -285,7 +287,8 @@ INSTRUCTION_DEF op_set_certificate_chain(VFrame *cframe)
 	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
 	VVarLivePTR *nxt = (VVarLivePTR*) array -> data;
-	for (int i = 0; i < array -> length; i++)
+	int i = 0;
+	for (i = 0; i < array -> length; i++)
 		{
 		LiveData *qd = (LiveData*) nxt -> content;
 		LiveArray *qa = (LiveArray*) ((VVarLivePTR*) qd -> data) -> content;
@@ -477,7 +480,8 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 		newArray -> length = len;
 		newArray -> refi.type = newArray -> gtLink -> typeLink;
 		
-		for (size_t i = 0; i < len; i++)
+		size_t i = 0;
+		for (i = 0; i < len; i++)
 			{
 			// --
 			
@@ -624,7 +628,8 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 			unsigned int len = sk_X509_num(certStack);
 			VVarLivePTR *kp = (VVarLivePTR*) certChainArray -> data;
 			
-			for (size_t i = 0; i < len; i++)
+			size_t i = 0;
+			for (i = 0; i < len; i++)
 				{
 				X509 *cert = sk_X509_value(certStack, i);
 				
