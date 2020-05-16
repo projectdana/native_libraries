@@ -43,17 +43,17 @@ static const DanaTypeField Object_spec_fields[] = {
 static const DanaType Object_def = {TYPE_OBJECT, 0, 0, (DanaTypeField*) Object_spec_fields, 3};
 static const DanaType int_def = 
 {TYPE_LITERAL, 0, sizeof(size_t), NULL, 0};
-static const DanaTypeField WH_fields[] = {
-{(DanaType*) &int_def, NULL, 0, 0, 0},
-{(DanaType*) &int_def, NULL, 0, 0, 0}};
-static const DanaType WH_def = 
-{TYPE_DATA, 0, 16, (DanaTypeField*) WH_fields, 2};
 static const DanaType byte_def = 
 {TYPE_LITERAL, 0, 1, NULL, 0};
 static const DanaTypeField byte_array_fields[] = {
 {(DanaType*) &byte_def, NULL, 0, 0, 0}};
 static const DanaType byte_array_def = 
 {TYPE_ARRAY, 0, 0, (DanaTypeField*) byte_array_fields, 1};
+static const DanaTypeField WH_fields[] = {
+{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaType WH_def = 
+{TYPE_DATA, 0, 16, (DanaTypeField*) WH_fields, 2};
 static const DanaTypeField PixelMap_fields[] = {
 {(DanaType*) &WH_def, NULL, 0, 0, 0},
 {(DanaType*) &byte_array_def, NULL, 0, 0, 0}};
@@ -68,18 +68,17 @@ static const DanaTypeField function_PNGLib_toString_fields[] = {
 static const DanaTypeField function_PNGLib_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_PNGLib_loadImage_fields[] = {
-{(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &byte_array_def, NULL, 0, 0, 8},
 {(DanaType*) &PixelMap_def, NULL, 0, 0, 48}};
 static const DanaTypeField function_PNGLib_saveImage_fields[] = {
-{(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 8},
-{(DanaType*) &PixelMap_def, NULL, 0, 0, 48}};
+{(DanaType*) &byte_array_def, NULL, 0, 0, 0},{(DanaType*) &PixelMap_def, NULL, 0, 0, 40}};
 static const DanaType object_PNGLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_PNGLib_clone_fields, 2},
 {TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_PNGLib_equals_fields, 2},
 {TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_PNGLib_toString_fields, 1},
 {TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_PNGLib_getID_fields, 1},
 {TYPE_FUNCTION, 0, 88, (DanaTypeField*) &function_PNGLib_loadImage_fields, 3},
-{TYPE_FUNCTION, 0, 88, (DanaTypeField*) &function_PNGLib_saveImage_fields, 3}};
+{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_PNGLib_saveImage_fields, 2}};
 static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_PNGLib_functions_spec[0], "clone", 5},
 {(DanaType*) &object_PNGLib_functions_spec[1], "equals", 6},
@@ -87,9 +86,13 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_PNGLib_functions_spec[3], "getID", 5},
 {(DanaType*) &object_PNGLib_functions_spec[4], "loadImage", 9},
 {(DanaType*) &object_PNGLib_functions_spec[5], "saveImage", 9}};
+static const DanaType object_PNGLib_events_spec[] = {
+};
+static const DanaTypeField intf_events_def[] = {
+};
 static const DanaType PNGLib_object_spec[] = {
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 6},
-{TYPE_DATA, 0, 0, NULL, 0},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
@@ -115,7 +118,7 @@ static size_t interfaceFunctions[] = {
 static DanaType libType = {TYPE_OBJECT, 0, 0, (DanaTypeField*) intf_def, 3};
 static InterfaceDetails ids[] = {{"PNGLib", 6, &libType}};
 static Interface objectInterfaces[] = {{&ids[0], {&self, NULL, NULL, interfaceFunctions, NULL, NULL}}		};
-static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, 0, (size_t) &emptyType}};
+static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, (size_t) &bool_def, (size_t) &emptyType}};
 Interface* getPublicInterface(){
 ((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
@@ -142,8 +145,8 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_loadImage_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_loadImage_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[4];
 ((VFrameHeader*) op_loadImage_thread_spec) -> functionName = "loadImage";
-((VFrameHeader*) op_saveImage_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 88;
-((VFrameHeader*) op_saveImage_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_saveImage_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_saveImage_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_saveImage_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_saveImage_thread_spec) -> localsDef = (size_t) &object_PNGLib_functions_spec[5];
 ((VFrameHeader*) op_saveImage_thread_spec) -> functionName = "saveImage";
@@ -183,11 +186,11 @@ const DanaType *dataType;
 } Ex;
 
 static Ex dataMappings[] = {
-{"byte[]", &byte_array_def
-},
 {"WH", &WH_def
 },
 {"PixelMap", &PixelMap_def
+},
+{"byte[]", &byte_array_def
 },
 {"char[]", &char_array_def
 }};

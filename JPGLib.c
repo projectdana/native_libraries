@@ -42,16 +42,35 @@ my_error_exit (j_common_ptr cinfo)
   longjmp(myerr->setjmp_buffer, 1);
 }
 
+static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+	{
+	LiveArray *array = malloc(sizeof(LiveArray));
+	memset(array, '\0', sizeof(LiveArray));
+	
+	array -> data = data;
+	array -> length = len;
+	
+	array -> gtLink = byteArrayGT;
+	api -> incrementGTRefCount(array -> gtLink);
+	array -> refi.ocm = f -> blocking -> instance;
+	
+	array -> refi.refCount ++;
+	array -> refi.type = array -> gtLink -> typeLink;
+	
+	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
+	ptrh -> content = (unsigned char*) array;
+	ptrh -> typeLink = array -> gtLink -> typeLink;
+	}
+
 /*
 the below read_file function is based on code by Kenneth Finnegan (2012)
 */
 
-static unsigned char* read_file(char *filename, size_t *out_width, size_t *out_height)
+static unsigned char* read_mem(unsigned char *buf, size_t bufSize, size_t *out_width, size_t *out_height)
 	{
 	int rc, i;
 	
 	// Variables for the source jpg
-	struct stat file_info;
 	unsigned long jpg_size;
 	unsigned char *jpg_buffer;
 
@@ -66,22 +85,8 @@ static unsigned char* read_file(char *filename, size_t *out_width, size_t *out_h
 	
 	memset(&cinfo, '\0', sizeof(cinfo));
 	
-	rc = stat(filename, &file_info);
-	if (rc) {
-		return NULL;
-	}
-	jpg_size = file_info.st_size;
+	jpg_size = bufSize;
 	jpg_buffer = (unsigned char*) malloc(jpg_size + 100);
-
-	FILE *fd = fopen(filename, "rb");
-	/*
-	i = 0;
-	while (i < jpg_size) {
-		rc = fread(jpg_buffer + i, sizeof(unsigned char), jpg_size - i, fd);
-		i += rc;
-	}
-	fclose(fd);
-*/
 	
 	//configure custom error handling...
 	cinfo.err = jpeg_std_error(&jerr.pub);
@@ -90,14 +95,13 @@ static unsigned char* read_file(char *filename, size_t *out_width, size_t *out_h
 	if (setjmp(jerr.setjmp_buffer))
 		{
 		jpeg_destroy_decompress(&cinfo);
-		fclose(fd);
 		return NULL;
 		}
 	
 	jpeg_create_decompress(&cinfo);
 	//jpeg_mem_src(&cinfo, jpg_buffer, jpg_size);
 	
-	jpeg_stdio_src(&cinfo, fd);
+	jpeg_mem_src(&cinfo, buf, bufSize);
 	
 	rc = jpeg_read_header(&cinfo, TRUE);
 	
@@ -166,8 +170,6 @@ static unsigned char* read_file(char *filename, size_t *out_width, size_t *out_h
 	*out_width = width;
 	*out_height = height;
 	
-	fclose(fd);
-
 	return bmp_buffer;
 	}
 
@@ -224,17 +226,15 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	{
 	unsigned char res = 0;
 	
-	char *path = getParam_char_array(cframe, 0);
+	LiveArray *fdata = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
 	
 	size_t width = 0;
 	size_t height = 0;
-	unsigned char *bmp_data = read_file(path, &width, &height);
-	
-	free(path);
+	unsigned char *bmp_data = read_mem(fdata -> data, fdata -> length, &width, &height);
 	
 	if (bmp_data == NULL)
 		{
-		api -> throwException(cframe, "failed to read file");
+		api -> throwException(cframe, "failed to read image");
 		return RETURN_OK;
 		}
 	
@@ -286,7 +286,7 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	}
 
 
-bool write_jpg_file(unsigned char *pixelMap, size_t width, size_t height, char *filename)
+unsigned char* write_jpg_file(unsigned char *pixelMap, size_t width, size_t height, size_t *memlen)
 	{
 	//int rc;
 	
@@ -302,8 +302,6 @@ bool write_jpg_file(unsigned char *pixelMap, size_t width, size_t height, char *
 	
 	unsigned char *row_decode = malloc(row_stride);
 	
-	FILE * outfile;
-	
 	//set a custom error handler
 	cinfo.err = jpeg_std_error(&jerr.pub);
 	
@@ -312,17 +310,15 @@ bool write_jpg_file(unsigned char *pixelMap, size_t width, size_t height, char *
 	if (setjmp(jerr.setjmp_buffer))
 		{
 		jpeg_destroy_compress(&cinfo);
-		fclose(outfile);
 		return NULL;
 		}
 	
 	jpeg_create_compress(&cinfo);
 	
+	unsigned char *buf = NULL;
+	size_t size = 0;
 	
-	if ((outfile = fopen(filename, "wb")) == NULL) {
-	    return false;
-	}
-	jpeg_stdio_dest(&cinfo, outfile);
+	jpeg_mem_dest(&cinfo, &buf, &size);
 	
 
 	cinfo.image_width = width; 	/* image width and height, in pixels */
@@ -351,21 +347,19 @@ bool write_jpg_file(unsigned char *pixelMap, size_t width, size_t height, char *
 	
 	free(row_decode);
 	
-	fclose(outfile);
+	(*memlen) = size;
 	
-	return true;
+	return buf;
 	}
 
 INSTRUCTION_DEF op_save_image(VFrame *cframe)
 	{
 	unsigned char res = 0;
 	
-	char *path = getParam_char_array(cframe, 0);
-	
 	size_t width = 0;
 	size_t height = 0;
 	
-	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 1);
+	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 0);
 	
 	//there are now two pointers: one to the LiveData of the WH instance, and one to the LiveArray of the pixel map
 	VVarLivePTR *ict = (VVarLivePTR*) ((LiveData*) ct -> content) -> data;
@@ -383,13 +377,10 @@ INSTRUCTION_DEF op_save_image(VFrame *cframe)
 	
 	LiveArray *array = (LiveArray*) ict -> content;
 	
-	res = write_jpg_file(array -> data, width, height, path);
+	size_t size = 0;
+	unsigned char *buf = write_jpg_file(array -> data, width, height, &size);
 	
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-	
-	free(path);
+	returnByteArray(cframe, buf, size);
 	
 	return RETURN_OK;
 	}

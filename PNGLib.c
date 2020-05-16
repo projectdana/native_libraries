@@ -16,20 +16,59 @@ static GlobalTypeLink *byteArrayGT = NULL;
 the below read_png_file and write_png_file functions are based on code by Guillaume Cottenceau and Yoshimasa Niwa
 */
 
-static png_bytep* read_png_file(char *filename, size_t *width, size_t *height)
+static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+	{
+	LiveArray *array = malloc(sizeof(LiveArray));
+	memset(array, '\0', sizeof(LiveArray));
+	
+	array -> data = data;
+	array -> length = len;
+	
+	array -> gtLink = byteArrayGT;
+	api -> incrementGTRefCount(array -> gtLink);
+	array -> refi.ocm = f -> blocking -> instance;
+	
+	array -> refi.refCount ++;
+	array -> refi.type = array -> gtLink -> typeLink;
+	
+	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
+	ptrh -> content = (unsigned char*) array;
+	ptrh -> typeLink = array -> gtLink -> typeLink;
+	}
+
+typedef struct {
+	unsigned char *buf;
+	size_t len;
+	size_t cur;
+	} MemFile;
+
+static void mem_read_fn(png_structp png, png_bytep data, size_t length)
+	{
+	FILE *fd = png_get_io_ptr(png);
+	
+	MemFile *mf = (MemFile*) fd;
+	
+	unsigned int amt = length;
+	
+	if (amt > (mf -> len - mf -> cur))
+		amt = mf -> len - mf -> cur;
+	
+	memcpy(data, mf -> buf + mf -> cur, amt);
+	
+	memset(data + amt, '\0', length - amt);
+	
+	mf -> cur += amt;
+	}
+
+static png_bytep* read_png_mem(unsigned char *buf, size_t maxlen, size_t *readAmt, size_t *width, size_t *height)
 	{
 	png_bytep *row_pointers;
 	png_byte color_type;
 	png_byte bit_depth;
 
-	FILE *fp = fopen(filename, "rb");
-	
-	if (fp == NULL) return NULL;
-
 	png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (!png)
 		{
-		fclose(fp);
 		return NULL;
 		}
 
@@ -40,17 +79,19 @@ static png_bytep* read_png_file(char *filename, size_t *width, size_t *height)
 	png_infop info = png_create_info_struct(png);
 	if (!info)
 		{
-		fclose(fp);
 		return NULL;
 		}
 
 	if (setjmp(png_jmpbuf(png)))
 		{
-		fclose(fp);
 		return NULL;
 		}
 
-	png_init_io(png, fp);
+	png_set_read_fn(png, NULL, mem_read_fn);
+	
+	MemFile memfile = {buf, maxlen, 0};
+	
+	png_init_io(png, (FILE*) &memfile);
 
 	png_read_info(png, info);
 
@@ -95,7 +136,7 @@ static png_bytep* read_png_file(char *filename, size_t *width, size_t *height)
 	
 	png_read_image(png, row_pointers);
 	
-	fclose(fp);
+	(*readAmt) = memfile.cur;
 
 	return row_pointers;
 	}
@@ -152,13 +193,13 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	{
 	unsigned char res = 0;
 	
-	char *path = getParam_char_array(cframe, 0);
+	LiveArray *fdata = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	
+	size_t readAmt = 0;
 	
 	size_t width = 0;
 	size_t height = 0;
-	png_bytep *row_pointers = read_png_file(path, &width, &height);
-	
-	free(path);
+	png_bytep *row_pointers = read_png_mem(fdata -> data, fdata -> length, &readAmt, &width, &height);
 	
 	if (row_pointers == NULL)
 		{
@@ -217,20 +258,41 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-bool write_png_file(png_bytep *row_pointers, size_t width, size_t height, char *filename)
+void mem_write_fn(png_structp png_ptr, png_bytep data, png_size_t length)
 	{
-	FILE *fp = fopen(filename, "wb");
-	if(!fp) return false;
+	MemFile *memfd = (MemFile*) png_get_io_ptr(png_ptr);
+	
+	size_t nsize = memfd -> len + length;
+	
+	if (memfd -> buf == NULL)
+		{
+		memfd -> buf = malloc(nsize);
+		}
+		else
+		{
+		memfd -> buf = realloc(memfd -> buf, nsize);
+		}
+	
+	memcpy(memfd -> buf + memfd -> len, data, length);
+	
+	memfd -> len += length;
+	}
 
+unsigned char* write_png_file(png_bytep *row_pointers, size_t width, size_t height, size_t *length)
+	{
 	png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png) return false;
+	if (!png) return NULL;
 
 	png_infop info = png_create_info_struct(png);
-	if (!info) return false;
+	if (!info) return NULL;
 
-	if (setjmp(png_jmpbuf(png))) return false;
+	if (setjmp(png_jmpbuf(png))) return NULL;
 
-	png_init_io(png, fp);
+	png_set_write_fn(png, NULL, mem_write_fn, NULL);
+
+	MemFile memfile = {NULL, 0, 0};
+	
+	png_init_io(png, (FILE*) &memfile);
 
 	// Output is 8bit depth, RGBA format.
 	png_set_IHDR(
@@ -251,22 +313,18 @@ bool write_png_file(png_bytep *row_pointers, size_t width, size_t height, char *
 
 	png_write_image(png, row_pointers);
 	png_write_end(png, NULL);
-
-	fclose(fp);
 	
-	return true;
+	(*length) = memfile.len;
+
+	return memfile.buf;
 	}
 
 INSTRUCTION_DEF op_save_image(VFrame *cframe)
 	{
-	unsigned char res = 0;
-	
-	char *path = getParam_char_array(cframe, 0);
-	
 	size_t width = 0;
 	size_t height = 0;
 	
-	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 1);
+	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 0);
 	
 	//there are now two pointers: one to the LiveData of the WH instance, and one to the LiveArray of the pixel map
 	VVarLivePTR *ict = (VVarLivePTR*) ((LiveData*) ct -> content) -> data;
@@ -293,20 +351,16 @@ INSTRUCTION_DEF op_save_image(VFrame *cframe)
 	
 	copyPixelsOut(array -> data, row_pointers, width, height);
 	
-	write_png_file(row_pointers, width, height, path);
+	size_t fullLen = 0;
+	
+	unsigned char *buf = write_png_file(row_pointers, width, height, &fullLen);
 	
 	for(y = 0; y < height; y++) {
 		free(row_pointers[y]);
 	}
 	free(row_pointers);
 	
-	res = 1;
-	
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-	
-	free(path);
+	returnByteArray(cframe, buf, fullLen);
 	
 	return RETURN_OK;
 	}
