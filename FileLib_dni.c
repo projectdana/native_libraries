@@ -98,6 +98,8 @@ static const DanaTypeField function_FileLib_write_fields[] = {
 static const DanaTypeField function_FileLib_read_fields[] = {
 {(DanaType*) &byte_array_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 40},
 {(DanaType*) &int_def, NULL, 0, 0, 48}};
+static const DanaTypeField function_FileLib_flush_fields[] = {
+{(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1}};
 static const DanaTypeField function_FileLib_setPos_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
 {(DanaType*) &int_def, NULL, 0, 0, 9}};
@@ -136,6 +138,7 @@ static const DanaType object_FileLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 49, (DanaTypeField*) &function_FileLib_open_fields, 3},
 {TYPE_FUNCTION, 0, 56, (DanaTypeField*) &function_FileLib_write_fields, 3},
 {TYPE_FUNCTION, 0, 56, (DanaTypeField*) &function_FileLib_read_fields, 3},
+{TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_FileLib_flush_fields, 2},
 {TYPE_FUNCTION, 0, 17, (DanaTypeField*) &function_FileLib_setPos_fields, 3},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_FileLib_getSize_fields, 2},
 {TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_FileLib_eof_fields, 2},
@@ -156,21 +159,26 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_FileLib_functions_spec[4], "open", 4},
 {(DanaType*) &object_FileLib_functions_spec[5], "write", 5},
 {(DanaType*) &object_FileLib_functions_spec[6], "read", 4},
-{(DanaType*) &object_FileLib_functions_spec[7], "setPos", 6},
-{(DanaType*) &object_FileLib_functions_spec[8], "getSize", 7},
-{(DanaType*) &object_FileLib_functions_spec[9], "eof", 3},
-{(DanaType*) &object_FileLib_functions_spec[10], "close", 5},
-{(DanaType*) &object_FileLib_functions_spec[11], "getDirectoryContents", 20},
-{(DanaType*) &object_FileLib_functions_spec[12], "getInfo", 7},
-{(DanaType*) &object_FileLib_functions_spec[13], "exists", 6},
-{(DanaType*) &object_FileLib_functions_spec[14], "delete", 6},
-{(DanaType*) &object_FileLib_functions_spec[15], "move", 4},
-{(DanaType*) &object_FileLib_functions_spec[16], "copy", 4},
-{(DanaType*) &object_FileLib_functions_spec[17], "createDirectory", 15},
-{(DanaType*) &object_FileLib_functions_spec[18], "deleteDirectory", 15}};
+{(DanaType*) &object_FileLib_functions_spec[7], "flush", 5},
+{(DanaType*) &object_FileLib_functions_spec[8], "setPos", 6},
+{(DanaType*) &object_FileLib_functions_spec[9], "getSize", 7},
+{(DanaType*) &object_FileLib_functions_spec[10], "eof", 3},
+{(DanaType*) &object_FileLib_functions_spec[11], "close", 5},
+{(DanaType*) &object_FileLib_functions_spec[12], "getDirectoryContents", 20},
+{(DanaType*) &object_FileLib_functions_spec[13], "getInfo", 7},
+{(DanaType*) &object_FileLib_functions_spec[14], "exists", 6},
+{(DanaType*) &object_FileLib_functions_spec[15], "delete", 6},
+{(DanaType*) &object_FileLib_functions_spec[16], "move", 4},
+{(DanaType*) &object_FileLib_functions_spec[17], "copy", 4},
+{(DanaType*) &object_FileLib_functions_spec[18], "createDirectory", 15},
+{(DanaType*) &object_FileLib_functions_spec[19], "deleteDirectory", 15}};
+static const DanaType object_FileLib_events_spec[] = {
+};
+static const DanaTypeField intf_events_def[] = {
+};
 static const DanaType FileLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 19},
-{TYPE_DATA, 0, 0, NULL, 0},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 20},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
@@ -185,6 +193,7 @@ static unsigned char op_getID_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_open_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_write_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_read_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flush_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_setPos_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getSize_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_eof_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
@@ -207,6 +216,7 @@ static size_t interfaceFunctions[] = {
 (size_t) op_open_thread_spec,
 (size_t) op_write_thread_spec,
 (size_t) op_read_thread_spec,
+(size_t) op_flush_thread_spec,
 (size_t) op_setPos_thread_spec,
 (size_t) op_getSize_thread_spec,
 (size_t) op_eof_thread_spec,
@@ -222,7 +232,7 @@ static size_t interfaceFunctions[] = {
 static DanaType libType = {TYPE_OBJECT, 0, 0, (DanaTypeField*) intf_def, 3};
 static InterfaceDetails ids[] = {{"FileLib", 7, &libType}};
 static Interface objectInterfaces[] = {{&ids[0], {&self, NULL, NULL, interfaceFunctions, NULL, NULL}}		};
-static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, 0, (size_t) &emptyType}};
+static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, (size_t) &bool_def, (size_t) &emptyType}};
 Interface* getPublicInterface(){
 ((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
@@ -259,65 +269,70 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_read_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_read_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[6];
 ((VFrameHeader*) op_read_thread_spec) -> functionName = "read";
+((VFrameHeader*) op_flush_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
+((VFrameHeader*) op_flush_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flush_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flush_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[7];
+((VFrameHeader*) op_flush_thread_spec) -> functionName = "flush";
 ((VFrameHeader*) op_setPos_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 17;
 ((VFrameHeader*) op_setPos_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_setPos_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_setPos_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[7];
+((VFrameHeader*) op_setPos_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[8];
 ((VFrameHeader*) op_setPos_thread_spec) -> functionName = "setPos";
 ((VFrameHeader*) op_getSize_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getSize_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_getSize_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getSize_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[8];
+((VFrameHeader*) op_getSize_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[9];
 ((VFrameHeader*) op_getSize_thread_spec) -> functionName = "getSize";
 ((VFrameHeader*) op_eof_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
 ((VFrameHeader*) op_eof_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_eof_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_eof_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[9];
+((VFrameHeader*) op_eof_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[10];
 ((VFrameHeader*) op_eof_thread_spec) -> functionName = "eof";
 ((VFrameHeader*) op_close_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_close_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_close_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_close_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[10];
+((VFrameHeader*) op_close_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[11];
 ((VFrameHeader*) op_close_thread_spec) -> functionName = "close";
 ((VFrameHeader*) op_getDirectoryContents_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
 ((VFrameHeader*) op_getDirectoryContents_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_getDirectoryContents_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getDirectoryContents_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[11];
+((VFrameHeader*) op_getDirectoryContents_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[12];
 ((VFrameHeader*) op_getDirectoryContents_thread_spec) -> functionName = "getDirectoryContents";
 ((VFrameHeader*) op_getInfo_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
 ((VFrameHeader*) op_getInfo_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_getInfo_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getInfo_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[12];
+((VFrameHeader*) op_getInfo_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[13];
 ((VFrameHeader*) op_getInfo_thread_spec) -> functionName = "getInfo";
 ((VFrameHeader*) op_exists_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_exists_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_exists_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_exists_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[13];
+((VFrameHeader*) op_exists_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[14];
 ((VFrameHeader*) op_exists_thread_spec) -> functionName = "exists";
 ((VFrameHeader*) op_delete_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_delete_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_delete_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_delete_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[14];
+((VFrameHeader*) op_delete_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[15];
 ((VFrameHeader*) op_delete_thread_spec) -> functionName = "delete";
 ((VFrameHeader*) op_move_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 88;
 ((VFrameHeader*) op_move_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_move_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_move_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[15];
+((VFrameHeader*) op_move_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[16];
 ((VFrameHeader*) op_move_thread_spec) -> functionName = "move";
 ((VFrameHeader*) op_copy_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 89;
 ((VFrameHeader*) op_copy_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_copy_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_copy_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[16];
+((VFrameHeader*) op_copy_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[17];
 ((VFrameHeader*) op_copy_thread_spec) -> functionName = "copy";
 ((VFrameHeader*) op_createDirectory_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_createDirectory_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_createDirectory_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createDirectory_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[17];
+((VFrameHeader*) op_createDirectory_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[18];
 ((VFrameHeader*) op_createDirectory_thread_spec) -> functionName = "createDirectory";
 ((VFrameHeader*) op_deleteDirectory_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_deleteDirectory_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_deleteDirectory_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_deleteDirectory_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[18];
+((VFrameHeader*) op_deleteDirectory_thread_spec) -> localsDef = (size_t) &object_FileLib_functions_spec[19];
 ((VFrameHeader*) op_deleteDirectory_thread_spec) -> functionName = "deleteDirectory";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
@@ -338,6 +353,7 @@ static Fable interfaceMappings[] = {
 {"open", (VFrameHeader*) op_open_thread_spec},
 {"write", (VFrameHeader*) op_write_thread_spec},
 {"read", (VFrameHeader*) op_read_thread_spec},
+{"flush", (VFrameHeader*) op_flush_thread_spec},
 {"setPos", (VFrameHeader*) op_setPos_thread_spec},
 {"getSize", (VFrameHeader*) op_getSize_thread_spec},
 {"eof", (VFrameHeader*) op_eof_thread_spec},

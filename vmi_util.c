@@ -123,14 +123,11 @@ void return_byte_array_direct(VFrame *f, CoreAPI *api, unsigned char *str, size_
 	array -> length = len;
 	array -> gtLink = typeLink_char;
 	array -> refi.type = array -> gtLink -> typeLink;
-	api -> incrementGTRefCount(array -> gtLink);
 	array -> refi.ocm = f -> blocking -> instance;
 	array -> refi.refCount ++;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
 	ptrh -> typeLink = array -> gtLink -> typeLink;
-	
-	api -> decrementGTRefCount(typeLink_char);
 	}
 
 void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
@@ -144,14 +141,11 @@ void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
 	array -> length = len;
 	array -> gtLink = typeLink_char;
 	array -> refi.type = array -> gtLink -> typeLink;
-	api -> incrementGTRefCount(array -> gtLink);
 	array -> refi.ocm = f -> blocking -> instance;
 	array -> refi.refCount ++;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
 	ptrh -> typeLink = array -> gtLink -> typeLink;
-	
-	api -> decrementGTRefCount(typeLink_char);
 	}
 
 void return_char_array(VFrame *f, CoreAPI *api, char *str)
@@ -164,12 +158,9 @@ void return_char_array(VFrame *f, CoreAPI *api, char *str)
 	array -> length = strlen(str);
 	array -> gtLink = typeLink_char;
 	array -> refi.type = array -> gtLink -> typeLink;
-	api -> incrementGTRefCount(array -> gtLink);
 	array -> refi.ocm = f -> blocking -> instance;
 	array -> refi.refCount ++;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
 	ptrh -> typeLink = array -> gtLink -> typeLink;
-	
-	api -> decrementGTRefCount(typeLink_char);
 	}

@@ -121,6 +121,22 @@ INSTRUCTION_DEF op_file_write(VFrame *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_file_flush(VFrame *cframe)
+	{
+	FILE *fd;
+	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	
+	int osres = fflush(fd);
+	
+	unsigned char res = osres == 0;
+	
+	//the return value is written to local variable 0
+	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
+	memcpy(result, &res, sizeof(unsigned char));
+	
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_file_read(VFrame *cframe)
 	{
 	FILE *fd;
@@ -491,7 +507,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				memset(newItem -> data, '\0', sizeof(LiveData));
 				newItem -> data -> refi.ocm = dataOwner;
 				newItem -> data -> gtLink = fileEntryGT;
-				newItem -> data -> gtLink -> refCount ++;
+				api -> incrementGTRefCount(newItem -> data -> gtLink);
 				
 				newItem -> data -> data = malloc(sizeof(VVarLivePTR));
 				memset(newItem -> data -> data, '\0', sizeof(VVarLivePTR));
@@ -501,7 +517,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				memset(itemArray, '\0', sizeof(LiveArray));
 				itemArray -> refi.ocm = dataOwner;
 				itemArray -> gtLink = charArrayGT;
-				itemArray -> gtLink -> refCount ++;
+				api -> incrementGTRefCount(itemArray -> gtLink);
 				itemArray -> data = malloc(strlen(dp->d_name));
 				memcpy(itemArray -> data, dp->d_name, strlen(dp->d_name));
 				itemArray -> length = strlen(dp->d_name);
@@ -529,7 +545,7 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 		
 		newArray -> refi.ocm = dataOwner;
 		newArray -> gtLink = fileEntryArrayGT;
-		newArray -> gtLink -> refCount ++;
+		api -> incrementGTRefCount(newArray -> gtLink);
 		newArray -> data = malloc(sizeof(VVarLivePTR) * count);
 		memset(newArray -> data, '\0', sizeof(VVarLivePTR) * count);
 		newArray -> length = count;
@@ -773,6 +789,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("open", op_file_open);
 	setInterfaceFunction("write", op_file_write);
 	setInterfaceFunction("read", op_file_read);
+	setInterfaceFunction("flush", op_file_flush);
 	setInterfaceFunction("setPos", op_file_seek);
 	setInterfaceFunction("getSize", op_file_size);
 	setInterfaceFunction("eof", op_file_eof);
