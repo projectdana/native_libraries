@@ -68,6 +68,12 @@ INSTRUCTION_DEF op_deflate(VFrame *cframe)
 	
 	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
+	if (array == NULL)
+		{
+		api -> throwException(cframe, "null array to deflate");
+		return RETURN_OK;
+		}
+	
 	unsigned char xs = 0;
 	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 2), 1);
 	
@@ -164,6 +170,12 @@ INSTRUCTION_DEF op_inflate(VFrame *cframe)
 	memcpy(&ist, getVariableContent(cframe, 0), sizeof(size_t));
 	
 	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	
+	if (array == NULL)
+		{
+		api -> throwException(cframe, "null array to inflate");
+		return RETURN_OK;
+		}
 	
 	ist -> stream.avail_in = array -> length;
 	ist -> stream.next_in = array -> data;
