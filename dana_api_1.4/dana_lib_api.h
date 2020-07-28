@@ -12,6 +12,8 @@ typedef struct _CoreAPI{
 	void (*incrementGTRefCount)(GlobalTypeLink *d);
 	unsigned char* (*getDecimalScalingFactor)(size_t byteWidth);
 	void (*throwException)(VFrame *frame, char *reason);
+	void (*incRef)(VFrame *frame, void *entity);
+	void (*decRef)(VFrame *frame, void *entity);
 	} CoreAPI;
 
 typedef Interface* (*dlLoad)(CoreAPI *capi);

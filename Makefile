@@ -13,7 +13,7 @@ SDL_FLAGS=
 NET_FLAGS=
 MATH_FLAGS=
 SQL_FLAGS=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib audio
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -38,15 +38,15 @@ ifeq ($(OS),Windows_NT)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-#		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" "C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib/libSDL2_ttf.a" -lSDL2main -lSDL2 -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -lfreetype -static-libgcc"
 		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
-#		SDL_FLAGS = "C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib/libSDL2.dll.a" "C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib/libSDL2main.a" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
+		AUDIO_FLAGS = -I "C:/libs/miniaudio"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
         CCFLAGS += -DMACHINE_32
 		CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
 		CHIP = x86
 		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc
+		AUDIO_FLAGS = -I "C:/libs/miniaudio"
     endif
 else
     UNAME_S := $(shell uname -s)
@@ -68,6 +68,7 @@ else
 		CLIPBOARD_FLAGS = -lX11
 		SQL_FLAGS = ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
 		SSL_FLAGS = -I ~/libs/openssl-1.1.1f/include ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
+		AUDIO_FLAGS = -I ~/libs/miniaudio/ -lm -lpthread
     endif
     ifeq ($(UNAME_S),Darwin)
         CCFLAGS += -DOSX
@@ -84,6 +85,7 @@ else
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
+		AUDIO_FLAGS = -I ~/Desktop/libs/miniaudio/ -lm -lpthread
 		SSL_FLAGS = -I ~/Desktop/libs/openssl-1.1.1f/include ~/Desktop/libs/openssl-1.1.1f/libssl.a ~/Desktop/libs/openssl-1.1.1f/libcrypto.a
     endif
     ifneq ($(UNAME_S),Darwin)
@@ -183,7 +185,7 @@ ssl_lib:
 	$(CP_CMD) SSLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 audio:
-	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)
+	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_FLAGS)
 	$(CP_CMD) AudioLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 all: $(ALL_RULES)
