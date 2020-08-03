@@ -43,7 +43,6 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 INSTRUCTION_DEF op_file_open(VFrame *cframe)
@@ -463,7 +462,6 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 					itemArray -> length = strlen(fi.cFileName);
 					
 					ptrh -> content = (unsigned char*) itemArray;
-					ptrh -> typeLink = itemArray -> gtLink -> typeLink;
 					itemArray -> refi.refCount ++;
 					itemArray -> refi.type = itemArray -> gtLink -> typeLink;
 					
@@ -523,7 +521,6 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				itemArray -> length = strlen(dp->d_name);
 				
 				ptrh -> content = (unsigned char*) itemArray;
-				ptrh -> typeLink = itemArray -> gtLink -> typeLink;
 				itemArray -> refi.refCount ++;
 				itemArray -> refi.type = itemArray -> gtLink -> typeLink;
 				
@@ -557,7 +554,6 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 			{
 			VVarLivePTR *ptrh = (VVarLivePTR*) (&newArray -> data[sizeof(VVarLivePTR) * i]);
 			ptrh -> content = (unsigned char*) fw -> data;
-			ptrh -> typeLink = fw -> data -> gtLink -> typeLink;
 			fw -> data -> refi.refCount ++;
 			fw -> data -> refi.type = fw -> data -> gtLink -> typeLink;
 		
@@ -568,7 +564,6 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 		
 		VVarLivePTR *ptrh = (VVarLivePTR*) data -> data;
 		ptrh -> content = (unsigned char*) newArray;
-		ptrh -> typeLink = newArray -> gtLink -> typeLink;
 		newArray -> refi.refCount ++;
 		}
 	

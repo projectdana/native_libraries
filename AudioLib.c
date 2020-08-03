@@ -266,7 +266,6 @@ static void * event_thread(void *ptr)
 					VVarLivePTR *ptrh = (VVarLivePTR*) nd -> data;
 					
 					ptrh -> content = (unsigned char*) ti -> objectRef;
-					ptrh -> typeLink = ti -> orType;
 					api -> decRef(NULL, ti -> objectRef);
 					
 					api -> pushEvent(instance -> audioObject, 0, 0, nd);
@@ -659,7 +658,7 @@ INSTRUCTION_DEF op_device_play(VFrame *cframe)
 	memcpy(&trackInstance, getVariableContent(cframe, 2), sizeof(size_t));
 	
 	trackInstance -> objectRef = obj;
-	trackInstance -> orType = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> typeLink;
+	trackInstance -> orType = ((ReFI*) obj) -> type;
 	
 	playTrack(cframe, deviceInstance, trackInstance, false);
 	

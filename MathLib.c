@@ -84,7 +84,6 @@ static void returnDouble(VFrame *f, double d)
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 INSTRUCTION_DEF op_sqrt_dec(VFrame *cframe)

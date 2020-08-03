@@ -71,9 +71,6 @@ typedef struct lcntvl{
 
 typedef struct vvlptr{
 	unsigned char *content;
-	size_t vsize;
-	struct _s_danaType *typeLink;
-	struct component *owner;
 	unsigned char readOnly;
 	} VVarLivePTR;
 

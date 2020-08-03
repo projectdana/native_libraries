@@ -39,7 +39,6 @@ static void returnString(VFrame *f, char *value) {
 	array -> refi.type = array -> gtLink -> typeLink;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 }
 
 /*static void returnBoolean(VFrame *cframe, unsigned char res) {

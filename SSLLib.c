@@ -68,7 +68,6 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 static LiveArray* makeStringArray(unsigned char *str, size_t len, DanaComponent *owner)
@@ -508,14 +507,12 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 			LiveArray *itemArray = makeStringArray(pbuf, len, dataOwner);
 			
 			ptrh -> content = (unsigned char*) itemArray;
-			ptrh -> typeLink = itemArray -> gtLink -> typeLink;
 			itemArray -> refi.refCount ++;
 			itemArray -> refi.ocm = dataOwner;
 			
 			// -- reference in array --
 			VVarLivePTR *ptrhA = (VVarLivePTR*) (&newArray -> data[sizeof(VVarLivePTR) * i]);
 			ptrhA -> content = (unsigned char*) newData;
-			ptrhA -> typeLink = newData -> gtLink -> typeLink;
 			newData -> refi.refCount ++;
 			newData -> refi.type = newData -> gtLink -> typeLink;
 			
@@ -529,7 +526,7 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 		VVarLivePTR *ptrh = (VVarLivePTR*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
 		
 		ptrh -> content = (unsigned char*) newArray;
-		ptrh -> typeLink = newArray -> gtLink -> typeLink;
+
 		}
 	
 	return RETURN_OK;
@@ -639,7 +636,6 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 					LiveArray *cfa = (LiveArray*) ((VVarLivePTR*) cfd -> data) -> content;
 					
 					aptr -> content = (unsigned char*) cfa;
-					aptr -> typeLink = cfa -> gtLink -> typeLink;
 					cfa -> refi.refCount ++;
 					
 					break;
@@ -659,7 +655,6 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 		LiveArray *reason = makeStringArray((unsigned char*) failReason, strlen(failReason), dataOwner);
 		
 		aptr -> content = (unsigned char*) reason;
-		aptr -> typeLink = reason -> gtLink -> typeLink;
 		reason -> refi.refCount ++;
 		reason -> refi.ocm = dataOwner;
 		}

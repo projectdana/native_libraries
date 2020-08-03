@@ -127,7 +127,6 @@ void return_byte_array_direct(VFrame *f, CoreAPI *api, unsigned char *str, size_
 	array -> refi.refCount ++;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
@@ -145,7 +144,6 @@ void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
 	array -> refi.refCount ++;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 void return_char_array(VFrame *f, CoreAPI *api, char *str)
@@ -162,5 +160,4 @@ void return_char_array(VFrame *f, CoreAPI *api, char *str)
 	array -> refi.refCount ++;
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}

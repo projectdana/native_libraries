@@ -367,7 +367,6 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	ptrh -> content = (unsigned char*) newArray;
 	newArray -> refi.refCount ++;
 	newArray -> refi.type = newArray -> gtLink -> typeLink;
-	ptrh -> typeLink = newArray -> gtLink -> typeLink;
 	
 	//Datagram.port
 	
@@ -394,8 +393,6 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	ptrh -> content = (unsigned char*) newContentArray;
 	newContentArray -> refi.refCount ++;
 	newContentArray -> refi.type = newContentArray -> gtLink -> typeLink;
-	ptrh -> typeLink = newContentArray -> gtLink -> typeLink;
-	
 	
 	//the return value is written to local variable 0
 	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];

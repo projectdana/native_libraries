@@ -360,7 +360,6 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 void semaphore_init(Semaphore *s, unsigned int initialValue)
@@ -1672,7 +1671,6 @@ static void render_thread()
 				arrayPTR -> content = (unsigned char*) pixelArrayH;
 				pixelArrayH -> refi.refCount ++;
 				pixelArrayH -> refi.type = pixelArrayH -> gtLink -> typeLink;
-				arrayPTR -> typeLink = pixelArrayH -> gtLink -> typeLink;
 
 				//printf("size: %u | %u\n", totalPixels, ((StructuredType*) pixelArrayH -> gtLink -> typeLink -> definition.content) -> size);
 

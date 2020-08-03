@@ -33,7 +33,6 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 typedef struct {
@@ -238,7 +237,6 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	array -> refi.type = array -> gtLink -> typeLink;
 	
 	ict -> content = (unsigned char*) array;
-	ict -> typeLink = array -> gtLink -> typeLink;
 	
 	//populate the pixel map (see above helper function)
 	copyPixels(array -> data, row_pointers, width, height);

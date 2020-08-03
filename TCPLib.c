@@ -156,7 +156,6 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
-	ptrh -> typeLink = array -> gtLink -> typeLink;
 	}
 
 #define MAX_ADDR 64
@@ -663,7 +662,6 @@ INSTRUCTION_DEF op_tcp_get_local_address(VFrame *cframe)
 	ptrh -> content = (unsigned char*) newArray;
 	newArray -> refi.refCount ++;
 	newArray -> refi.type = newArray -> gtLink -> typeLink;
-	ptrh -> typeLink = newArray -> gtLink -> typeLink;
 	
 	xs = port;
 
@@ -750,7 +748,6 @@ INSTRUCTION_DEF op_tcp_get_remote_address(VFrame *cframe)
 	ptrh -> content = (unsigned char*) newArray;
 	newArray -> refi.refCount ++;
 	newArray -> refi.type = newArray -> gtLink -> typeLink;
-	ptrh -> typeLink = newArray -> gtLink -> typeLink;
 	
 	xs = port;
 
