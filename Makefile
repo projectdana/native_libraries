@@ -13,7 +13,7 @@ SDL_FLAGS=
 NET_FLAGS=
 MATH_FLAGS=
 SQL_FLAGS=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib audio
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib audio
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -30,10 +30,10 @@ ifeq ($(OS),Windows_NT)
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
 	SQL_FLAGS = -lmysql
-	PNG_FLAGS = -I "C:/libs/lpng1635/" "C:/libs/lpng1635/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
+	PNG_FLAGS = -I "C:/libs/lpng/" "C:/libs/lpng/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
 	JPG_FLAGS = -I "C:/libs/jpeg-9c" "C:/libs/jpeg-9c/libjpeg.a"
-	ZLIB_FLAGS = -I "C:/libs/zlib-1.2.11" "C:/libs/zlib-1.2.11/libz.a"
-	SSL_FLAGS = -I C:/libs/openssl-1.1.1f/include C:/libs/openssl-1.1.1f/libssl.a C:/libs/openssl-1.1.1f/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
+	ZLIB_FLAGS = -I "C:/libs/zlib" "C:/libs/zlib/libz.a"
+	SSL_FLAGS = -I C:/libs/openssl/include C:/libs/openssl/libssl.a C:/libs/openssl/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
@@ -45,7 +45,7 @@ ifeq ($(OS),Windows_NT)
         CCFLAGS += -DMACHINE_32
 		CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
 		CHIP = x86
-		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc
+		SDL_FLAGS = -L"C:/libs/SDL2/build/build/.libs" -L"C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL2/include/" -I "C:/libs/SDL2_ttf/" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc
 		AUDIO_FLAGS = -I "C:/libs/miniaudio"
     endif
 else
@@ -59,6 +59,7 @@ else
 	CCFLAGS += -shared -fPIC
 	MATH_FLAGS = -lm
 	MYSQL_INCLUDE = -I/usr/include/mysql `mysql_config --variable=pkglibdir`/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
+	#MYSQL_INCLUDE = -I ~/libs/mysql_lib/include ~/libs/mysql_lib/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
     ifeq ($(UNAME_S),Linux)
         CCFLAGS += -DLINUX
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
@@ -183,6 +184,10 @@ zlib:
 ssl_lib:
 	$(CC) -Os -s SSLLib_dni.c vmi_util.c SSLLib.c -o SSLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
 	$(CP_CMD) SSLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
+
+sha_lib:
+	$(CC) -Os -s SHALib_dni.c vmi_util.c SHALib.c -o SHALib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CP_CMD) SHALib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 audio:
 	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_FLAGS)

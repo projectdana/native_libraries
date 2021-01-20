@@ -214,9 +214,13 @@ INSTRUCTION_DEF op_create_context(VFrame *cframe)
     SSL_CTX *ctx;
 	
 	if (serverMode)
+		{
 		method = TLS_server_method();
+		}
 		else
+		{
 		method = TLS_client_method();
+		}
 
     ctx = SSL_CTX_new(method);
     if (!ctx) {
@@ -224,6 +228,17 @@ INSTRUCTION_DEF op_create_context(VFrame *cframe)
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 		}
+	
+	/*
+	if (serverMode)
+		{
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+		//SSL_CTX_set1_curves_list(ctx, "P-521:P-348:P-256");
+		}
+	*/
+	
+	//const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+	//SSL_CTX_set_options(ctx, flags);
 	
 	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
 	memcpy(result, &ctx, sizeof(size_t));
@@ -273,7 +288,23 @@ INSTRUCTION_DEF op_set_certificate(VFrame *cframe)
 
 	RSA* rsa = EVP_PKEY_get1_RSA(pkey);
 	
-	SSL_CTX_use_RSAPrivateKey(ctx, rsa);
+	if (SSL_CTX_use_RSAPrivateKey(ctx, rsa) <= 0)
+		{
+		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+		return RETURN_OK;
+		}
+	
+	if (SSL_CTX_check_private_key(ctx) <= 0)
+		{
+		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+		return RETURN_OK;
+		}
+	
+	unsigned char res = 1;
+	
+	//return boolean
+	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
+	memcpy(result, &res, sizeof(unsigned char));
 	
 	return RETURN_OK;
 	}
@@ -387,7 +418,13 @@ INSTRUCTION_DEF op_accept(VFrame *cframe)
 	unsigned char res = 0;
 	
 	if (SSL_accept(ssl) <= 0) {
-		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+		int errC = ERR_get_error();
+		
+		if (errC != 0)
+			{
+			api -> throwException(cframe, ERR_error_string(errC, NULL));
+			}
+		
 		return RETURN_OK;
 		}
 		else
@@ -681,7 +718,9 @@ INSTRUCTION_DEF op_write(VFrame *cframe)
 	int sz = 0;
 	
 	if (array != NULL)
+		{
 		sz = SSL_write(ssl, (char*) array -> data, array -> length);
+		}
 	
 	//return # bytes written
 	
@@ -720,7 +759,13 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 		
 		if (amt < 0)
 			{
-			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+			int errC = ERR_get_error();
+			if (errC != SSL_ERROR_ZERO_RETURN && errC != 0)
+				{
+				api -> throwException(cframe, ERR_error_string(errC, NULL));
+				}
+			
+			free(pbuf);
 			return RETURN_OK;
 			}
 		
@@ -746,6 +791,15 @@ INSTRUCTION_DEF op_close_ssl(VFrame *cframe)
 	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
 	
 	SSL_shutdown(ssl);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_free_ssl(VFrame *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	
 	SSL_free(ssl);
 	
 	return RETURN_OK;
@@ -793,6 +847,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("write", op_write);
 	setInterfaceFunction("read", op_read);
 	setInterfaceFunction("closeSSL", op_close_ssl);
+	setInterfaceFunction("freeSSL", op_free_ssl);
 	
 	return getPublicInterface();
 	}

@@ -1,4 +1,4 @@
-//Written by Barry Porter, 2016, last updated 2020
+//Written by Barry Porter, 2016, last updated 2021
 
 //This is a graphics library using SDL2 for its rendering.
 
@@ -89,6 +89,30 @@ We can either link with -L/opt/vc/lib -lbcm_host, or we can use ./configure --di
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef WINDOWS
+	#ifdef MACHINE_64
+	#define lockedInc(X) InterlockedIncrement64((long long*) X)
+	#endif
+	#ifdef MACHINE_32
+	#define lockedInc(X) InterlockedIncrement((long*) X)
+	#endif
+#endif
+#ifdef LINUX
+#define lockedInc(X) __sync_add_and_fetch(X, 1)
+#endif
+
+#ifdef WINDOWS
+	#ifdef MACHINE_64
+	#define lockedDec(X) InterlockedDecrement64((long long*) X)
+	#endif
+	#ifdef MACHINE_32
+	#define lockedDec(X) InterlockedDecrement((long*) X)
+	#endif
+#endif
+#ifdef LINUX
+#define lockedDec(X) __sync_sub_and_fetch(X, 1)
+#endif
+
 static CoreAPI *api;
 
 static DanaType intType = {TYPE_LITERAL, 0, sizeof(size_t)};
@@ -151,8 +175,13 @@ typedef struct{
 	int a;
 	} RGBAInt;
 
-typedef struct{
+typedef struct {
 	TTF_Font *font;
+	size_t refCount;
+	} FontHolder;
+
+typedef struct{
+	FontHolder *font;
 	char *text;
 	unsigned int textLen;
 	int x;
@@ -722,6 +751,15 @@ static void cleanupBuffer(UIObject *buf)
 			UIText *poly = (UIText*) td -> object;
 
 			free(poly -> text);
+			
+			//dec refcount on the font object, and cleanup if zero...
+			FontHolder *fHold = poly -> font;
+			
+			if (lockedDec(&fHold -> refCount) == 0)
+				{
+				TTF_CloseFont(fHold -> font);
+				free(fHold);
+				}
 			}
 			else if (td -> type == UI_TYPE_BITMAP)
 			{
@@ -797,7 +835,7 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 			color.b = poly -> b;
 			color.a = poly -> a;
 			
-			SDL_Texture *image = renderText(poly -> text, poly -> font, color, myRenderer);
+			SDL_Texture *image = renderText(poly -> text, poly -> font -> font, color, myRenderer);
 			if (image != NULL)
 				{
 				renderTextureRZ(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, poly -> rotation);
@@ -905,7 +943,7 @@ int DrawScene(WindowInstance *instance)
 				color.b = poly -> b;
 				color.a = poly -> a;
 
-				SDL_Texture *image = renderText(poly -> text, poly -> font, color, instance -> renderer);
+				SDL_Texture *image = renderText(poly -> text, poly -> font -> font, color, instance -> renderer);
 				if (image != NULL)
 					{
 					renderTextureRZ(image, instance -> renderer, poly -> x, poly -> y, poly -> rotation);
@@ -1105,7 +1143,7 @@ typedef struct{
 	char *fontPath;
 	size_t size;
 	VFrame *vframe;
-	TTF_Font *fontHandle;
+	FontHolder *fontHandle;
 #ifdef WINDOWS
 	HANDLE sem;
 #endif
@@ -1800,19 +1838,23 @@ static void render_thread()
 				{
 				LoadFontData *lfd = (LoadFontData*) e.user.data1;
 				VFrame *frame = lfd -> vframe;
-
+				
 				TTF_Font *font = TTF_OpenFont(lfd -> fontPath, lfd -> size);
 				if (font == NULL)
 					{
 					printf("open font error: %s [%s]\n", SDL_GetError(), TTF_GetError());
 					}
-
+				
 				free(lfd -> fontPath);
-
-				size_t xs = (size_t) font;
+				
+				FontHolder *fhold = malloc(sizeof(FontHolder));
+				fhold -> refCount = 1;
+				fhold -> font = font;
+				
+				size_t xs = (size_t) fhold;
 				size_t *result = (size_t*) &frame -> localsData[((DanaType*) frame -> localsDef) -> fields[0].offset];
 				memcpy(result, &xs, sizeof(size_t));
-
+				
 				#ifdef WINDOWS
 				ReleaseSemaphore(lfd -> sem, 1, NULL);
 				#endif
@@ -1827,9 +1869,15 @@ static void render_thread()
 				else if (e.type == DX_UNLOAD_FONT)
 				{
 				LoadFontData *lfd = (LoadFontData*) e.user.data1;
-				TTF_Font *font = lfd -> fontHandle;
 				
-				TTF_CloseFont(font);
+				FontHolder *fhld = lfd -> fontHandle;
+				TTF_Font *font = fhld -> font;
+				
+				if (lockedDec(&fhld -> refCount) == 0)
+					{
+					TTF_CloseFont(font);
+					free(fhld);
+					}
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(lfd -> sem, 1, NULL);
@@ -2283,7 +2331,9 @@ INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 
 		size_t font_hnd = 0;
 		memcpy(&font_hnd, getVariableContent(cframe, 1), sizeof(size_t));
-		TTF_Font *font = (TTF_Font*) font_hnd;
+		FontHolder *fHold = (FontHolder*) font_hnd;
+		
+		lockedInc(&fHold -> refCount);
 
 		size_t x = 0;
 		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 2), sizeof(size_t));
@@ -2323,7 +2373,7 @@ INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 			uio -> type = UI_TYPE_TEXT;
 			uio -> object = poly;
 
-			poly -> font = font;
+			poly -> font = fHold;
 
 			poly -> textLen = tlen;
 			poly -> text = (char*) malloc(tlen + 1);
@@ -2349,7 +2399,8 @@ INSTRUCTION_DEF op_get_text_width_with(VFrame *cframe)
 	{
 	size_t font_hnd = 0;
 	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
-	TTF_Font *font = (TTF_Font*) font_hnd;
+	FontHolder *fHold = (FontHolder*) font_hnd;
+	TTF_Font *font = fHold -> font;
 
 	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 
@@ -2514,7 +2565,9 @@ INSTRUCTION_DEF op_get_font_metrics(VFrame *cframe)
 	{
 	size_t font_hnd = 0;
 	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
-	TTF_Font *font = (TTF_Font*) font_hnd;
+	
+	FontHolder *fHold = (FontHolder*) font_hnd;
+	TTF_Font *font = fHold -> font;
 
 	unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 
@@ -2555,7 +2608,8 @@ INSTRUCTION_DEF op_get_font_name(VFrame *cframe)
 	{
 	size_t font_hnd = 0;
 	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
-	TTF_Font *font = (TTF_Font*) font_hnd;
+	FontHolder *fHold = (FontHolder*) font_hnd;
+	TTF_Font *font = fHold -> font;
 
 	//TODO: don't use any TTF_ functions outside of the main rendering loop?
 
@@ -2573,7 +2627,8 @@ INSTRUCTION_DEF op_is_font_fixed_width(VFrame *cframe)
 	{
 	size_t font_hnd = 0;
 	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
-	TTF_Font *font = (TTF_Font*) font_hnd;
+	FontHolder *fHold = (FontHolder*) font_hnd;
+	TTF_Font *font = fHold -> font;
 
 	//TODO: don't use any TTF_ functions outside of the main rendering loop?
 	cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset] = TTF_FontFaceIsFixedWidth(font) == 0 ? 0 : 1;
@@ -2585,7 +2640,8 @@ INSTRUCTION_DEF op_get_text_bitmap_with(VFrame *cframe)
 	{
 	size_t font_hnd = 0;
 	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
-	TTF_Font *font = (TTF_Font*) font_hnd;
+	FontHolder *fHold = (FontHolder*) font_hnd;
+	TTF_Font *font = fHold -> font;
 
 	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 
@@ -3242,7 +3298,7 @@ INSTRUCTION_DEF op_unload_font(VFrame *cframe)
 	
 	if (hnd != 0)
 		{
-		TTF_Font *font = (TTF_Font*) hnd;
+		FontHolder *font = (FontHolder*) hnd;
 		
 		LoadFontData *lfd = malloc(sizeof(LoadFontData));
 		memset(lfd, '\0', sizeof(LoadFontData));
