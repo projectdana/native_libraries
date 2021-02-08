@@ -16,6 +16,7 @@ char* getParam_char_array(VFrame *f, int pIndex);
 
 //return an int
 void return_int(VFrame *f, size_t v);
+void return_bool(VFrame *f, bool b);
 
 //return a character array; a new copy of the given str is made by this function
 void return_char_array(VFrame *f, CoreAPI *api, char *str);

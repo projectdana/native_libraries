@@ -300,6 +300,8 @@ INSTRUCTION_DEF op_set_certificate(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
+	RSA_free(rsa);
+	
 	unsigned char res = 1;
 	
 	//return boolean

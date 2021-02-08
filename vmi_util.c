@@ -113,6 +113,12 @@ void return_int(VFrame *f, size_t v)
 	copyHostInteger((unsigned char*) result, (unsigned char*) &v, sizeof(size_t));
 	}
 
+void return_bool(VFrame *f, bool b)
+	{
+	size_t *result = (size_t*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
+	copyHostInteger((unsigned char*) result, (unsigned char*) &b, sizeof(unsigned char));
+	}
+
 void return_byte_array_direct(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
 	{
 	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
