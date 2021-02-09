@@ -49,6 +49,8 @@ handy things: https://sourceforge.net/p/mingw-w64/wiki2/BuildingOpenSSL/
 
 #include <pthread.h>
 
+const size_t AES_BLOCK_SIZE = 128;
+
 typedef struct {
 	EVP_CIPHER_CTX *ctx;
 	bool ok;
@@ -173,24 +175,29 @@ INSTRUCTION_DEF op_aes_cbc_encryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char ciphertext[128];
+	unsigned char *ciphertext = malloc(input -> length + AES_BLOCK_SIZE);
+	
+	if (ciphertext == NULL)
+		{
+		api -> throwException(cframe, "out of memory");
+		cst -> ok = false;
+		return RETURN_OK;
+		}
+	
 	int len = 0;
 	
     /*
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_EncryptUpdate(cst -> ctx, ciphertext, &len, input -> data, input -> length))
+    if (1 != EVP_EncryptUpdate(cst -> ctx, ciphertext, &len, input -> data, input -> length))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, ciphertext, len);
-	
-	returnByteArray(cframe, pbuf, len);
+	returnByteArray(cframe, ciphertext, len);
 	
 	return RETURN_OK;
 	}
@@ -318,7 +325,15 @@ INSTRUCTION_DEF op_aes_cbc_decryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char output_text[128];
+	unsigned char *output_text = malloc(input -> length + AES_BLOCK_SIZE);
+	
+	if (output_text == NULL)
+		{
+		api -> throwException(cframe, "out of memory");
+		cst -> ok = false;
+		return RETURN_OK;
+		}
+	
 	int len = 0;
 	
     /*
@@ -332,10 +347,7 @@ INSTRUCTION_DEF op_aes_cbc_decryptPart(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, output_text, len);
-	
-	returnByteArray(cframe, pbuf, len);
+	returnByteArray(cframe, output_text, len);
 	
 	return RETURN_OK;
 	}
@@ -518,7 +530,15 @@ INSTRUCTION_DEF op_aes_gcm_encryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char ciphertext[128];
+	unsigned char *ciphertext = malloc(input -> length + AES_BLOCK_SIZE);
+	
+	if (ciphertext == NULL)
+		{
+		api -> throwException(cframe, "out of memory");
+		cst -> ok = false;
+		return RETURN_OK;
+		}
+	
 	int len = 0;
 	
     /*
@@ -532,10 +552,7 @@ INSTRUCTION_DEF op_aes_gcm_encryptPart(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, ciphertext, len);
-	
-	returnByteArray(cframe, pbuf, len);
+	returnByteArray(cframe, ciphertext, len);
 	
 	return RETURN_OK;
 	}
@@ -726,7 +743,15 @@ INSTRUCTION_DEF op_aes_gcm_decryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char output_text[128];
+	unsigned char *output_text = malloc(input -> length + AES_BLOCK_SIZE);
+	
+	if (output_text == NULL)
+		{
+		api -> throwException(cframe, "out of memory");
+		cst -> ok = false;
+		return RETURN_OK;
+		}
+	
 	int len = 0;
 	
     /*
@@ -740,10 +765,7 @@ INSTRUCTION_DEF op_aes_gcm_decryptPart(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, output_text, len);
-	
-	returnByteArray(cframe, pbuf, len);
+	returnByteArray(cframe, output_text, len);
 	
 	return RETURN_OK;
 	}
