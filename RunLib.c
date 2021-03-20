@@ -45,6 +45,14 @@ INSTRUCTION_DEF op_execute(VFrame *cframe)
 	
 	if (true)
 		{
+		//NOTE: most *nix systems only support an 8-bit return value from a child process
+		#ifdef LINUX
+		if (WIFEXITED(k))
+			{
+			k = WEXITSTATUS(k);
+			}
+		#endif
+		
 		size_t *resultValue = (size_t*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
 		
 		size_t res = k;
