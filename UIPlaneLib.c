@@ -301,9 +301,7 @@ typedef struct{
 	HANDLE renderLock;
 #endif
 
-	ExitStatus mouseClickExitStatus;
 	VVarR clickParams[3];
-	ExitStatus mouseEventExitStatus;
 	VVarR mouseParams[3];
 	size_t clickX;
 	size_t clickY;

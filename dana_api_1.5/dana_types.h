@@ -189,46 +189,27 @@ typedef struct thrhdr{
 	size_t xrd;
 	} VFrameHeader;
 
-typedef struct __est{
-	size_t status;
-	size_t result;
-	} ExitStatus;
-
 typedef struct vthread{
 	unsigned char *pc;
 	unsigned char *eii;
 	size_t ln;
-	VFrameHeader *header;
+	unsigned int *khd;
 	struct component *instance;
-	struct component *host;
-	LiveObject *hostObject;
+	LiveObject *io;
+	void *tc;
 	struct vthread *a;
 	struct vthread *blocking;
 	struct vthread *c;
-	ExitStatus *exitStatus;
-	LiveThread liveThread;
+	unsigned int *frc;
 	size_t localsDef;
 	unsigned char *localsData;
-	LiveObject *io;
-	void *pr;
-	void *pa;
-	struct vthread *nrf;
-	size_t rr;
-	size_t ri;
-	char *rex;
-	size_t rex1;
-	size_t rex2;
-	size_t rex3;
-	VVarR *rr1;
-	VVarR *rr2;
-	unsigned char *pe;
-	unsigned char pec;
-	unsigned char f;
-	unsigned char xf;
-	unsigned char inss;
-	void* to;
-	void* totcn;
-	void* totcp;
+	unsigned char fa;
+	unsigned char fb;
+	unsigned char fc;
+	unsigned char fd;
+	void *tea;
+	void *teb;
+	void *tec;
 	} VFrame;
 
 typedef struct{
