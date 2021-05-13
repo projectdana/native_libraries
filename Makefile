@@ -19,9 +19,6 @@ ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
 	CCFLAGS += -DLIB_PLATFORM_NAME=\"win7\"
 	CCFLAGS += -DMACHINE_ENDIAN_LITTLE
-	OUTPUT_FILE = dana.exe
-	PRECOMPILE = windres cmdres.rc cmdres.o
-	EXTRA_O_FILES = cmdres.o
 	INSTALL_PATH = "c:\programfiles\dana\"
 	CP_CMD = copy
 	PLATFORM = win7
@@ -50,7 +47,6 @@ ifeq ($(OS),Windows_NT)
     endif
 else
     UNAME_S := $(shell uname -s)
-	OUTPUT_FILE = dana
 	CCFLAGS += -ldl
 	CCFLAGS += -DMACHINE_ENDIAN_LITTLE
 	INSTALL_PATH = ~/dana/

@@ -180,6 +180,7 @@ typedef struct thrhdr{
 	size_t frameSize;
 	struct thrhdr *sub;
 	size_t formalParamsCount;
+	size_t formalParamsCore;
 	unsigned char *pcLoc;
 	void *el;
 	size_t localsDef;
@@ -203,6 +204,7 @@ typedef struct vthread{
 	unsigned int *frc;
 	size_t localsDef;
 	unsigned char *localsData;
+	size_t svec;
 	unsigned char fa;
 	unsigned char fb;
 	unsigned char fc;
