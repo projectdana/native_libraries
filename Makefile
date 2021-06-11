@@ -73,7 +73,7 @@ else
         PLATFORM = osx
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"osx\"
         CCFLAGS += -DMACHINE_64
-		SDL_FLAGS = -F/Library/Frameworks/ -framework SDL2 -framework SDL2_ttf -Wl,-rpath,'@executable_path/resources-ext' -I~/Desktop/libs/
+		SDL_FLAGS = /usr/local/lib/libSDL2.a -liconv -framework Cocoa -framework Carbon -framework IOKit -framework CoreAudio -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework CoreHaptics -framework GameController -framework Metal /usr/local/lib/libSDL2_ttf.a -lfreetype -Wl,-rpath,'@executable_path/resources-ext' -I ~/Desktop/libs/
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
@@ -86,7 +86,7 @@ else
 		SSL_FLAGS = -I ~/Desktop/libs/openssl-1.1.1f/include ~/Desktop/libs/openssl-1.1.1f/libssl.a ~/Desktop/libs/openssl-1.1.1f/libcrypto.a
     endif
     ifneq ($(UNAME_S),Darwin)
-		
+
         UNAME_P := $(shell uname -p)
         ifeq ($(UNAME_P),x86_64)
             CCFLAGS += -DMACHINE_64
