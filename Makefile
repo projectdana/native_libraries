@@ -36,6 +36,7 @@ ifeq ($(OS),Windows_NT)
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
 		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
+		#SDL_FLAGS = -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" C:/libs/SDL/SDL2-2.0.14/build/.libs/libSDL2main.a C:/libs/SDL/SDL2-2.0.14/build/.libs/libSDL2.a -lSDL2_ttf -lsetupapi -lole32 -lwinmm -limm32 -lversion -loleaut32 -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
 		AUDIO_FLAGS = -I "C:/libs/miniaudio"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)

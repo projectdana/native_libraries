@@ -124,100 +124,35 @@ INSTRUCTION_DEF op_get_local_time(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-//NOTE: the below function isn't finished, but would return the time in milliseconds and microseconds
-INSTRUCTION_DEF op_get_time_hd(VFrame *cframe)
+INSTRUCTION_DEF op_get_millis(VFrame *cframe)
 	{
-	unsigned char *cnt = ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content) -> data;
-	
-	unsigned char *hour = &cnt[0];
-	unsigned char *minute = &cnt[1];
-	unsigned char *second = &cnt[2];
-	uint16 *millisecond = (uint16*) &cnt[3];
-	uint16 *microsecond = (uint16*) &cnt[5];
-	
 	#ifdef WINDOWS
-	//NOTE: the commented out version below SHOULD work for Windows, but mingw doesn't seem to have a link for GetSystemTimePreciseAsFileTime
-	// - for now this function therefore has a maximum precision of milliseconds on Windows
-	/*
-	FILETIME hqTime;
-	GetSystemTimePreciseAsFileTime(&hqTime);
-	
-	unsigned long long tt = hqTime.dwHighDateTime;
-    tt <<=32;
-    tt |= hqTime.dwLowDateTime;
-    tt /=10;
-    tt -= 11644473600000000ULL;
-	
-	SYSTEMTIME systemTime;
-	SYSTEMTIME localTime;
-	
-	FileTimeToSystemTime(&hqTime, &systemTime);
-	SystemTimeToTzSpecificLocalTime(NULL, &systemTime, &localTime);
-	
-	size_t tMillisecond = localTime.wMilliseconds;
-	size_t tMicrosecond = tt; //??
-	
-	size_t cMillisecond = 0;
-	size_t cMicrosecond = 0;
-	copyToDanaInteger((unsigned char*) &cMillisecond, (unsigned char*) &tMillisecond, sizeof(tMillisecond));
-	copyToDanaInteger((unsigned char*) &cMicrosecond, (unsigned char*) &tMicrosecond, sizeof(tMicrosecond));
-	
-	*hour = localTime.wHour;
-	*minute = localTime.wMinute;
-	*second = localTime.wSecond;
-	*millisecond = ((uint16*) &cMillisecond)[(sizeof(cMillisecond)/2)-1];
-	*microsecond = ((uint16*) &cMicrosecond)[(sizeof(cMicrosecond)/2)-1];
-	*/
-	
-	struct timeb theTime;
-	ftime(&theTime);
-	time_t now = theTime.time;
-	
-	struct tm modified; memset(&modified, '\0', sizeof(modified));
-	modified = *localtime(&now); //local
-	
-	modified.tm_year += 1900;
-	modified.tm_mon += 1;
-	
-	size_t tMillisecond = theTime.millitm;
-	size_t tMicrosecond = 0;
-	
-	size_t cMillisecond = 0;
-	size_t cMicrosecond = 0;
-	copyToDanaInteger((unsigned char*) &cMillisecond, (unsigned char*) &tMillisecond, sizeof(tMillisecond));
-	copyToDanaInteger((unsigned char*) &cMicrosecond, (unsigned char*) &tMicrosecond, sizeof(tMicrosecond));
-	
-	*hour = modified.tm_hour;
-	*minute = modified.tm_min;
-	*second = modified.tm_sec;
-	*millisecond = ((uint16*) &cMillisecond)[(sizeof(cMillisecond)/2)-1];
-	*microsecond = ((uint16*) &cMicrosecond)[(sizeof(cMicrosecond)/2)-1];
+		#ifdef MACHINE_64
+		size_t unix_ms = GetTickCount64();
+		return_int(cframe, unix_ms);
+		#endif
+		#ifdef MACHINE_32
+		size_t unix_ms = GetTickCount();
+		return_int(cframe, unix_ms);
+		#endif
 	#endif
 	
 	#ifdef LINUX
-	struct timeval tv;
-	gettimeofday(&tv,NULL);
-	time_t now = tv.tv_sec;
+	long ms; // Milliseconds
+    time_t s;  // Seconds
+    struct timespec spec;
 	
-	struct tm modified; memset(&modified, '\0', sizeof(modified));
-	modified = *localtime(&now); //local
+    clock_gettime(CLOCK_REALTIME, &spec);
 	
-	modified.tm_year += 1900;
-	modified.tm_mon += 1;
+    s  = spec.tv_sec;
+    ms = round(spec.tv_nsec / 1.0e6); // Convert nanoseconds to milliseconds
+    if (ms > 999) {
+        s++;
+        ms = 0;
+    }
 	
-	size_t tMillisecond = tv.tv_usec / 1000;
-	size_t tMicrosecond = tv.tv_usec - (tMillisecond * 1000);
-	
-	size_t cMillisecond = 0;
-	size_t cMicrosecond = 0;
-	copyToDanaInteger((unsigned char*) &cMillisecond, (unsigned char*) &tMillisecond, sizeof(tMillisecond));
-	copyToDanaInteger((unsigned char*) &cMicrosecond, (unsigned char*) &tMicrosecond, sizeof(tMicrosecond));
-	
-	*hour = modified.tm_hour;
-	*minute = modified.tm_min;
-	*second = modified.tm_sec;
-	*millisecond = ((uint16*) &cMillisecond)[(sizeof(cMillisecond)/2)-1];
-	*microsecond = ((uint16*) &cMicrosecond)[(sizeof(cMicrosecond)/2)-1];
+	size_t fms = (s * 1000) + ms;
+	return_int(cframe, fms);
 	#endif
 	
 	return RETURN_OK;
@@ -228,6 +163,7 @@ Interface* load(CoreAPI *capi)
 	api = capi;
 	
 	setInterfaceFunction("getLocalTime", op_get_local_time);
+	setInterfaceFunction("getMS", op_get_millis);
 	
 	return getPublicInterface();
 	}
