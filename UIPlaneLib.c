@@ -1895,7 +1895,7 @@ static void render_thread()
 
 				size_t width = 0;
 				int sdl_width = 0;
-				TTF_SizeText(gwi -> font, gwi -> text, &sdl_width, NULL);
+				TTF_SizeUTF8(gwi -> font, gwi -> text, &sdl_width, NULL);
 				width = sdl_width;
 
 				size_t *result = (size_t*) &frame -> localsData[((DanaType*) frame -> localsDef) -> fields[0].offset];
