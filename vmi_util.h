@@ -21,6 +21,8 @@ void return_bool(VFrame *f, bool b);
 //return a character array; a new copy of the given str is made by this function
 void return_char_array(VFrame *f, CoreAPI *api, char *str);
 
+void return_char_array_direct(VFrame *f, CoreAPI *api, char *str, size_t len);
+
 //return a byte array; a new copy of the given str is made by this function
 void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len);
 

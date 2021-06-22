@@ -167,3 +167,19 @@ void return_char_array(VFrame *f, CoreAPI *api, char *str)
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
 	}
+
+void return_char_array_direct(VFrame *f, CoreAPI *api, char *str, size_t len)
+	{
+	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
+	
+	LiveArray *array = malloc(sizeof(LiveArray));
+	memset(array, '\0', sizeof(LiveArray));
+	array -> data = (unsigned char*) str;
+	array -> length = len;
+	array -> gtLink = typeLink_char;
+	array -> refi.type = array -> gtLink -> typeLink;
+	array -> refi.ocm = f -> blocking -> instance;
+	array -> refi.refCount ++;
+	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
+	ptrh -> content = (unsigned char*) array;
+	}

@@ -193,9 +193,11 @@ INSTRUCTION_DEF op_set_content(VFrame *cframe)
 	if (OpenClipboard(NULL))
 		{
 		EmptyClipboard();
-
+		
 		size_t slen = strlen(vn);
-
+		
+		//ANSI text:
+		/*
 		HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, ((slen+1) * sizeof(TCHAR)));
 		LPTSTR lptstrCopy = GlobalLock(hglbCopy);
         memcpy(lptstrCopy, vn, slen * sizeof(TCHAR));
@@ -203,7 +205,17 @@ INSTRUCTION_DEF op_set_content(VFrame *cframe)
         GlobalUnlock(hglbCopy);
 
 		SetClipboardData(CF_TEXT, hglbCopy);
-
+		*/
+		
+		//we assume UTF-8 text as input from Dana, but Windows needs UTF-16, so we convert...
+		int reqLen = MultiByteToWideChar(CP_UTF8, 0, vn, slen, NULL, 0);
+		HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (reqLen + 1) * sizeof(wchar_t));
+		wchar_t* buffer = (wchar_t*)GlobalLock(hMem);
+		MultiByteToWideChar(CP_UTF8, 0, vn, slen, buffer, reqLen);
+		GlobalUnlock(hMem);
+		
+		SetClipboardData(CF_UNICODETEXT, hMem);
+		
 		CloseClipboard();
 		}
 	#endif
@@ -260,7 +272,31 @@ INSTRUCTION_DEF op_set_content(VFrame *cframe)
 INSTRUCTION_DEF op_get_content(VFrame *cframe)
 	{
 	#ifdef WINDOWS
-	if (IsClipboardFormatAvailable(CF_TEXT) && OpenClipboard(NULL))
+	if (IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(NULL))
+		{
+		HGLOBAL hMem = GetClipboardData(CF_UNICODETEXT);
+		if (hMem != NULL)
+			{
+			wchar_t* buffer = (wchar_t*)GlobalLock(hMem);
+			
+			if (buffer != NULL)
+				{
+				int srclen = wcslen(buffer);
+				int reqLen = WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, NULL, 0, NULL, NULL);
+				
+				char *result = malloc(sizeof(char) * reqLen+1);
+				memset(result, '\0', sizeof(char) * reqLen+1);
+				
+				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, result, reqLen+1, NULL, NULL);
+				
+				return_char_array_direct(cframe, api, result, reqLen);
+
+				GlobalUnlock(hMem);
+				}
+			}
+		CloseClipboard();
+		}
+		else if (IsClipboardFormatAvailable(CF_TEXT) && OpenClipboard(NULL))
 		{
 		HGLOBAL hglb = GetClipboardData(CF_TEXT);
 		if (hglb != NULL)
