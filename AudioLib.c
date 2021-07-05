@@ -214,6 +214,11 @@ static void * event_thread(void *ptr)
 				stopCriticalSection(&instance -> dlock);
 				}
 			}
+			else
+			{
+			//this can happen if it's just a track cleanup
+			stopCriticalSection(&instance -> dlock);
+			}
 		
 		instance -> eventID = 0;
 		
@@ -266,14 +271,13 @@ static void * event_thread(void *ptr)
 					VVarLivePTR *ptrh = (VVarLivePTR*) nd -> data;
 					
 					ptrh -> content = (unsigned char*) ti -> objectRef;
-					api -> decRef(NULL, ti -> objectRef);
+					api -> incRef(NULL, ti -> objectRef);
 					
 					api -> pushEvent(instance -> audioObject, 0, 0, nd);
 					}
 				
 				//decref the object
-				if (ti != NULL)
-					api -> decRef(NULL, ti -> objectRef);
+				api -> decRef(NULL, ti -> objectRef);
 				}
 			}
 		}
