@@ -15,6 +15,7 @@
 
 #ifdef LINUX
 #include <time.h>
+#include <math.h>
 #endif
 
 #include <time.h>
