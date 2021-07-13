@@ -125,9 +125,21 @@ static const DanaTypeField windowDataTypeFields[] = {
 
 static DanaType windowDataType = {TYPE_DATA, 0, sizeof(VVarLivePTR), (DanaTypeField*) windowDataTypeFields, 3};
 
+/*
+//for the _dni ::
+
+static const DanaTypeField DropEventData_fields[] = {
+{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, sizeof(size_t)},
+{(DanaType*) &char_array_def, NULL, 0, 0, sizeof(size_t) + sizeof(size_t)}};
+static const DanaType DropEventData_def = 
+{TYPE_DATA, 0, 32, (DanaTypeField*) DropEventData_fields, 3};
+*/
+
 static GlobalTypeLink *charArrayGT = NULL;
 static GlobalTypeLink *integerGT = NULL;
 static GlobalTypeLink *windowDataGT = NULL;
+static GlobalTypeLink *dropDataGT = NULL;
 
 //the graphics buffer:
 typedef struct _point{
@@ -449,6 +461,7 @@ void semaphore_destroy(Semaphore *s)
 
 static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y);
 static void pushEvent(WindowInstance *w, size_t type);
+static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y);
 
 static ListItem* addListItem(ListItem **lst, ListItem **last, void *data)
 	{
@@ -1292,7 +1305,7 @@ static void render_thread()
 			if (e.type == SDL_QUIT)
 				{
 				//notify any event listeners that the system has received a shutdown request
-				api -> pushEvent(systemEventObject, 0, 8, NULL);
+				api -> pushEvent(systemEventObject, 0, 9, NULL);
 				}
 				else if (e.type == DX_SYSTEM_SHUTDOWN)
 				{
@@ -1313,7 +1326,7 @@ static void render_thread()
 					else if (e.window.event == SDL_WINDOWEVENT_CLOSE)
 					{
 					WindowInstance *myInstance = findWindow(e.window.windowID);
-					pushEvent(myInstance, 7);
+					pushEvent(myInstance, 8);
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
@@ -1416,6 +1429,21 @@ static void render_thread()
 					{
 					pushMouseEvent(myInstance, 5, keyID, 0, 0);
 					}
+				}
+				else if (e.type == SDL_DROPFILE)
+				{
+				char* dropped_filedir = e.drop.file;
+				
+				WindowInstance *myInstance = findWindow(e.drop.windowID);
+				
+				if (myInstance != NULL)
+					{
+					int x, y;
+					SDL_GetMouseState(&x, &y);
+					pushDropEvent(myInstance, dropped_filedir, x, y);
+					}
+				
+				SDL_free(dropped_filedir);
 				}
 				else if (e.type == DX_NEW_WINDOW_EVENT)
 				{
@@ -2777,6 +2805,50 @@ static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, siz
 	api -> pushEvent(w -> eqObject, 0, type, nd);
 	}
 
+static void normalisePath(char *p)
+	{
+	char *q = NULL;
+	while ((q = strchr(p, '\\')) != NULL) q[0] = '/';
+	}
+
+static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
+	{
+	LiveData *nd = malloc(sizeof(LiveData));
+	memset(nd, '\0', sizeof(LiveData));
+	
+	size_t sz = sizeof(VVarLivePTR) + sizeof(size_t) + sizeof(size_t);
+	nd -> data = malloc(sz);
+	memset(nd -> data, '\0', sz);
+	
+	nd -> gtLink = dropDataGT;
+	api -> incrementGTRefCount(nd -> gtLink);
+	nd -> refi.type = nd -> gtLink -> typeLink;
+	
+	unsigned char *dd_x = nd -> data;
+	unsigned char *dd_y = nd -> data + sizeof(size_t);
+	VVarLivePTR *ptrh = (VVarLivePTR*) (nd -> data + sizeof(size_t) + sizeof(size_t));
+	
+	LiveArray *na = malloc(sizeof(LiveArray));
+	memset(na, '\0', sizeof(LiveArray));
+	
+	sz = sizeof(VVarLivePTR);
+	na -> data = (unsigned char*) strdup(path);
+	na -> length = strlen(path);
+	normalisePath((char*) na -> data);
+	
+	na -> gtLink = charArrayGT;
+	api -> incrementGTRefCount(na -> gtLink);
+	na -> refi.type = na -> gtLink -> typeLink;
+	
+	ptrh -> content = (unsigned char*) na;
+	na -> refi.refCount = 1;
+	
+	copyHostInteger(dd_x, (unsigned char*) &x, sizeof(size_t));
+	copyHostInteger(dd_y, (unsigned char*) &y, sizeof(size_t));
+	
+	api -> pushEvent(w -> eqObject, 0, 7, nd);
+	}
+
 static void pushEvent(WindowInstance *w, size_t type)
 	{
 	api -> pushEvent(w -> eqObject, 0, type, NULL);
@@ -3453,6 +3525,7 @@ Interface* load(CoreAPI *capi)
 	integerGT = api -> resolveGlobalTypeMapping(&intType);
 	
 	windowDataGT = api -> resolveGlobalTypeMapping(&windowDataType);
+	dropDataGT = api -> resolveGlobalTypeMapping(getTypeDefinition("DropEventData"));
 	
 	setInterfaceFunction("makeWindow", op_make_window);
 	setInterfaceFunction("startPoly", op_start_poly);
