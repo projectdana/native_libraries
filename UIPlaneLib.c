@@ -901,7 +901,8 @@ int DrawScene(WindowInstance *instance)
 	SDL_SetRenderDrawBlendMode(instance -> renderer, SDL_BLENDMODE_BLEND);
 	
 	SDL_RenderClear(instance -> renderer);
-
+	
+	//TODO: the below fails on Windows, because textures are invalidated
 	if (instance -> sceneChanged || instance -> baseTexture == NULL)
 		{
 		if (instance -> baseTexture != NULL)
@@ -1310,6 +1311,25 @@ static void render_thread()
 				else if (e.type == DX_SYSTEM_SHUTDOWN)
 				{
 				quit = true;
+				}
+				else if (e.type == SDL_RENDER_TARGETS_RESET || e.type == SDL_RENDER_DEVICE_RESET)
+				{
+				newFrame = true;
+				
+				//also force a full redraw of the buffered texture for all windows...
+				ListItem *lw = instances;
+				while (lw != NULL)
+					{
+					WindowInstance *myInstance = (WindowInstance*) lw -> data;
+					
+					if (myInstance -> baseTexture != NULL)
+						{
+						SDL_DestroyTexture(myInstance -> baseTexture);
+						myInstance -> baseTexture = NULL;
+						}
+
+					lw = lw -> next;
+					}
 				}
 				else if (e.type == SDL_WINDOWEVENT)
 				{
