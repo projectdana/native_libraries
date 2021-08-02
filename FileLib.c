@@ -711,8 +711,10 @@ INSTRUCTION_DEF op_get_info(VFrame *cframe)
 		//printf("\ntype for '%s': %u\n", path, *type);
 		
 		//modified time
+		SYSTEMTIME modifiedUTC;
 		SYSTEMTIME modified;
-		FileTimeToSystemTime(&fi.ftLastWriteTime, &modified);
+		FileTimeToSystemTime(&fi.ftLastWriteTime, &modifiedUTC);
+		SystemTimeToTzSpecificLocalTime(NULL, &modifiedUTC, &modified);
 		
 		size_t ci = 0;
 		copyToDanaInteger((unsigned char*) &ci, (unsigned char*) &modified.wYear, sizeof(modified.wYear));

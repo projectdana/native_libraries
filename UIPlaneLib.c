@@ -907,7 +907,7 @@ int DrawScene(WindowInstance *instance)
 		{
 		if (instance -> baseTexture != NULL)
 			SDL_DestroyTexture(instance -> baseTexture);
-
+		
 		instance -> baseTexture = SDL_CreateTexture(instance -> renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, instance -> windowWidth, instance -> windowHeight);
 		SDL_SetRenderTarget(instance -> renderer, instance -> baseTexture);
 
