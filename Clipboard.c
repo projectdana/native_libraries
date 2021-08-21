@@ -284,12 +284,12 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 				int srclen = wcslen(buffer);
 				int reqLen = WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, NULL, 0, NULL, NULL);
 				
-				char *result = malloc(sizeof(char) * reqLen+1);
-				memset(result, '\0', sizeof(char) * reqLen+1);
+				LiveArray *array = make_byte_array(cframe, api, reqLen+1);
 				
-				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, result, reqLen+1, NULL, NULL);
+				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, (char*) array -> data, reqLen+1, NULL, NULL);
 				
-				return_char_array_direct(cframe, api, result, reqLen);
+				array -> length = reqLen;
+				return_array(cframe, array);
 
 				GlobalUnlock(hMem);
 				}

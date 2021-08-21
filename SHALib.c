@@ -51,10 +51,11 @@ static GlobalTypeLink *charArrayGT = NULL;
 
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = charArrayGT;

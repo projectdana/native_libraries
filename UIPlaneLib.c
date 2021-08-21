@@ -384,10 +384,11 @@ static sem_t frameworkShutdownLock;
 
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = charArrayGT;
@@ -1738,12 +1739,12 @@ static void render_thread()
 				copyHostInteger((unsigned char*) dr_height, (unsigned char*) &h, sizeof(size_t));
 
 				//set up the pixel array
-
-				LiveArray *pixelArrayH = malloc(sizeof(LiveArray));
+			
+				size_t asz = totalPixels * sz;
+				LiveArray *pixelArrayH = malloc(sizeof(LiveArray)+asz);
 				memset(pixelArrayH, '\0', sizeof(LiveArray));
 
-				pixelArrayH -> data = malloc(totalPixels * sz); //OK; the runtime does NOT like this length issue...!
-				memset(pixelArrayH -> data, '\0', totalPixels * sz); //TODO!
+				pixelArrayH -> data = ((unsigned char*) pixelArrayH) + sizeof(LiveArray);
 				pixelArrayH -> length = totalPixels;
 				// - there are two possibilities: either we can't copy arrays of records in general; or the way in which this array in initialised is wrong...
 
@@ -2803,12 +2804,12 @@ INSTRUCTION_DEF op_commit_buffer(VFrame *cframe)
 
 static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y)
 	{
-	LiveData *nd = malloc(sizeof(LiveData));
-	memset(nd, '\0', sizeof(LiveData));
-	
 	size_t sz = sizeof(size_t) * 3;
-	nd -> data = malloc(sz);
-	memset(nd -> data, '\0', sz);
+	
+	LiveData *nd = malloc(sizeof(LiveData)+sz);
+	memset(nd, '\0', sizeof(LiveData)+sz);
+	
+	nd -> data = ((unsigned char*) nd) + sizeof(LiveData);
 	
 	nd -> gtLink = windowDataGT;
 	api -> incrementGTRefCount(nd -> gtLink);
@@ -2833,12 +2834,12 @@ static void normalisePath(char *p)
 
 static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
 	{
-	LiveData *nd = malloc(sizeof(LiveData));
-	memset(nd, '\0', sizeof(LiveData));
-	
 	size_t sz = sizeof(VVarLivePTR) + sizeof(size_t) + sizeof(size_t);
-	nd -> data = malloc(sz);
-	memset(nd -> data, '\0', sz);
+	
+	LiveData *nd = malloc(sizeof(LiveData)+sz);
+	memset(nd, '\0', sizeof(LiveData)+sz);
+	
+	nd -> data = ((unsigned char*) nd) + sizeof(LiveData);
 	
 	nd -> gtLink = dropDataGT;
 	api -> incrementGTRefCount(nd -> gtLink);
@@ -2848,12 +2849,13 @@ static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
 	unsigned char *dd_y = nd -> data + sizeof(size_t);
 	VVarLivePTR *ptrh = (VVarLivePTR*) (nd -> data + sizeof(size_t) + sizeof(size_t));
 	
-	LiveArray *na = malloc(sizeof(LiveArray));
+	size_t asz = strlen(path);
+	LiveArray *na = malloc(sizeof(LiveArray)+asz);
 	memset(na, '\0', sizeof(LiveArray));
 	
-	sz = sizeof(VVarLivePTR);
-	na -> data = (unsigned char*) strdup(path);
-	na -> length = strlen(path);
+	na -> data = ((unsigned char*) na) + sizeof(LiveArray);
+	memcpy(na -> data, path, asz);
+	na -> length = asz;
 	normalisePath((char*) na -> data);
 	
 	na -> gtLink = charArrayGT;

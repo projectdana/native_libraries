@@ -28,9 +28,11 @@ static size_t getIntParam(VFrame *cframe, int pIndex) {
 }
 
 static void returnString(VFrame *f, char *value) {
-	LiveArray *array = malloc(sizeof(LiveArray));
+	size_t asz = strlen(value);
+	LiveArray *array = malloc(sizeof(LiveArray)+asz);
 	memset(array, '\0', sizeof(LiveArray));
-	array -> data = (unsigned char*) strdup(value);
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, value, asz);
 	array -> length = strlen(value);
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);

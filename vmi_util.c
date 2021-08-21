@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include "vmi_util.h"
 #include "nli_util.h"
 #include "dana_lib_api.h"
@@ -119,29 +120,13 @@ void return_bool(VFrame *f, bool b)
 	copyHostInteger((unsigned char*) result, (unsigned char*) &b, sizeof(unsigned char));
 	}
 
-void return_byte_array_direct(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
-	{
-	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
-	
-	LiveArray *array = malloc(sizeof(LiveArray));
-	memset(array, '\0', sizeof(LiveArray));
-	array -> data = str;
-	array -> length = len;
-	array -> gtLink = typeLink_char;
-	array -> refi.type = array -> gtLink -> typeLink;
-	array -> refi.ocm = f -> blocking -> instance;
-	array -> refi.refCount ++;
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-	}
-
 void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
 	{
 	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
-	array -> data = malloc(len);
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	memcpy(array -> data, str, len);
 	array -> length = len;
 	array -> gtLink = typeLink_char;
@@ -156,9 +141,11 @@ void return_char_array(VFrame *f, CoreAPI *api, char *str)
 	{
 	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	
-	LiveArray *array = malloc(sizeof(LiveArray));
+	size_t asz = strlen(str);
+	LiveArray *array = malloc(sizeof(LiveArray)+asz);
 	memset(array, '\0', sizeof(LiveArray));
-	array -> data = (unsigned char*) strdup(str);
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, str, asz);
 	array -> length = strlen(str);
 	array -> gtLink = typeLink_char;
 	array -> refi.type = array -> gtLink -> typeLink;
@@ -168,18 +155,54 @@ void return_char_array(VFrame *f, CoreAPI *api, char *str)
 	ptrh -> content = (unsigned char*) array;
 	}
 
-void return_char_array_direct(VFrame *f, CoreAPI *api, char *str, size_t len)
+LiveArray* make_byte_array(VFrame *f, CoreAPI *api, size_t len)
 	{
+	if (len > INT_MAX || (((INT_MAX - len) - 1) < sizeof(LiveArray))) return NULL;
+	
 	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	
-	LiveArray *array = malloc(sizeof(LiveArray));
-	memset(array, '\0', sizeof(LiveArray));
-	array -> data = (unsigned char*) str;
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	memset(array, '\0', sizeof(LiveArray)+len);
+	
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	array -> length = len;
+	
 	array -> gtLink = typeLink_char;
-	array -> refi.type = array -> gtLink -> typeLink;
 	array -> refi.ocm = f -> blocking -> instance;
+	
+	array -> refi.type = array -> gtLink -> typeLink;
+	
+	return array;
+	}
+
+LiveArray* make_byte_array_wt(VFrame *f, CoreAPI *api, GlobalTypeLink *typeLink_char, size_t len)
+	{
+	if (len > INT_MAX || (((INT_MAX - len) - 1) < sizeof(LiveArray))) return NULL;
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	memset(array, '\0', sizeof(LiveArray)+len);
+	
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	array -> length = len;
+	
+	array -> gtLink = typeLink_char;
+	api -> incrementGTRefCount(array -> gtLink);
+	array -> refi.ocm = f -> blocking -> instance;
+	
+	array -> refi.type = array -> gtLink -> typeLink;
+	
+	return array;
+	}
+
+void free_array(CoreAPI *api, LiveArray *array)
+	{
+	api -> decrementGTRefCount(array -> gtLink);
+	free(array);
+	}
+
+void return_array(VFrame *f, LiveArray *array)
+	{
 	array -> refi.refCount ++;
+	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
 	}

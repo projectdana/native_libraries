@@ -28,10 +28,11 @@ static GlobalTypeLink *fileEntryArrayGT = NULL;
 
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = charArrayGT;
@@ -144,11 +145,13 @@ INSTRUCTION_DEF op_file_read(VFrame *cframe)
 	size_t len = 0;
 	copyHostInteger((unsigned char*) &len, getVariableContent(cframe, 1), sizeof(size_t));
 	
-	unsigned char *pbuf = malloc(len);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
 	
-	if (pbuf == NULL)
+	if (array == NULL)
 		{
 		len = 0;
+		api -> throwException(cframe, "out of memory");
+		return RETURN_OK;
 		}
 	
 	size_t amt = 1;
@@ -157,18 +160,19 @@ INSTRUCTION_DEF op_file_read(VFrame *cframe)
 	//read data up to length of param 2 or until we run out of data, whichever is first
 	while ((len > 0) && (amt != 0))
 		{
-		amt = fread((pbuf + totalAmt), sizeof(unsigned char), len, fd);
+		amt = fread((array -> data + totalAmt), sizeof(unsigned char), len, fd);
 		totalAmt += amt;
 		len -= amt;
 		}
 	
 	if (totalAmt > 0)
 		{
-		returnByteArray(cframe, pbuf, totalAmt);
+		array -> length = totalAmt;
+		return_array(cframe, array);
 		}
 		else
 		{
-		free(pbuf);
+		free_array(api, array);
 		}
 	
 	return RETURN_OK;
@@ -440,26 +444,27 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 					FileInfoItem *newItem = malloc(sizeof(FileInfoItem));
 					memset(newItem, '\0', sizeof(FileInfoItem));
 					
-					newItem -> data = malloc(sizeof(LiveData));
+					size_t sz = sizeof(VVarLivePTR); 
+					newItem -> data = malloc(sizeof(LiveData)+sz);
+					memset(newItem -> data, '\0', sizeof(LiveData)+sz);
 					
-					memset(newItem -> data, '\0', sizeof(LiveData));
 					newItem -> data -> refi.ocm = dataOwner;
 					newItem -> data -> gtLink = fileEntryGT;
 					api -> incrementGTRefCount(newItem -> data -> gtLink);
 					
-					newItem -> data -> data = malloc(sizeof(VVarLivePTR));
+					newItem -> data -> data = ((unsigned char*) newItem -> data) + sizeof(LiveData);
 					
-					memset(newItem -> data -> data, '\0', sizeof(VVarLivePTR));
 					VVarLivePTR *ptrh = (VVarLivePTR*) newItem -> data -> data;
 					
-					LiveArray *itemArray = malloc(sizeof(LiveArray));
-					memset(itemArray, '\0', sizeof(LiveArray));
+					size_t asz = strlen(fi.cFileName);
+					LiveArray *itemArray = malloc(sizeof(LiveArray)+asz);
+					memset(itemArray, '\0', sizeof(LiveArray)+asz);
 					itemArray -> refi.ocm = dataOwner;
 					itemArray -> gtLink = charArrayGT;
 					api -> incrementGTRefCount(itemArray -> gtLink);
-					itemArray -> data = malloc(strlen(fi.cFileName));
-					memcpy(itemArray -> data, fi.cFileName, strlen(fi.cFileName));
-					itemArray -> length = strlen(fi.cFileName);
+					itemArray -> data = ((unsigned char*) itemArray) + sizeof(LiveArray);
+					memcpy(itemArray -> data, fi.cFileName, asz);
+					itemArray -> length = asz;
 					
 					ptrh -> content = (unsigned char*) itemArray;
 					itemArray -> refi.refCount ++;
@@ -501,24 +506,25 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				FileInfoItem *newItem = malloc(sizeof(FileInfoItem));
 				memset(newItem, '\0', sizeof(FileInfoItem));
 				
-				newItem -> data = malloc(sizeof(LiveData));
-				memset(newItem -> data, '\0', sizeof(LiveData));
+				size_t sz = sizeof(VVarLivePTR);
+				newItem -> data = malloc(sizeof(LiveData)+sz);
+				memset(newItem -> data, '\0', sizeof(LiveData)+sz);
 				newItem -> data -> refi.ocm = dataOwner;
 				newItem -> data -> gtLink = fileEntryGT;
 				api -> incrementGTRefCount(newItem -> data -> gtLink);
 				
-				newItem -> data -> data = malloc(sizeof(VVarLivePTR));
-				memset(newItem -> data -> data, '\0', sizeof(VVarLivePTR));
+				newItem -> data -> data = ((unsigned char*) newItem -> data) + sizeof(LiveData);
 				VVarLivePTR *ptrh = (VVarLivePTR*) newItem -> data -> data;
 				
-				LiveArray *itemArray = malloc(sizeof(LiveArray));
-				memset(itemArray, '\0', sizeof(LiveArray));
+				size_t asz = strlen(dp->d_name);
+				LiveArray *itemArray = malloc(sizeof(LiveArray)+asz);
+				memset(itemArray, '\0', sizeof(LiveArray)+asz);
 				itemArray -> refi.ocm = dataOwner;
 				itemArray -> gtLink = charArrayGT;
 				api -> incrementGTRefCount(itemArray -> gtLink);
-				itemArray -> data = malloc(strlen(dp->d_name));
-				memcpy(itemArray -> data, dp->d_name, strlen(dp->d_name));
-				itemArray -> length = strlen(dp->d_name);
+				itemArray -> data = ((unsigned char*) itemArray) + sizeof(LiveArray);
+				memcpy(itemArray -> data, dp->d_name, asz);
+				itemArray -> length = asz;
 				
 				ptrh -> content = (unsigned char*) itemArray;
 				itemArray -> refi.refCount ++;
@@ -537,14 +543,14 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 	
 	if (count > 0)
 		{
-		LiveArray *newArray = malloc(sizeof(LiveArray));
-		memset(newArray, '\0', sizeof(LiveArray));
+		size_t asz = sizeof(VVarLivePTR) * count;
+		LiveArray *newArray = malloc(sizeof(LiveArray)+asz);
+		memset(newArray, '\0', sizeof(LiveArray)+asz);
 		
 		newArray -> refi.ocm = dataOwner;
 		newArray -> gtLink = fileEntryArrayGT;
 		api -> incrementGTRefCount(newArray -> gtLink);
-		newArray -> data = malloc(sizeof(VVarLivePTR) * count);
-		memset(newArray -> data, '\0', sizeof(VVarLivePTR) * count);
+		newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
 		newArray -> length = count;
 		newArray -> refi.type = newArray -> gtLink -> typeLink;
 		

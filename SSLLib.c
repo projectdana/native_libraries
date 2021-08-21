@@ -53,10 +53,11 @@ static GlobalTypeLink *stringItemGT = NULL;
 
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = charArrayGT;
@@ -72,13 +73,13 @@ static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 
 static LiveArray* makeStringArray(unsigned char *str, size_t len, DanaComponent *owner)
 	{
-	LiveArray *result = malloc(sizeof(LiveArray));
+	LiveArray *result = malloc(sizeof(LiveArray)+len);
 	memset(result, '\0', sizeof(LiveArray));
 	result -> refi.ocm = owner;
 	result -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(result -> gtLink);
 	
-	result -> data = malloc(len);
+	result -> data = ((unsigned char*) result) + sizeof(LiveArray);
 	memcpy(result -> data, str, len);
 	result -> length = len;
 	
@@ -507,13 +508,14 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 		
 		//allocate a String array of length "len"
 		
-		LiveArray *newArray = malloc(sizeof(LiveArray));
+		size_t asz = sizeof(VVarLivePTR) * len;
+		LiveArray *newArray = malloc(sizeof(LiveArray)+asz);
 		memset(newArray, '\0', sizeof(LiveArray));
 		
 		newArray -> refi.ocm = dataOwner;
 		newArray -> gtLink = stringArrayGT;
 		api -> incrementGTRefCount(newArray -> gtLink);
-		newArray -> data = malloc(sizeof(VVarLivePTR) * len);
+		newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
 		memset(newArray -> data, '\0', sizeof(VVarLivePTR) * len);
 		newArray -> length = len;
 		newArray -> refi.type = newArray -> gtLink -> typeLink;
@@ -533,14 +535,15 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 			
 			// --
 			
-			LiveData *newData = malloc(sizeof(LiveData));
-			memset(newData, '\0', sizeof(LiveData));
+			size_t sz = sizeof(VVarLivePTR);
+			LiveData *newData = malloc(sizeof(LiveData)+sz);
+			memset(newData, '\0', sizeof(LiveData)+sz);
 			newData -> refi.ocm = dataOwner;
 			newData -> gtLink = stringItemGT;
 			api -> incrementGTRefCount(newData -> gtLink);
 			
-			newData -> data = malloc(sizeof(VVarLivePTR));
-			memset(newData -> data, '\0', sizeof(VVarLivePTR));
+			newData -> data = ((unsigned char*) newData) + sizeof(LiveData);
+			
 			VVarLivePTR *ptrh = (VVarLivePTR*) newData -> data;
 			
 			LiveArray *itemArray = makeStringArray(pbuf, len, dataOwner);

@@ -18,10 +18,11 @@ the below read_png_file and write_png_file functions are based on code by Guilla
 
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = byteArrayGT;
@@ -222,11 +223,11 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	//...and the pixel map
 	ict ++;
 	
-	LiveArray *array = malloc(sizeof(LiveArray));
+	size_t len = (width * 4) * height;
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	size_t len = (width * 4) * height;
-	array -> data = malloc(len);
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	array -> length = len;
 	
 	array -> gtLink = byteArrayGT;

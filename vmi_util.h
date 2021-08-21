@@ -29,4 +29,12 @@ void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len);
 //return a character array; the given str is used directly (not copied - so it must be on the heap)
 void return_byte_array_direct(VFrame *f, CoreAPI *api, unsigned char *str, size_t len);
 
+LiveArray* make_byte_array(VFrame *f, CoreAPI *api, size_t len);
+
+LiveArray* make_byte_array_wt(VFrame *f, CoreAPI *api, GlobalTypeLink *tl, size_t len);
+
+void free_array(CoreAPI *api, LiveArray *array);
+
+void return_array(VFrame *f, LiveArray *array);
+
 #endif

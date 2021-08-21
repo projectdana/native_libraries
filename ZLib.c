@@ -95,7 +95,9 @@ INSTRUCTION_DEF op_deflate(VFrame *cframe)
 		} while (stream -> avail_out == 0);
 	
 	//return the compressed chunk as a byte array
-	return_byte_array_direct(cframe, api, (unsigned char*) result, result_len);
+	return_byte_array(cframe, api, (unsigned char*) result, result_len);
+	
+	free(result);
 	
 	return RETURN_OK;
 	}
@@ -217,7 +219,9 @@ INSTRUCTION_DEF op_inflate(VFrame *cframe)
 		}
 	
 	//return the decompressed chunk as a byte array
-	return_byte_array_direct(cframe, api, (unsigned char*) result, result_len);
+	return_byte_array(cframe, api, (unsigned char*) result, result_len);
+	
+	free(result);
 	
 	return RETURN_OK;
 	}

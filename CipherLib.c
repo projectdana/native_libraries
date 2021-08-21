@@ -62,25 +62,6 @@ static CoreAPI *api;
 
 static GlobalTypeLink *charArrayGT = NULL;
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
-	{
-	LiveArray *array = malloc(sizeof(LiveArray));
-	memset(array, '\0', sizeof(LiveArray));
-	
-	array -> data = data;
-	array -> length = len;
-	
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-	}
-
 /************************************************
 *************************************************
 *************************************************
@@ -175,9 +156,9 @@ INSTRUCTION_DEF op_aes_cbc_encryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char *ciphertext = malloc(input -> length + AES_BLOCK_SIZE);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
 	
-	if (ciphertext == NULL)
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		cst -> ok = false;
@@ -190,14 +171,15 @@ INSTRUCTION_DEF op_aes_cbc_encryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if (1 != EVP_EncryptUpdate(cst -> ctx, ciphertext, &len, input -> data, input -> length))
+    if (1 != EVP_EncryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, ciphertext, len);
+	array -> length = len;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -221,10 +203,11 @@ INSTRUCTION_DEF op_aes_cbc_encryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, ciphertext, len);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
 	
-	returnByteArray(cframe, pbuf, len);
+	memcpy(array -> data, ciphertext, len);
+	
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -325,9 +308,9 @@ INSTRUCTION_DEF op_aes_cbc_decryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char *output_text = malloc(input -> length + AES_BLOCK_SIZE);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
 	
-	if (output_text == NULL)
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		cst -> ok = false;
@@ -340,14 +323,15 @@ INSTRUCTION_DEF op_aes_cbc_decryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_DecryptUpdate(cst -> ctx, output_text, &len, input -> data, input -> length))
+    if(1 != EVP_DecryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, output_text, len);
+	array -> length = len;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -371,10 +355,11 @@ INSTRUCTION_DEF op_aes_cbc_decryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, output_text, len);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
 	
-	returnByteArray(cframe, pbuf, len);
+	memcpy(array -> data, output_text, len);
+	
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -530,9 +515,9 @@ INSTRUCTION_DEF op_aes_gcm_encryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char *ciphertext = malloc(input -> length + AES_BLOCK_SIZE);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
 	
-	if (ciphertext == NULL)
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		cst -> ok = false;
@@ -545,14 +530,15 @@ INSTRUCTION_DEF op_aes_gcm_encryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_EncryptUpdate(cst -> ctx, ciphertext, &len, input -> data, input -> length))
+    if(1 != EVP_EncryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, ciphertext, len);
+	array -> length = len;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -572,10 +558,11 @@ INSTRUCTION_DEF op_aes_gcm_encryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, ciphertext, len);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
 	
-	returnByteArray(cframe, pbuf, len);
+	memcpy(array -> data, ciphertext, len);
+	
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -596,10 +583,11 @@ INSTRUCTION_DEF op_aes_gcm_encryptGetTag(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, tag, len);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
 	
-	returnByteArray(cframe, pbuf, len);
+	memcpy(array -> data, tag, len);
+	
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -743,9 +731,9 @@ INSTRUCTION_DEF op_aes_gcm_decryptPart(VFrame *cframe)
 	
 	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
 	
-	unsigned char *output_text = malloc(input -> length + AES_BLOCK_SIZE);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
 	
-	if (output_text == NULL)
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		cst -> ok = false;
@@ -758,14 +746,15 @@ INSTRUCTION_DEF op_aes_gcm_decryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_DecryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_DecryptUpdate(cst -> ctx, output_text, &len, input -> data, input -> length))
+    if(1 != EVP_DecryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, output_text, len);
+	array -> length = len;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -787,10 +776,11 @@ INSTRUCTION_DEF op_aes_gcm_decryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *pbuf = malloc(len);
-	memcpy(pbuf, output_text, len);
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
 	
-	returnByteArray(cframe, pbuf, len);
+	memcpy(array -> data, output_text, len);
+	
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -915,22 +905,23 @@ INSTRUCTION_DEF op_rsa_oaep_encrypt(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *out = malloc(outlen);
-
-	if (!out)
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, outlen);
+	
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		return RETURN_OK;
 		}
 
-	if (EVP_PKEY_encrypt(ctx, out, &outlen, input -> data, input -> length) <= 0)
+	if (EVP_PKEY_encrypt(ctx, array -> data, &outlen, input -> data, input -> length) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		free(out);
+		free_array(api, array);
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, out, outlen);
+	array -> length = outlen;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -951,22 +942,23 @@ INSTRUCTION_DEF op_rsa_oaep_decrypt(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *out = malloc(outlen);
-
-	if (!out)
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
+	
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		return RETURN_OK;
 		}
 
-	if (EVP_PKEY_decrypt(ctx, out, &outlen, input -> data, input -> length) <= 0)
+	if (EVP_PKEY_decrypt(ctx, array -> data, &outlen, input -> data, input -> length) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		free(out);
+		free_array(api, array);
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, out, outlen);
+	array -> length = outlen;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -1090,22 +1082,23 @@ INSTRUCTION_DEF op_rsa_pss_sign(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char *out = malloc(outlen);
-
-	if (!out)
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, outlen);
+	
+	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		return RETURN_OK;
 		}
 
-	if (EVP_PKEY_sign(ctx, out, &outlen, md_value, md_len) <= 0)
+	if (EVP_PKEY_sign(ctx, array -> data, &outlen, md_value, md_len) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		free(out);
+		free_array(api, array);
 		return RETURN_OK;
 		}
 	
-	returnByteArray(cframe, out, outlen);
+	array -> length = outlen;
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
@@ -1198,7 +1191,6 @@ INSTRUCTION_DEF op_rsa_generate_key(VFrame *cframe)
 	EVP_PKEY_set1_RSA(pkey, rsa);
 	
 	unsigned char *pp;
-	unsigned char *outbuf;
 	size_t mlen;
 	
 	// write public key to PKCS PEM
@@ -1206,20 +1198,11 @@ INSTRUCTION_DEF op_rsa_generate_key(VFrame *cframe)
 	//rc = PEM_write_bio_RSAPublicKey(biomem, rsa); //TODO: should we be using this format instead? i.e. PKCS??? (and change the format for oaes input?)
 	rc = PEM_write_bio_PUBKEY(biomem, pkey);
 	mlen = BIO_get_mem_data(biomem, &pp);
-	outbuf = malloc(mlen);
-	BIO_read(biomem, outbuf, mlen);
+	LiveArray *newArray = make_byte_array_wt(cframe, api, charArrayGT, mlen);
+	BIO_read(biomem, newArray -> data, mlen);
 	BIO_free(biomem);
 	
 	/* -- */
-	LiveArray *newArray = malloc(sizeof(LiveArray));
-	memset(newArray, '\0', sizeof(LiveArray));
-	
-	newArray -> data = outbuf;
-	newArray -> length = mlen;
-	
-	newArray -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(newArray -> gtLink);
-	newArray -> refi.ocm = cframe -> blocking -> instance;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
 	
@@ -1232,20 +1215,11 @@ INSTRUCTION_DEF op_rsa_generate_key(VFrame *cframe)
 	biomem = BIO_new(BIO_s_mem());
     rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
 	mlen = BIO_get_mem_data(biomem, &pp);
-	outbuf = malloc(mlen);
-	BIO_read(biomem, outbuf, mlen);
+	newArray = make_byte_array_wt(cframe, api, charArrayGT, mlen);
+	BIO_read(biomem, newArray -> data, mlen);
 	BIO_free(biomem);
 	
 	/* -- */
-	newArray = malloc(sizeof(LiveArray));
-	memset(newArray, '\0', sizeof(LiveArray));
-	
-	newArray -> data = outbuf;
-	newArray -> length = mlen;
-	
-	newArray -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(newArray -> gtLink);
-	newArray -> refi.ocm = cframe -> blocking -> instance;
 	
 	ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content) -> data;
 	
@@ -1379,30 +1353,31 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 	
 	//write out the keys
 	
-	unsigned char *pubKeyOut = NULL;
 	size_t pubKeyOutLen = 0;
 	
-	unsigned char *priKeyOut = NULL;
 	size_t priKeyOutLen = 0;
 	
 	unsigned char *pp;
 	
 	int rc = 0;
 	
+	LiveArray *arrayPub = NULL;
+	LiveArray *arrayPri = NULL;
+	
 	if (outputType == 1)
 		{
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PUBKEY(biomem, pkey);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		pubKeyOut = malloc(pubKeyOutLen);
-		BIO_read(biomem, pubKeyOut, pubKeyOutLen);
+		arrayPub = make_byte_array_wt(cframe, api, charArrayGT, pubKeyOutLen);
+		BIO_read(biomem, arrayPub -> data, pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		priKeyOut = malloc(priKeyOutLen);
-		BIO_read(biomem, priKeyOut, priKeyOutLen);
+		arrayPri = make_byte_array_wt(cframe, api, charArrayGT, priKeyOutLen);
+		BIO_read(biomem, arrayPri -> data, priKeyOutLen);
 		BIO_free(biomem);
 		}
 		else if (outputType == 2)
@@ -1410,15 +1385,15 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_RSAPublicKey(biomem, rsa);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		pubKeyOut = malloc(pubKeyOutLen);
-		BIO_read(biomem, pubKeyOut, pubKeyOutLen);
+		arrayPub = make_byte_array_wt(cframe, api, charArrayGT, pubKeyOutLen);
+		BIO_read(biomem, arrayPub -> data, pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_RSAPrivateKey(biomem, rsa, NULL, NULL, 0, NULL, NULL);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		priKeyOut = malloc(priKeyOutLen);
-		BIO_read(biomem, priKeyOut, priKeyOutLen);
+		arrayPri = make_byte_array_wt(cframe, api, charArrayGT, priKeyOutLen);
+		BIO_read(biomem, arrayPri -> data, priKeyOutLen);
 		BIO_free(biomem);
 		}
 		else if (outputType == 4)
@@ -1426,15 +1401,15 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = i2d_RSAPublicKey_bio(biomem, rsa);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		pubKeyOut = malloc(pubKeyOutLen);
-		BIO_read(biomem, pubKeyOut, pubKeyOutLen);
+		arrayPub = make_byte_array_wt(cframe, api, charArrayGT, pubKeyOutLen);
+		BIO_read(biomem, arrayPub -> data, pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = i2d_RSAPrivateKey_bio(biomem, rsa);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		priKeyOut = malloc(priKeyOutLen);
-		BIO_read(biomem, priKeyOut, priKeyOutLen);
+		arrayPri = make_byte_array_wt(cframe, api, charArrayGT, priKeyOutLen);
+		BIO_read(biomem, arrayPri -> data, priKeyOutLen);
 		BIO_free(biomem);
 		}
 	
@@ -1442,39 +1417,19 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 	RSA_free(rsa);
 	
 	/* -- */
-	LiveArray *newArray = malloc(sizeof(LiveArray));
-	memset(newArray, '\0', sizeof(LiveArray));
-	
-	newArray -> data = pubKeyOut;
-	newArray -> length = pubKeyOutLen;
-	
-	newArray -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(newArray -> gtLink);
-	newArray -> refi.ocm = cframe -> blocking -> instance;
-	
 	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 3)) -> content) -> data;
 	
-	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refi.refCount ++;
-	newArray -> refi.type = newArray -> gtLink -> typeLink;
+	ptrh -> content = (unsigned char*) arrayPub;
+	arrayPub -> refi.refCount ++;
+	arrayPub -> refi.type = arrayPub -> gtLink -> typeLink;
 	/* -- */
 	
 	/* -- */
-	newArray = malloc(sizeof(LiveArray));
-	memset(newArray, '\0', sizeof(LiveArray));
-	
-	newArray -> data = priKeyOut;
-	newArray -> length = priKeyOutLen;
-	
-	newArray -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(newArray -> gtLink);
-	newArray -> refi.ocm = cframe -> blocking -> instance;
-	
 	ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 4)) -> content) -> data;
 	
-	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refi.refCount ++;
-	newArray -> refi.type = newArray -> gtLink -> typeLink;
+	ptrh -> content = (unsigned char*) arrayPri;
+	arrayPri -> refi.refCount ++;
+	arrayPri -> refi.type = arrayPri -> gtLink -> typeLink;
 	/* -- */
 	
 	return_bool(cframe, true);

@@ -47,11 +47,13 @@ INSTRUCTION_DEF op_get_line(VFrame *cframe)
 			memcpy(fullText + length, p, strlen(p));
 			length += strlen(p);
 			
-			return_byte_array_direct(cframe, api, (unsigned char*) fullText, length);
+			return_byte_array(cframe, api, (unsigned char*) fullText, length);
+			free(fullText);
 			}
 			else if (length != 0)
 			{
-			return_byte_array_direct(cframe, api, (unsigned char*) fullText, length);
+			return_byte_array(cframe, api, (unsigned char*) fullText, length);
+			free(fullText);
 			}
 		}
 	

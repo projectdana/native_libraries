@@ -54,26 +54,24 @@ static double getDoubleInput(VFrame *v, size_t index)
 
 static void returnDouble(VFrame *f, double d)
 	{
-	char *res = malloc(100);
-	memset(res, '\0', 100);
+	LiveArray *array = malloc(sizeof(LiveArray)+100);
+	memset(array, '\0', sizeof(LiveArray)+100);
+	
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	
 	if (isinf(d))
 		{
 		if (d < 0.0)
-			strcpy(res, "-inf");
+			strcpy((char*) array -> data, "-inf");
 			else
-			strcpy(res, "inf");
+			strcpy((char*) array -> data, "inf");
 		}
 		else
 		{
-		snprintf(res, 99, "%.20f", d);
+		snprintf((char*) array -> data, 99, "%.20f", d);
 		}
 	
-	LiveArray *array = malloc(sizeof(LiveArray));
-	memset(array, '\0', sizeof(LiveArray));
-	
-	array -> data = (unsigned char*) res;
-	array -> length = strlen(res);
+	array -> length = strlen((char*) array -> data);
 	
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);

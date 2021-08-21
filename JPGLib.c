@@ -44,10 +44,11 @@ my_error_exit (j_common_ptr cinfo)
 
 static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
+	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = byteArrayGT;
@@ -253,11 +254,12 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	//...and the pixel map
 	ict ++;
 	
-	LiveArray *array = malloc(sizeof(LiveArray));
+	size_t len = (width * DANA_PIXEL_WIDTH) * height;
+	
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
 	memset(array, '\0', sizeof(LiveArray));
 	
-	size_t len = (width * DANA_PIXEL_WIDTH) * height;
-	array -> data = malloc(len);
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	array -> length = len;
 	
 	array -> gtLink = byteArrayGT;

@@ -139,20 +139,26 @@ static char* getThreadError(int err)
 	}
 #endif
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+static LiveArray* makeByteArray(VFrame *f, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray));
-	memset(array, '\0', sizeof(LiveArray));
+	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	memset(array, '\0', sizeof(LiveArray)+len);
 	
-	array -> data = data;
+	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	array -> length = len;
 	
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
 	array -> refi.ocm = f -> blocking -> instance;
 	
-	array -> refi.refCount ++;
 	array -> refi.type = array -> gtLink -> typeLink;
+	
+	return array;
+	}
+
+static void returnArray(VFrame *f, LiveArray *array)
+	{
+	array -> refi.refCount ++;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
@@ -525,11 +531,12 @@ INSTRUCTION_DEF op_tcp_recv(VFrame *cframe)
 	size_t len = 0;
 	copyHostInteger((unsigned char*) &len, getVariableContent(cframe, 1), sizeof(size_t));
 	
-	unsigned char *pbuf = malloc(len);
+	LiveArray *array = makeByteArray(cframe, len);
 	
-	if (pbuf == NULL)
+	if (array == NULL)
 		{
 		len = 0;
+		return RETURN_OK;
 		}
 	
 	int amt = 1;
@@ -538,7 +545,7 @@ INSTRUCTION_DEF op_tcp_recv(VFrame *cframe)
 	//iterate through param 2's contents
 	while ((len > 0) && (amt != 0))
 		{
-		amt = recv(socket, (char*) (pbuf+totalAmt), len, 0);
+		amt = recv(socket, (char*) (array -> data + totalAmt), len, 0);
 		
 		if (amt < 0)
 			{
@@ -554,11 +561,13 @@ INSTRUCTION_DEF op_tcp_recv(VFrame *cframe)
 	
 	if (totalAmt > 0)
 		{
-		returnByteArray(cframe, pbuf, totalAmt);
+		array -> length = totalAmt;
+		returnArray(cframe, array);
 		}
 		else
 		{
-		free(pbuf);
+		api -> decrementGTRefCount(array -> gtLink);
+		free(array);
 		}
 	
 	return RETURN_OK;
@@ -646,10 +655,10 @@ INSTRUCTION_DEF op_tcp_get_local_address(VFrame *cframe)
 	alen = strlen(ipstr);
 	#endif
 	
-	LiveArray *newArray = malloc(sizeof(LiveArray));
+	LiveArray *newArray = malloc(sizeof(LiveArray)+alen);
 	memset(newArray, '\0', sizeof(LiveArray));
 	
-	newArray -> data = malloc(alen);
+	newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
 	newArray -> length = alen;
 	memcpy(newArray -> data, ipstr, alen);
 	
@@ -732,10 +741,10 @@ INSTRUCTION_DEF op_tcp_get_remote_address(VFrame *cframe)
 	alen = strlen(ipstr);
 	#endif
 	
-	LiveArray *newArray = malloc(sizeof(LiveArray));
+	LiveArray *newArray = malloc(sizeof(LiveArray)+alen);
 	memset(newArray, '\0', sizeof(LiveArray));
 	
-	newArray -> data = malloc(alen);
+	newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
 	newArray -> length = alen;
 	memcpy(newArray -> data, ipstr, alen);
 	

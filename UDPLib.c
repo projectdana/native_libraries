@@ -351,10 +351,10 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	
 	//Datagram.address
 	
-	LiveArray *newArray = malloc(sizeof(LiveArray));
+	LiveArray *newArray = malloc(sizeof(LiveArray)+alen);
 	memset(newArray, '\0', sizeof(LiveArray));
 	
-	newArray -> data = malloc(alen);
+	newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
 	newArray -> length = alen;
 	memcpy(newArray -> data, ipstr, alen);
 	
@@ -377,10 +377,10 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	
 	//Datagram.content
 	
-	LiveArray *newContentArray = malloc(sizeof(LiveArray));
+	LiveArray *newContentArray = malloc(sizeof(LiveArray)+sz);
 	memset(newContentArray, '\0', sizeof(LiveArray));
 	
-	newContentArray -> data = malloc(sz);
+	newContentArray -> data = ((unsigned char*) newContentArray) + sizeof(LiveArray);
 	newContentArray -> length = sz;
 	memcpy(newContentArray -> data, buf, sz);
 	

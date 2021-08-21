@@ -257,12 +257,12 @@ static void * event_thread(void *ptr)
 				//send event?
 				if (ti -> sendStopEvent)
 					{
-					LiveData *nd = malloc(sizeof(LiveData));
-					memset(nd, '\0', sizeof(LiveData));
-					
 					size_t sz = sizeof(VVarLivePTR);
-					nd -> data = malloc(sz);
-					memset(nd -> data, '\0', sz);
+					
+					LiveData *nd = malloc(sizeof(LiveData)+sz);
+					memset(nd, '\0', sizeof(LiveData)+sz);
+					
+					nd -> data = ((unsigned char*) nd) + sizeof(LiveData);
 					
 					nd -> gtLink = trackInfoGT;
 					api -> incrementGTRefCount(nd -> gtLink);
@@ -937,12 +937,13 @@ INSTRUCTION_DEF op_decoder_get_raw_data(VFrame *cframe)
 	
 	size_t totalLen = multi * frameCount;
 	
-	unsigned char *raw_data = malloc(totalLen);
-	memcpy(raw_data, pAudioData, totalLen);
+	LiveArray *array = make_byte_array(cframe, api, totalLen);
+	
+	memcpy(array -> data, pAudioData, totalLen);
 	
 	ma_free(pAudioData, NULL);
 	
-	return_byte_array_direct(cframe, api, raw_data, totalLen);
+	return_array(cframe, array);
 	
 	return RETURN_OK;
 	}
