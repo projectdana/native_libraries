@@ -51,21 +51,26 @@ static GlobalTypeLink *charArrayGT = NULL;
 static GlobalTypeLink *stringArrayGT = NULL;
 static GlobalTypeLink *stringItemGT = NULL;
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+static LiveArray* makeByteArray(VFrame *f, size_t len)
 	{
 	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
+	memset(array, '\0', sizeof(LiveArray)+len);
 	
 	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, data, len);
 	array -> length = len;
 	
 	array -> gtLink = charArrayGT;
 	api -> incrementGTRefCount(array -> gtLink);
 	array -> refi.ocm = f -> blocking -> instance;
 	
-	array -> refi.refCount ++;
 	array -> refi.type = array -> gtLink -> typeLink;
+	
+	return array;
+	}
+
+static void returnArray(VFrame *f, LiveArray *array)
+	{
+	array -> refi.refCount ++;
 	
 	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
 	ptrh -> content = (unsigned char*) array;
@@ -748,11 +753,12 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 	
 	//read data
 	
-	unsigned char *pbuf = malloc(len);
+	LiveArray *array = makeByteArray(cframe, len);
 	
-	if (pbuf == NULL)
+	if (array == NULL)
 		{
 		len = 0;
+		return RETURN_OK;
 		}
 	
 	int amt = 1;
@@ -760,7 +766,7 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 	
 	while ((len > 0) && (amt != 0))
 		{
-		amt = SSL_read(ssl, (char*) (pbuf+totalAmt), len);
+		amt = SSL_read(ssl, (char*) (array -> data +totalAmt), len);
 		
 		if (amt < 0)
 			{
@@ -770,7 +776,8 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 				api -> throwException(cframe, ERR_error_string(errC, NULL));
 				}
 			
-			free(pbuf);
+			api -> decrementGTRefCount(array -> gtLink);
+			free(array);
 			return RETURN_OK;
 			}
 		
@@ -780,11 +787,13 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 	
 	if (totalAmt > 0)
 		{
-		returnByteArray(cframe, pbuf, totalAmt);
+		array -> length = totalAmt;
+		returnArray(cframe, array);
 		}
 		else
 		{
-		free(pbuf);
+		api -> decrementGTRefCount(array -> gtLink);
+		free(array);
 		}
 	
 	return RETURN_OK;
