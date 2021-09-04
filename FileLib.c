@@ -26,26 +26,6 @@ static GlobalTypeLink *charArrayGT = NULL;
 static GlobalTypeLink *fileEntryGT = NULL;
 static GlobalTypeLink *fileEntryArrayGT = NULL;
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
-	{
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
-	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, data, len);
-	array -> length = len;
-	
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-	}
-
 INSTRUCTION_DEF op_file_open(VFrame *cframe)
 	{
 	size_t xs = 0;
@@ -778,6 +758,58 @@ INSTRUCTION_DEF op_get_info(VFrame *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_get_full_path(VFrame *cframe)
+	{
+	char *qpath = getParam_char_array(cframe, 0);
+	
+	#ifdef WINDOWS
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, MAX_PATH);
+	
+	if (array == NULL)
+		{
+		api -> throwException(cframe, "out of memory");
+		return RETURN_OK;
+		}
+	
+	if (GetFullPathNameA(qpath, (char*) array -> data, MAX_PATH, NULL) == 0)
+		{
+		api -> throwException(cframe, "failed to resolve path");
+		free_array(api, array);
+		return RETURN_OK;
+		}
+	
+	array -> length = strlen((char*) array -> data);
+	
+	return_array(cframe, array);
+	#endif
+	#ifdef LINUX
+	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, PATH_MAX);
+	
+	if (array == NULL)
+		{
+		api -> throwException(cframe, "out of memory");
+		return RETURN_OK;
+		}
+	
+	char *ptr = realpath(qpath, (char*) array -> data);
+	
+	if (ptr == NULL)
+		{
+		api -> throwException(cframe, "failed to resolve path");
+		free_array(api, array);
+		return RETURN_OK;
+		}
+	
+	array -> length = strlen((char*) array -> data);
+	
+	return_array(cframe, array);
+	#endif
+	
+	free(qpath);
+	
+	return RETURN_OK;
+	}
+
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
@@ -806,6 +838,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("copy", op_file_copy);
 	setInterfaceFunction("createDirectory", op_make_dir);
 	setInterfaceFunction("deleteDirectory", op_delete_dir);
+	setInterfaceFunction("getFullPath", op_get_full_path);
 	
 	return getPublicInterface();
 	}
