@@ -2278,6 +2278,24 @@ INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
+		
+		unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		
+		if (cnt == NULL)
+			{
+			api -> throwException(cframe, "null pointer");
+			return RETURN_OK;
+			}
+		
+		LiveData *bitmapData = (LiveData*) cnt;
+		LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
+		LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
+		
+		if (whData == NULL || pixelArrayH == NULL || pixelArrayH -> data == NULL)
+			{
+			api -> throwException(cframe, "null pointer");
+			return RETURN_OK;
+			}
 
 		size_t x = 0;
 		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 3), sizeof(size_t));
@@ -3105,12 +3123,30 @@ INSTRUCTION_DEF op_set_icon(VFrame *cframe)
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
-
+		
+		unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		
+		if (cnt == NULL)
+			{
+			api -> throwException(cframe, "null pointer");
+			return RETURN_OK;
+			}
+		
+		LiveData *bitmapData = (LiveData*) cnt;
+		LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
+		LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
+		
+		if (whData == NULL || pixelArrayH == NULL || pixelArrayH -> data == NULL)
+			{
+			api -> throwException(cframe, "null pointer");
+			return RETURN_OK;
+			}
+		
 		SDL_Event newEvent;
 		SDL_zero(newEvent);
 		newEvent.type = DX_SET_WINDOW_ICON;
 		newEvent.user.data1 = instance;
-		newEvent.user.data2 = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		newEvent.user.data2 = cnt;
 
 		SDL_PushEvent(&newEvent);
 		}
