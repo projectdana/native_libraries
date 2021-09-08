@@ -1460,7 +1460,11 @@ static void render_thread()
 				if (myInstance != NULL)
 					{
 					int x, y;
-					SDL_GetMouseState(&x, &y);
+					//GetGlobalMouseState: as on some platforms GetMouseState will be zero for a file drop
+					//SDL_GetMouseState(&x, &y);
+					SDL_GetGlobalMouseState(&x, &y);
+					x -= myInstance -> windowX;
+					y -= myInstance -> windowY;
 					pushDropEvent(myInstance, dropped_filedir, x, y);
 					}
 				
