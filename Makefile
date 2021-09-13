@@ -55,12 +55,12 @@ else
 	PLATFORM = deb
 	CCFLAGS += -shared -fPIC
 	MATH_FLAGS = -lm
-	MYSQL_INCLUDE = -I/usr/include/mysql `mysql_config --variable=pkglibdir`/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
-	#MYSQL_INCLUDE = -I ~/libs/mysql_lib/include ~/libs/mysql_lib/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
+	#MYSQL_INCLUDE = -I/usr/include/mysql `mysql_config --variable=pkglibdir`/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
+	MYSQL_INCLUDE = -I ~/libs/mysql_lib/include ~/libs/mysql_lib/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
     ifeq ($(UNAME_S),Linux)
         CCFLAGS += -DLINUX
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
-		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a"
+		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz -lm
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -lX11
@@ -79,7 +79,7 @@ else
 		CHIP = x64
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
 		SQL_FLAGS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
-		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz
+		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz -lm
 		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
 		ZLIB_FLAGS = "/usr/local/lib/libz.a"
 		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
