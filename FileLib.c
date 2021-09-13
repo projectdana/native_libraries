@@ -771,12 +771,14 @@ INSTRUCTION_DEF op_get_full_path(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	if (GetFullPathNameA(qpath, (char*) array -> data, MAX_PATH, NULL) == 0)
+	if (GetFullPathNameA(qpath, MAX_PATH, (char*) array -> data, NULL) == 0)
 		{
 		api -> throwException(cframe, "failed to resolve path");
 		free_array(api, array);
 		return RETURN_OK;
 		}
+	
+	while (strchr((char*) array -> data, '\\') != NULL) memset(strchr((char*) array -> data, '\\'), '/', 1);
 	
 	array -> length = strlen((char*) array -> data);
 	
