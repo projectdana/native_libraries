@@ -626,10 +626,19 @@ bool findFont(const char *ttfFileName, char *result, unsigned int resultLen)
 void primeFontDirectories()
 	{
 	char *home = getenv("DANA_HOME");
-	char *danaFontDir = malloc(strlen(home) + strlen("/resources-ext/fonts/") + 1);
-	strcpy(danaFontDir, home);
-	strcat(danaFontDir, "/resources-ext/fonts/");
-
+	char *danaFontDir = NULL;
+	if (home != NULL)
+		{
+		danaFontDir = malloc(strlen(home) + strlen("/resources-ext/fonts/") + 1);
+		strcpy(danaFontDir, home);
+		strcat(danaFontDir, "/resources-ext/fonts/");
+		}
+		else
+		{
+		printf("UI library::DANA_HOME NOT SET! Built-in fonts will not be loaded.\n");
+		danaFontDir = strdup("");
+		}
+	
 	fontDirectories[0].directory = danaFontDir;
 
 	#ifdef WINDOWS
@@ -3581,10 +3590,8 @@ INSTRUCTION_DEF op_shutdown(VFrame *cframe)
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
-	
 	// grab global type mappings for anything that we generate here
 	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
-	
 	integerGT = api -> resolveGlobalTypeMapping(&intType);
 	
 	windowDataGT = api -> resolveGlobalTypeMapping(&windowDataType);
@@ -3639,7 +3646,6 @@ Interface* load(CoreAPI *capi)
 		printf("Warning: graphics library is designed for SDL 2.0.8 or later, you have version %u.%u.%u. Some functionality may be reduced.\n", linked.major, linked.minor, linked.patch);
 		resizeAvailable = false;
 		}
-
 	
 	primeFontDirectories();
 	
