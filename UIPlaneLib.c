@@ -903,7 +903,6 @@ int DrawScene(WindowInstance *instance)
 	
 	SDL_RenderClear(instance -> renderer);
 	
-	//TODO: the below fails on Windows, because textures are invalidated
 	if (instance -> sceneChanged || instance -> baseTexture == NULL)
 		{
 		if (instance -> baseTexture != NULL)
@@ -1507,7 +1506,6 @@ static void render_thread()
 				SDL_SetWindowPosition(wi -> win, wi -> windowX, wi -> windowY);
 
 				//a new frame here seems overkill, but it fixes a rendering bug on some Windows installations when dragging the window
-				//NOTE: performance for window drag/drop could be improved here if the rendering loop saved the entire render to a texture, then just re-fired that texture to the window instead of drawing the entire thing again (assuming nothing changed, as is usually the case right here)
 				newFrame = true;
 				}
 				else if (e.type == DX_SET_WINDOW_TITLE)
@@ -1544,6 +1542,9 @@ static void render_thread()
 				SDL_ShowWindow(wi -> win);
 
 				newFrame = true;
+				
+				//re-build the texture for the now-visible window
+				wi -> sceneChanged = true;
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(wi -> stateSem, 1, NULL);
