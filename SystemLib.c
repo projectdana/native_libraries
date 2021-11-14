@@ -141,7 +141,7 @@ INSTRUCTION_DEF op_get_system_font(VFrame *cframe)
 	{
 	unsigned char monospaced = getVariableContent(cframe, 0)[0];
 	
-	char *home = getenv("DANA_HOME");
+	char *home = api -> getDanaHome();
 	
 	if (home != NULL)
 		{

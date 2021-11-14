@@ -14,6 +14,7 @@ typedef struct _CoreAPI{
 	void (*throwException)(VFrame *frame, char *reason);
 	void (*incRef)(VFrame *frame, void *entity);
 	void (*decRef)(VFrame *frame, void *entity);
+	const char* (*getDanaHome)();
 	} CoreAPI;
 
 typedef Interface* (*dlLoad)(CoreAPI *capi);

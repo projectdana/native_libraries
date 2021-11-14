@@ -125,6 +125,13 @@ void return_byte_array(VFrame *f, CoreAPI *api, unsigned char *str, size_t len)
 	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	
 	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	
+	if (array == NULL)
+		{
+		api -> throwException(f, "out of memory to allocate return array");
+		return;
+		}
+	
 	memset(array, '\0', sizeof(LiveArray));
 	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	memcpy(array -> data, str, len);
@@ -143,6 +150,13 @@ void return_char_array(VFrame *f, CoreAPI *api, char *str)
 	
 	size_t asz = strlen(str);
 	LiveArray *array = malloc(sizeof(LiveArray)+asz);
+	
+	if (array == NULL)
+		{
+		api -> throwException(f, "out of memory to allocate return array");
+		return;
+		}
+	
 	memset(array, '\0', sizeof(LiveArray));
 	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
 	memcpy(array -> data, str, asz);
@@ -162,6 +176,9 @@ LiveArray* make_byte_array(VFrame *f, CoreAPI *api, size_t len)
 	GlobalTypeLink *typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	
 	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	
+	if (array == NULL) return NULL;
+	
 	memset(array, '\0', sizeof(LiveArray)+len);
 	
 	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
@@ -179,6 +196,7 @@ LiveArray* make_byte_array_wt(VFrame *f, CoreAPI *api, GlobalTypeLink *typeLink_
 	{
 	if (len > INT_MAX || (((INT_MAX - len) - 1) < sizeof(LiveArray))) return NULL;
 	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	if (array == NULL) return NULL;
 	memset(array, '\0', sizeof(LiveArray)+len);
 	
 	array -> data = ((unsigned char*) array) + sizeof(LiveArray);

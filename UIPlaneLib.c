@@ -575,9 +575,6 @@ bool findFontByAlias(const char *fontAlias, const char *dir, char *result, unsig
 
 bool findFont(const char *ttfFileName, char *result, unsigned int resultLen)
 	{
-	//TODO: also allow fonts to be accessed from DANA_HOME/resources-ext/fonts/
-	// - so do a check to see if the file exists in winfonts, if not, check DH (or maybe the other way around! :-))
-
 	bool literalFile = false;
 
 	if (strlen(ttfFileName) >= 5 && strcmp(&ttfFileName[strlen(ttfFileName)-4], ".ttf") == 0)
@@ -625,7 +622,8 @@ bool findFont(const char *ttfFileName, char *result, unsigned int resultLen)
 
 void primeFontDirectories()
 	{
-	char *home = getenv("DANA_HOME");
+	//char *home = getenv("DANA_HOME");
+	char *home = api -> getDanaHome();
 	char *danaFontDir = NULL;
 	if (home != NULL)
 		{

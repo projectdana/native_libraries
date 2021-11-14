@@ -141,7 +141,12 @@ static char* getThreadError(int err)
 
 static LiveArray* makeByteArray(VFrame *f, size_t len)
 	{
+	if (len > INT_MAX || (len + sizeof(LiveArray)) > INT_MAX) return NULL;
+	
 	LiveArray *array = malloc(sizeof(LiveArray)+len);
+	
+	if (array == NULL) return NULL;
+	
 	memset(array, '\0', sizeof(LiveArray)+len);
 	
 	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
@@ -536,6 +541,7 @@ INSTRUCTION_DEF op_tcp_recv(VFrame *cframe)
 	if (array == NULL)
 		{
 		len = 0;
+		api -> throwException(cframe, "out of memory to allocate recv buffer");
 		return RETURN_OK;
 		}
 	
