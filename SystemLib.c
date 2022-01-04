@@ -11,6 +11,8 @@
 #ifdef LINUX
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <sys/sysinfo.h>
+#include <errno.h>
 #endif
 
 #include <sys/stat.h>
@@ -174,6 +176,67 @@ INSTRUCTION_DEF op_get_system_font(VFrame *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_get_core_count(VFrame *cframe)
+	{
+	size_t res = 0;
+	
+	#ifdef WINDOWS
+	SYSTEM_INFO sInfo;
+	GetSystemInfo(&sInfo);
+	
+	res = sInfo.dwNumberOfProcessors;
+	#endif
+	
+	#ifdef LINUX
+	int q = sysconf(_SC_NPROCESSORS_ONLN);
+	
+	if (q == -1)
+		{
+		api -> throwException(cframe, strerror(errno));
+		return RETURN_OK;
+		}
+	
+	res = q;
+	#endif
+	
+	return_int(cframe, res);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_get_memory_size(VFrame *cframe)
+	{
+	size_t res = 0;
+	
+	#ifdef WINDOWS
+	unsigned long long q;
+	if (!GetPhysicallyInstalledSystemMemory(&q))
+		{
+		//api -> throwException(cframe, GetLastError()); //TODO: use FormatMessage()
+		api -> throwException(cframe, "operation failed");
+		return RETURN_OK;
+		}
+	
+	res = q / 1024;
+	#endif
+	
+	#ifdef LINUX
+	struct sysinfo sInfo;
+	
+	if (sysinfo(&sInfo) == -1)
+		{
+		api -> throwException(cframe, strerror(errno));
+		return RETURN_OK;
+		}
+	
+	res = (sInfo.totalram / 1024) / 1024;
+	#endif
+	
+	return_int(cframe, res);
+	
+	return RETURN_OK;
+	}
+
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
@@ -184,6 +247,9 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("getHostName", op_get_host_name);
 	setInterfaceFunction("getVar", op_get_variable);
 	setInterfaceFunction("getSystemFont", op_get_system_font);
+	
+	setInterfaceFunction("getCoreCount", op_get_core_count);
+	setInterfaceFunction("getMemorySize", op_get_memory_size);
 	
 	return getPublicInterface();
 	}
