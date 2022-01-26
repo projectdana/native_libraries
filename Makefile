@@ -1,6 +1,6 @@
 CC = gcc
 
-API_PATH = "dana_api_1.5"
+API_PATH = "dana_api_1.6"
 STD_INCLUDE = -I $(API_PATH)
 CCFLAGS = -Wall -fno-strict-aliasing
 OUTPUT_FILE=
@@ -115,83 +115,83 @@ else
 endif
 
 calendar:
-	$(CC) -Os -s CalendarLib_dni.c vmi_util.c CalendarLib.c -o CalendarLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s CalendarLib_dni.c $(API_PATH)/vmi_util.c CalendarLib.c -o CalendarLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) CalendarLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 cmdln:
-	$(CC) -Os -s CmdLib_dni.c vmi_util.c CmdLib.c -o CmdLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s CmdLib_dni.c $(API_PATH)/vmi_util.c CmdLib.c -o CmdLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) CmdLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 iofile:
-	$(CC) -Os -s FileLib_dni.c vmi_util.c FileLib.c -o FileLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s FileLib_dni.c $(API_PATH)/vmi_util.c FileLib.c -o FileLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) FileLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 iotcp:
-	$(CC) -Os -s TCPLib_dni.c vmi_util.c TCPLib.c -o TCPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS)
+	$(CC) -Os -s TCPLib_dni.c $(API_PATH)/vmi_util.c TCPLib.c -o TCPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS)
 	$(CP_CMD) TCPLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 ioudp:
-	$(CC) -Os -s UDPLib_dni.c vmi_util.c UDPLib.c -o UDPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS)
+	$(CC) -Os -s UDPLib_dni.c $(API_PATH)/vmi_util.c UDPLib.c -o UDPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS)
 	$(CP_CMD) UDPLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 dns:
-	$(CC) -Os -s DNSLib_dni.c vmi_util.c DNSLib.c -o DNSLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS) -DCHIP_NAME=\"$(CHIP)\"
+	$(CC) -Os -s DNSLib_dni.c $(API_PATH)/vmi_util.c DNSLib.c -o DNSLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS) -DCHIP_NAME=\"$(CHIP)\"
 	$(CP_CMD) DNSLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 sysinfo:
-	$(CC) -Os -s SystemLib_dni.c vmi_util.c SystemLib.c -o SystemLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) -DCHIP_NAME=\"$(CHIP)\"
+	$(CC) -Os -s SystemLib_dni.c $(API_PATH)/vmi_util.c SystemLib.c -o SystemLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) -DCHIP_NAME=\"$(CHIP)\"
 	$(CP_CMD) SystemLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 timer:
-	$(CC) -Os -s Timer_dni.c vmi_util.c Timer.c -o Timer[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s Timer_dni.c $(API_PATH)/vmi_util.c Timer.c -o Timer[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) Timer[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 uiplane:
-	$(CC) -Os -s UIPlaneLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c UIPlaneLib.c -o UIPlaneLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)
+	$(CC) -Os -s UIPlaneLib_dni.c $(API_PATH)/vmi_util.c $(API_PATH)/platform_utils.c UIPlaneLib.c -o UIPlaneLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)
 	$(CP_CMD) UIPlaneLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 run:
-	$(CC) -Os -s RunLib_dni.c vmi_util.c RunLib.c -o RunLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s RunLib_dni.c $(API_PATH)/vmi_util.c RunLib.c -o RunLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) RunLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 math:
-	$(CC) -Os -s MathLib_dni.c vmi_util.c MathLib.c -o MathLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(MATH_FLAGS)
+	$(CC) -Os -s MathLib_dni.c $(API_PATH)/vmi_util.c MathLib.c -o MathLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(MATH_FLAGS)
 	$(CP_CMD) MathLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 mysql_lib:
-	$(CC) -Os -s MySQLLib_dni.c vmi_util.c MySQLLib.c -o MySQLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(MYSQL_INCLUDE) $(CCFLAGS) $(SQL_FLAGS)
+	$(CC) -Os -s MySQLLib_dni.c $(API_PATH)/vmi_util.c MySQLLib.c -o MySQLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(MYSQL_INCLUDE) $(CCFLAGS) $(SQL_FLAGS)
 	$(CP_CMD) MySQLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 png:
-	$(CC) -Os -s PNGLib_dni.c vmi_util.c PNGLib.c -o PNGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(PNG_FLAGS)
+	$(CC) -Os -s PNGLib_dni.c $(API_PATH)/vmi_util.c PNGLib.c -o PNGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(PNG_FLAGS)
 	$(CP_CMD) PNGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 jpg:
-	$(CC) -Os -s JPGLib_dni.c vmi_util.c JPGLib.c -o JPGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(JPG_FLAGS)
+	$(CC) -Os -s JPGLib_dni.c $(API_PATH)/vmi_util.c JPGLib.c -o JPGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(JPG_FLAGS)
 	$(CP_CMD) JPGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 clipboard:
-	$(CC) -Os -s Clipboard_dni.c vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_FLAGS)
+	$(CC) -Os -s Clipboard_dni.c $(API_PATH)/vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_FLAGS)
 	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 zlib:
-	$(CC) -Os -s ZLib_dni.c vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_FLAGS)
+	$(CC) -Os -s ZLib_dni.c $(API_PATH)/vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_FLAGS)
 	$(CP_CMD) ZLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 ssl_lib:
-	$(CC) -Os -s SSLLib_dni.c vmi_util.c SSLLib.c -o SSLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CC) -Os -s SSLLib_dni.c $(API_PATH)/vmi_util.c SSLLib.c -o SSLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
 	$(CP_CMD) SSLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 sha_lib:
-	$(CC) -Os -s SHALib_dni.c vmi_util.c SHALib.c -o SHALib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CC) -Os -s SHALib_dni.c $(API_PATH)/vmi_util.c SHALib.c -o SHALib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
 	$(CP_CMD) SHALib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 cipher_lib:
-	$(CC) -Os -s CipherLib_dni.c vmi_util.c CipherLib.c -o CipherLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CC) -Os -s CipherLib_dni.c $(API_PATH)/vmi_util.c CipherLib.c -o CipherLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
 	$(CP_CMD) CipherLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 audio:
-	$(CC) -Os -s AudioLib_dni.c vmi_util.c $(API_PATH)/platform_utils.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_FLAGS)
+	$(CC) -Os -s AudioLib_dni.c $(API_PATH)/vmi_util.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_FLAGS)
 	$(CP_CMD) AudioLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 all: $(ALL_RULES)

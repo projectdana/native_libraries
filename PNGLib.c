@@ -16,24 +16,13 @@ static GlobalTypeLink *byteArrayGT = NULL;
 the below read_png_file and write_png_file functions are based on code by Guillaume Cottenceau and Yoshimasa Niwa
 */
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+static void returnByteArray(FrameData* f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
+	DanaEl* array = api -> makeArray(byteArrayGT, len);
 	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, data, len);
-	array -> length = len;
+	memcpy(api -> getArrayContent(array), data, len);
 	
-	array -> gtLink = byteArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
+	api -> returnEl(f, array);
 	}
 
 typedef struct {
@@ -189,17 +178,17 @@ static void copyPixelsOut(unsigned char *ar, png_bytep *row_pointers, size_t wid
 		}
 	}
 
-INSTRUCTION_DEF op_load_image(VFrame *cframe)
+INSTRUCTION_DEF op_load_image(FrameData* cframe)
 	{
 	unsigned char res = 0;
 	
-	LiveArray *fdata = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl* fdata = api -> getParamEl(cframe, 0);
 	
 	size_t readAmt = 0;
 	
 	size_t width = 0;
 	size_t height = 0;
-	png_bytep *row_pointers = read_png_mem(fdata -> data, fdata -> length, &readAmt, &width, &height);
+	png_bytep *row_pointers = read_png_mem(api -> getArrayContent(fdata), api -> getArrayLength(fdata), &readAmt, &width, &height);
 	
 	if (row_pointers == NULL)
 		{
@@ -207,40 +196,24 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 1);
+	DanaEl* ct = api -> getParamEl(cframe, 1);
 	
 	//there are now two pointers: one to the LiveData of the WH instance, and one to the LiveArray of the pixel map
-	VVarLivePTR *ict = (VVarLivePTR*) ((LiveData*) ct -> content) -> data;
+	DanaEl *ict = api -> getDataFieldEl(ct, 0);
 	
-	size_t *num = (size_t*) ((LiveData*) ict -> content) -> data;
-	
-	copyHostInteger((unsigned char*) num, (unsigned char*) &width, sizeof(width));
-	
-	num ++;
-	
-	copyHostInteger((unsigned char*) num, (unsigned char*) &height, sizeof(height));
+	api -> setDataFieldInt(ict, 0, width);
+	api -> setDataFieldInt(ict, 1, height);
 	
 	//...and the pixel map
-	ict ++;
 	
 	size_t len = (width * 4) * height;
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
 	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	array -> length = len;
+	DanaEl* array = api -> makeArray(byteArrayGT, len);
 	
-	array -> gtLink = byteArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = cframe -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	ict -> content = (unsigned char*) array;
+	api -> setDataFieldEl(ct, 1, array);
 	
 	//populate the pixel map (see above helper function)
-	copyPixels(array -> data, row_pointers, width, height);
+	copyPixels(api -> getArrayContent(array), row_pointers, width, height);
 	
 	int y = 0;
 	for(y = 0; y < height; y++) {
@@ -250,9 +223,7 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 	
 	res = 1;
 	
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
+	api -> returnRaw(cframe, &res, 1);
 	
 	return RETURN_OK;
 	}
@@ -318,28 +289,21 @@ unsigned char* write_png_file(png_bytep *row_pointers, size_t width, size_t heig
 	return memfile.buf;
 	}
 
-INSTRUCTION_DEF op_save_image(VFrame *cframe)
+INSTRUCTION_DEF op_save_image(FrameData* cframe)
 	{
 	size_t width = 0;
 	size_t height = 0;
 	
-	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 0);
+	DanaEl* ct = api -> getParamEl(cframe, 0);
 	
 	//there are now two pointers: one to the LiveData of the WH instance, and one to the LiveArray of the pixel map
-	VVarLivePTR *ict = (VVarLivePTR*) ((LiveData*) ct -> content) -> data;
+	DanaEl* ict = api -> getDataFieldEl(ct, 0);
 	
-	size_t *num = (size_t*) ((LiveData*) ict -> content) -> data;
-	
-	copyHostInteger((unsigned char*) &width, (unsigned char*) num, sizeof(width));
-	
-	num ++;
-	
-	copyHostInteger((unsigned char*) &height, (unsigned char*) num, sizeof(height));
+	width = api -> getDataFieldInt(ict, 0);
+	height = api -> getDataFieldInt(ict, 1);
 	
 	//...and the pixel map
-	ict ++;
-	
-	LiveArray *array = (LiveArray*) ict -> content;
+	DanaEl* array = api -> getDataFieldEl(ct, 2);
 	
 	png_bytep *row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
 	int y = 0;
@@ -348,7 +312,7 @@ INSTRUCTION_DEF op_save_image(VFrame *cframe)
 		row_pointers[y] = (png_byte*) malloc(4 * width);
 		}
 	
-	copyPixelsOut(array -> data, row_pointers, width, height);
+	copyPixelsOut(api -> getArrayContent(array), row_pointers, width, height);
 	
 	size_t fullLen = 0;
 	

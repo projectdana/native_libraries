@@ -28,258 +28,202 @@ static CoreAPI *api;
 
 static GlobalTypeLink *charArrayGT = NULL;
 
-static double getDoubleInput(VFrame *v, size_t index)
+INSTRUCTION_DEF op_sqrt_dec(FrameData *cframe)
 	{
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(v, index)) -> content;
-	
-	char *val = NULL;
-	
-	if (array != NULL)
-		{
-		val = malloc(array -> length + 1);
-		memset(val, '\0', array -> length + 1);
-		memcpy(val, array -> data, array -> length);
-		}
-		else
-		{
-		val = strdup("0.0");
-		}
-	
-	double d = strtod(val, NULL);
-	
-	free(val);
-	
-	return d;
-	}
-
-static void returnDouble(VFrame *f, double d)
-	{
-	LiveArray *array = malloc(sizeof(LiveArray)+100);
-	memset(array, '\0', sizeof(LiveArray)+100);
-	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	
-	if (isinf(d))
-		{
-		if (d < 0.0)
-			strcpy((char*) array -> data, "-inf");
-			else
-			strcpy((char*) array -> data, "inf");
-		}
-		else
-		{
-		snprintf((char*) array -> data, 99, "%.20f", d);
-		}
-	
-	array -> length = strlen((char*) array -> data);
-	
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-	}
-
-INSTRUCTION_DEF op_sqrt_dec(VFrame *cframe)
-	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = sqrt(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_power(VFrame *cframe)
+INSTRUCTION_DEF op_power(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
-	double p = getDoubleInput(cframe, 1);
+	double d = api -> getParamDec(cframe, 0);
+	double p = api -> getParamDec(cframe, 1);
 	
 	d = pow(d, p);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_root(VFrame *cframe)
+INSTRUCTION_DEF op_root(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
-	double p = getDoubleInput(cframe, 1);
+	double d = api -> getParamDec(cframe, 0);
+	double p = api -> getParamDec(cframe, 1);
 	
 	d = pow(d, 1.0/p);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_log(VFrame *cframe)
+INSTRUCTION_DEF op_log(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = log10(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_natlog(VFrame *cframe)
+INSTRUCTION_DEF op_natlog(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = log(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_natexp(VFrame *cframe)
+INSTRUCTION_DEF op_natexp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = exp(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_cosine(VFrame *cframe)
+INSTRUCTION_DEF op_cosine(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = cos(d * (PI / 180.0));
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_sine(VFrame *cframe)
+INSTRUCTION_DEF op_sine(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = sin(d * (PI / 180.0));
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_tangent(VFrame *cframe)
+INSTRUCTION_DEF op_tangent(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = tan(d * (PI / 180.0));
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_arc_cosine(VFrame *cframe)
+INSTRUCTION_DEF op_arc_cosine(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = acos(d * (PI / 180.0));
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_arc_sine(VFrame *cframe)
+INSTRUCTION_DEF op_arc_sine(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = asin(d * (PI / 180.0));
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_arc_tangent(VFrame *cframe)
+INSTRUCTION_DEF op_arc_tangent(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = atan(d * (PI / 180.0));
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_cosine_hyp(VFrame *cframe)
+INSTRUCTION_DEF op_cosine_hyp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = cosh(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_sine_hyp(VFrame *cframe)
+INSTRUCTION_DEF op_sine_hyp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = sinh(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_tangent_hyp(VFrame *cframe)
+INSTRUCTION_DEF op_tangent_hyp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = tanh(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_arc_cosine_hyp(VFrame *cframe)
+INSTRUCTION_DEF op_arc_cosine_hyp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = acosh(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_arc_sine_hyp(VFrame *cframe)
+INSTRUCTION_DEF op_arc_sine_hyp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = asinh(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_arc_tangent_hyp(VFrame *cframe)
+INSTRUCTION_DEF op_arc_tangent_hyp(FrameData *cframe)
 	{
-	double d = getDoubleInput(cframe, 0);
+	double d = api -> getParamDec(cframe, 0);
 	
 	d = atanh(d);
 	
-	returnDouble(cframe, d);
+	api -> returnDec(cframe, d);
 	
 	return RETURN_OK;
 	}

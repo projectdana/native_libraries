@@ -29,9 +29,11 @@
 
 static CoreAPI *api;
 
-INSTRUCTION_DEF op_get_local_time(VFrame *cframe)
+INSTRUCTION_DEF op_get_local_time(FrameData *cframe)
 	{
-	unsigned char *cnt = ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content) -> data;
+	DanaEl* de = api -> getParamEl(cframe, 0);
+	
+	unsigned char *cnt = api -> getDataContent(de);
 	
 	uint16 *year = (uint16*) &cnt[0];
 	unsigned char *month = &cnt[2];
@@ -125,16 +127,16 @@ INSTRUCTION_DEF op_get_local_time(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_millis(VFrame *cframe)
+INSTRUCTION_DEF op_get_millis(FrameData *cframe)
 	{
 	#ifdef WINDOWS
 		#ifdef MACHINE_64
 		size_t unix_ms = GetTickCount64();
-		return_int(cframe, unix_ms);
+		api -> returnInt(cframe, unix_ms);
 		#endif
 		#ifdef MACHINE_32
 		size_t unix_ms = GetTickCount();
-		return_int(cframe, unix_ms);
+		api -> returnInt(cframe, unix_ms);
 		#endif
 	#endif
 	
@@ -153,7 +155,7 @@ INSTRUCTION_DEF op_get_millis(VFrame *cframe)
     }
 	
 	size_t fms = (s * 1000) + ms;
-	return_int(cframe, fms);
+	api -> returnInt(cframe, fms);
 	#endif
 	
 	return RETURN_OK;

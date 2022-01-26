@@ -107,25 +107,11 @@ static CoreAPI *api;
 static GlobalTypeLink *charArrayGT = NULL;
 
 #define MAX_ADDR 64
-INSTRUCTION_DEF op_udp_bind(VFrame *cframe)
+INSTRUCTION_DEF op_udp_bind(FrameData* cframe)
 	{
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	char *addr = x_getParam_char_array(api, cframe, 0);
 	
-	char *addr = NULL;
-	
-	if (array != NULL)
-		{
-		addr = malloc(array -> length + 1);
-		memset(addr, '\0', array -> length + 1);
-		memcpy(addr, array -> data, array -> length);
-		}
-		else
-		{
-		addr = strdup("");
-		}
-	
-	size_t port = 0;
-	copyHostInteger((unsigned char*) &port, getVariableContent(cframe, 1), sizeof(size_t));
+	size_t port = api -> getParamInt(cframe, 1);
 	
 	char portstr[MAX_ADDR];
 	memset(portstr, '\0', MAX_ADDR);
@@ -257,19 +243,17 @@ INSTRUCTION_DEF op_udp_bind(VFrame *cframe)
 	
 	size_t xs = master;
 	
-	//the return value is written to local variable 0
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &xs, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &xs, sizeof(size_t));
 	
 	free(addr);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_udp_unbind(VFrame *cframe)
+INSTRUCTION_DEF op_udp_unbind(FrameData* cframe)
 	{
-	size_t xs;
-	memcpy(&xs, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t xs = 0;
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	int master = xs;
 	
@@ -285,10 +269,10 @@ INSTRUCTION_DEF op_udp_unbind(VFrame *cframe)
 
 #define BUF_LEN 4096
 
-INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
+INSTRUCTION_DEF op_udp_recv(FrameData *cframe)
 	{
 	size_t xs = 0;
-	memcpy((unsigned char*) &xs, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	int socket = xs;
 	
@@ -351,79 +335,40 @@ INSTRUCTION_DEF op_udp_recv(VFrame *cframe)
 	
 	//Datagram.address
 	
-	LiveArray *newArray = malloc(sizeof(LiveArray)+alen);
-	memset(newArray, '\0', sizeof(LiveArray));
+	DanaEl* rdata = api -> getParamEl(cframe, 1);
 	
-	newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
-	newArray -> length = alen;
-	memcpy(newArray -> data, ipstr, alen);
+	DanaEl* newArray = api -> makeArray(charArrayGT, alen);
+	memcpy(api -> getArrayContent(newArray), ipstr, alen);
 	
-	newArray -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(newArray -> gtLink);
-	newArray -> refi.ocm = cframe -> blocking -> instance;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
-	
-	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refi.refCount ++;
-	newArray -> refi.type = newArray -> gtLink -> typeLink;
+	api -> setDataFieldEl(rdata, 0, newArray);
 	
 	//Datagram.port
 	
-	xs = port;
-
-	unsigned int *pi = (unsigned int*) (((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data + sizeof(VVarLivePTR));
-	copyHostInteger((unsigned char*) pi, (unsigned char*) &xs, sizeof(xs));
+	api -> setDataFieldInt(rdata, 1, port);
 	
 	//Datagram.content
 	
-	LiveArray *newContentArray = malloc(sizeof(LiveArray)+sz);
-	memset(newContentArray, '\0', sizeof(LiveArray));
+	DanaEl* newContentArray = api -> makeArray(charArrayGT, alen);
+	memcpy(api -> getArrayContent(newContentArray), buf, sz);
 	
-	newContentArray -> data = ((unsigned char*) newContentArray) + sizeof(LiveArray);
-	newContentArray -> length = sz;
-	memcpy(newContentArray -> data, buf, sz);
+	api -> setDataFieldEl(rdata, 2, newContentArray);
 	
-	newContentArray -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(newContentArray -> gtLink);
-	newContentArray -> refi.ocm = cframe -> blocking -> instance;
-	
-	ptrh = (VVarLivePTR*) (((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data + sizeof(VVarLivePTR) + sizeof(size_t));
-	
-	ptrh -> content = (unsigned char*) newContentArray;
-	newContentArray -> refi.refCount ++;
-	newContentArray -> refi.type = newContentArray -> gtLink -> typeLink;
-	
-	//the return value is written to local variable 0
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	copyHostInteger((unsigned char*) result, (unsigned char*) &ok, sizeof(ok));
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_udp_send(VFrame *cframe)
+INSTRUCTION_DEF op_udp_send(FrameData* cframe)
 	{
 	unsigned char ok = 0;
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	char *addr = x_getParam_char_array(api, cframe, 0);
 	
-	char *addr = NULL;
+	size_t port = api -> getParamInt(cframe, 1);
 	
-	if (array != NULL)
-		{
-		addr = malloc(array -> length + 1);
-		memset(addr, '\0', array -> length + 1);
-		memcpy(addr, array -> data, array -> length);
-		}
-		else
-		{
-		addr = strdup("");
-		}
+	DanaEl* contentArray = api -> getParamEl(cframe, 2);
 	
-	size_t port = 0;
-	copyHostInteger((unsigned char*) &port, getVariableContent(cframe, 1), sizeof(size_t));
-	
-	LiveArray *contentArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
+	size_t alen = api -> getArrayLength(contentArray);
 	
 	char portstr[MAX_ADDR];
 	memset(portstr, '\0', MAX_ADDR);
@@ -460,9 +405,9 @@ INSTRUCTION_DEF op_udp_send(VFrame *cframe)
 		unsigned int amt = 0;
 		
 		if (contentArray != NULL)
-			amt = sendto(client, (char*) contentArray -> data, contentArray -> length, 0, adr_result->ai_addr, (int)adr_result->ai_addrlen);
+			amt = sendto(client, (char*) api -> getArrayContent(contentArray), alen, 0, adr_result->ai_addr, (int)adr_result->ai_addrlen);
 		
-		ok = amt == contentArray -> length;
+		ok = amt == alen;
 		
 		freeaddrinfo(adr_result);
 		}
@@ -477,9 +422,7 @@ INSTRUCTION_DEF op_udp_send(VFrame *cframe)
 	
 	//printf("OK: %u\n", ok);
 	
-	//the return value is written to local variable 0
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	copyHostInteger((unsigned char*) result, (unsigned char*) &ok, sizeof(ok));
+	api -> returnRaw(cframe, (unsigned char*) &ok, 1);
 	
 	free(addr);
 	

@@ -21,10 +21,10 @@ static const DanaTypeField function_Object_toString_fields[] = {
 static const DanaTypeField function_Object_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
 static const DanaType Object_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Object_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Object_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Object_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Object_getID_fields, 1}};
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Object_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Object_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Object_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Object_getID_fields, 1}};
 static const DanaTypeField Object_functions_spec_fields[] = {
 {(DanaType*) &Object_functions_spec[0], "clone", 5},
 {(DanaType*) &Object_functions_spec[1], "equals", 6},
@@ -41,6 +41,8 @@ static const DanaTypeField Object_spec_fields[] = {
 {(DanaType*) &Object_spec[2], ".state", 6},
 };
 static const DanaType Object_def = {TYPE_OBJECT, 0, 0, (DanaTypeField*) Object_spec_fields, 3};
+static const DanaType dec_def = 
+{TYPE_DECIMAL, 0, sizeof(size_t)*2, NULL, 0};
 static const DanaTypeField function_MathLib_clone_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
 static const DanaTypeField function_MathLib_equals_fields[] = {
@@ -50,66 +52,66 @@ static const DanaTypeField function_MathLib_toString_fields[] = {
 static const DanaTypeField function_MathLib_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_MathLib_sqrt_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_pow_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40},
-{(DanaType*) &char_array_def, NULL, 0, 0, 80}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16},
+{(DanaType*) &dec_def, NULL, 0, 0, 32}};
 static const DanaTypeField function_MathLib_root_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40},
-{(DanaType*) &char_array_def, NULL, 0, 0, 80}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16},
+{(DanaType*) &dec_def, NULL, 0, 0, 32}};
 static const DanaTypeField function_MathLib_log_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_natlog_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_natexp_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_cos_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_sin_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_tan_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_acos_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_asin_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_atan_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_cosh_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_sinh_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_tanh_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_acosh_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_asinh_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_MathLib_atanh_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 40}};
+{(DanaType*) &dec_def, NULL, 0, 0, 0},{(DanaType*) &dec_def, NULL, 0, 0, 16}};
 static const DanaType object_MathLib_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_MathLib_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_MathLib_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_MathLib_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_MathLib_getID_fields, 1},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_sqrt_fields, 2},
-{TYPE_FUNCTION, 0, 120, (DanaTypeField*) &function_MathLib_pow_fields, 3},
-{TYPE_FUNCTION, 0, 120, (DanaTypeField*) &function_MathLib_root_fields, 3},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_log_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_natlog_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_natexp_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_cos_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_sin_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_tan_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_acos_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_asin_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_atan_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_cosh_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_sinh_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_tanh_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_acosh_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_asinh_fields, 2},
-{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_MathLib_atanh_fields, 2}};
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_MathLib_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_MathLib_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_MathLib_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_MathLib_getID_fields, 1},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_sqrt_fields, 2},
+{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_MathLib_pow_fields, 3},
+{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_MathLib_root_fields, 3},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_log_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_natlog_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_natexp_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_cos_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_sin_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_tan_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_acos_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_asin_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_atan_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_cosh_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_sinh_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_tanh_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_acosh_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_asinh_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_MathLib_atanh_fields, 2}};
 static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_MathLib_functions_spec[0], "clone", 5},
 {(DanaType*) &object_MathLib_functions_spec[1], "equals", 6},
@@ -133,9 +135,13 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_MathLib_functions_spec[19], "acosh", 5},
 {(DanaType*) &object_MathLib_functions_spec[20], "asinh", 5},
 {(DanaType*) &object_MathLib_functions_spec[21], "atanh", 5}};
+static const DanaType object_MathLib_events_spec[] = {
+};
+static const DanaTypeField intf_events_def[] = {
+};
 static const DanaType MathLib_object_spec[] = {
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 22},
-{TYPE_DATA, 0, 0, NULL, 0},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
@@ -193,114 +199,114 @@ static size_t interfaceFunctions[] = {
 static DanaType libType = {TYPE_OBJECT, 0, 0, (DanaTypeField*) intf_def, 3};
 static InterfaceDetails ids[] = {{"MathLib", 7, &libType}};
 static Interface objectInterfaces[] = {{&ids[0], {&self, NULL, NULL, interfaceFunctions, NULL, NULL}}		};
-static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, 0, (size_t) &emptyType}};
+static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, (size_t) &bool_def, (size_t) &emptyType}};
 Interface* getPublicInterface(){
-((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
+((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_clone_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[0];
 ((VFrameHeader*) op_clone_thread_spec) -> functionName = "clone";
-((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
+((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_equals_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_equals_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[1];
 ((VFrameHeader*) op_equals_thread_spec) -> functionName = "equals";
-((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
+((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_toString_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_toString_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[2];
 ((VFrameHeader*) op_toString_thread_spec) -> functionName = "toString";
-((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
+((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getID_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getID_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[3];
 ((VFrameHeader*) op_getID_thread_spec) -> functionName = "getID";
-((VFrameHeader*) op_sqrt_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_sqrt_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_sqrt_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_sqrt_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_sqrt_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[4];
 ((VFrameHeader*) op_sqrt_thread_spec) -> functionName = "sqrt";
-((VFrameHeader*) op_pow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 120;
+((VFrameHeader*) op_pow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_pow_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_pow_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_pow_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[5];
 ((VFrameHeader*) op_pow_thread_spec) -> functionName = "pow";
-((VFrameHeader*) op_root_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 120;
+((VFrameHeader*) op_root_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_root_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_root_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_root_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[6];
 ((VFrameHeader*) op_root_thread_spec) -> functionName = "root";
-((VFrameHeader*) op_log_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_log_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_log_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_log_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_log_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[7];
 ((VFrameHeader*) op_log_thread_spec) -> functionName = "log";
-((VFrameHeader*) op_natlog_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_natlog_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_natlog_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_natlog_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_natlog_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[8];
 ((VFrameHeader*) op_natlog_thread_spec) -> functionName = "natlog";
-((VFrameHeader*) op_natexp_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_natexp_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_natexp_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_natexp_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_natexp_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[9];
 ((VFrameHeader*) op_natexp_thread_spec) -> functionName = "natexp";
-((VFrameHeader*) op_cos_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_cos_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_cos_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_cos_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_cos_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[10];
 ((VFrameHeader*) op_cos_thread_spec) -> functionName = "cos";
-((VFrameHeader*) op_sin_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_sin_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_sin_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_sin_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_sin_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[11];
 ((VFrameHeader*) op_sin_thread_spec) -> functionName = "sin";
-((VFrameHeader*) op_tan_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_tan_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_tan_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_tan_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_tan_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[12];
 ((VFrameHeader*) op_tan_thread_spec) -> functionName = "tan";
-((VFrameHeader*) op_acos_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_acos_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_acos_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_acos_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_acos_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[13];
 ((VFrameHeader*) op_acos_thread_spec) -> functionName = "acos";
-((VFrameHeader*) op_asin_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_asin_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_asin_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_asin_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_asin_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[14];
 ((VFrameHeader*) op_asin_thread_spec) -> functionName = "asin";
-((VFrameHeader*) op_atan_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_atan_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_atan_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_atan_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_atan_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[15];
 ((VFrameHeader*) op_atan_thread_spec) -> functionName = "atan";
-((VFrameHeader*) op_cosh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_cosh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_cosh_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_cosh_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_cosh_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[16];
 ((VFrameHeader*) op_cosh_thread_spec) -> functionName = "cosh";
-((VFrameHeader*) op_sinh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_sinh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_sinh_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_sinh_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_sinh_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[17];
 ((VFrameHeader*) op_sinh_thread_spec) -> functionName = "sinh";
-((VFrameHeader*) op_tanh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_tanh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_tanh_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_tanh_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_tanh_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[18];
 ((VFrameHeader*) op_tanh_thread_spec) -> functionName = "tanh";
-((VFrameHeader*) op_acosh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_acosh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_acosh_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_acosh_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_acosh_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[19];
 ((VFrameHeader*) op_acosh_thread_spec) -> functionName = "acosh";
-((VFrameHeader*) op_asinh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_asinh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_asinh_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_asinh_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_asinh_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[20];
 ((VFrameHeader*) op_asinh_thread_spec) -> functionName = "asinh";
-((VFrameHeader*) op_atanh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_atanh_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_atanh_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_atanh_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_atanh_thread_spec) -> localsDef = (size_t) &object_MathLib_functions_spec[21];

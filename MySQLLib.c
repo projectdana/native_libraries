@@ -10,56 +10,14 @@
 static CoreAPI *api;
 static GlobalTypeLink *charArrayGT = NULL;
 
-static char* getStringParam(VFrame *cframe, int pIndex) {
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, pIndex)) -> content;
-	char *host = NULL;
-	if (array != NULL) {
-		host = malloc(array -> length + 1);
-		memset(host, '\0', array -> length + 1);
-		memcpy(host, array -> data, array -> length);
-	} else { host = strdup(""); }
-	return host;
-}
-
-static size_t getIntParam(VFrame *cframe, int pIndex) {
-	size_t len = 0;
-	copyHostInteger((unsigned char*) &len, getVariableContent(cframe, pIndex), sizeof(size_t));
-	return len;
-}
-
-static void returnString(VFrame *f, char *value) {
-	size_t asz = strlen(value);
-	LiveArray *array = malloc(sizeof(LiveArray)+asz);
-	memset(array, '\0', sizeof(LiveArray));
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, value, asz);
-	array -> length = strlen(value);
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-}
-
-/*static void returnBoolean(VFrame *cframe, unsigned char res) {
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-}*/
-
-static void returnInt(VFrame *cframe, size_t sz) {
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	copyHostInteger((unsigned char*) result, (unsigned char*) &sz, sizeof(size_t));
-}
-
 //int connect(char host[], int port, char user[], char pass[], char dbName[])
-INSTRUCTION_DEF op_mysql_connect(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_connect(FrameData *cframe) {
 	MYSQL *con = NULL;
-	char *host = getStringParam(cframe, 0);
-	char *user = getStringParam(cframe, 2);
-	char *pass = getStringParam(cframe, 3);
-	char *db_name = getStringParam(cframe, 4);
+	
+	char *host = x_getParam_char_array(api, cframe, 0);
+	char *user = x_getParam_char_array(api, cframe, 2);
+	char *pass = x_getParam_char_array(api, cframe, 3);
+	char *db_name = x_getParam_char_array(api, cframe, 4);
 	con = mysql_init(NULL);
 	if (con == NULL) { api->throwException(cframe, "mysql_init() failed"); }
 	if (con != NULL) {
@@ -69,8 +27,7 @@ INSTRUCTION_DEF op_mysql_connect(VFrame *cframe) {
 			con = NULL;
 		}
 	}
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &con, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &con, sizeof(size_t));
 	
 	free(host);
 	free(user);
@@ -81,17 +38,17 @@ INSTRUCTION_DEF op_mysql_connect(VFrame *cframe) {
 }
 
 //int executeQuery(int con, char query[])
-INSTRUCTION_DEF op_mysql_execute_query(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_execute_query(FrameData *cframe) {
 	MYSQL *con;
-	memcpy(&con, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&con, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	char *query = getStringParam(cframe, 1);
+	char *query = x_getParam_char_array(api, cframe, 1);
 	MYSQL_RES *res = NULL;
 	if (mysql_query(con, query)) {
 		api->throwException(cframe, (char *) mysql_error(con));
 	} else { res = mysql_store_result(con); }
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(size_t));
+	
+	api -> returnRaw(cframe, (unsigned char*) &res, sizeof(size_t));
 	
 	free(query);
 	
@@ -99,47 +56,60 @@ INSTRUCTION_DEF op_mysql_execute_query(VFrame *cframe) {
 }
 
 //int fetchRow(int result)
-INSTRUCTION_DEF op_mysql_fetch_row(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_fetch_row(FrameData *cframe) {
 	MYSQL_RES *result;
-	memcpy(&result, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&result, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	MYSQL_ROW row = mysql_fetch_row(result);
-	size_t *res = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(res, &row, sizeof(size_t));
+	
+	api -> returnRaw(cframe, (unsigned char*) &row, sizeof(size_t));
+	
 	return RETURN_OK;
 }
 
 //int numFields(int result)
-INSTRUCTION_DEF op_mysql_num_fields(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_num_fields(FrameData *cframe) {
 	MYSQL_RES *result;
-	memcpy(&result, getVariableContent(cframe, 0), sizeof(size_t));
-	returnInt(cframe, mysql_num_fields(result));
+	memcpy(&result, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	api -> returnInt(cframe, mysql_num_fields(result));
 	return RETURN_OK;
 }
 
 //char[] getField(int row, int field)
-INSTRUCTION_DEF op_mysql_get_field(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_get_field(FrameData *cframe) {
 	MYSQL_ROW row;
-	memcpy(&row, getVariableContent(cframe, 0), sizeof(size_t));
-	int index = getIntParam(cframe, 1);
-	returnString(cframe, row[index] ? row[index] : "NULL");
+	memcpy(&row, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	int index = api -> getParamInt(cframe, 1);
+	
+	char* dat = row[index] ? row[index] : "NULL";
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(dat));
+	memcpy(api -> getArrayContent(array), dat, strlen(dat));
+	
+	api -> returnEl(cframe, array);
+	
 	return RETURN_OK;
 }
 
 //char[] getFieldName(int result)
-INSTRUCTION_DEF op_mysql_get_field_name(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_get_field_name(FrameData *cframe) {
 	MYSQL_RES *result;
-	memcpy(&result, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&result, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	MYSQL_FIELD *field = mysql_fetch_field(result);
-	returnString(cframe, field->name);
+	
+	char* dat = field->name;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(dat));
+	memcpy(api -> getArrayContent(array), dat, strlen(dat));
+	
+	api -> returnEl(cframe, array);
+	
 	return RETURN_OK;
 }
 
 //void close(int con, int result)
-INSTRUCTION_DEF op_mysql_close(VFrame *cframe) {
+INSTRUCTION_DEF op_mysql_close(FrameData *cframe) {
 	MYSQL *con;
 	MYSQL_RES *result;
-	memcpy(&con, getVariableContent(cframe, 0), sizeof(size_t));
-	memcpy(&result, getVariableContent(cframe, 1), sizeof(size_t));
+	memcpy(&con, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	memcpy(&result, api -> getParamRaw(cframe, 1), sizeof(size_t));
 	mysql_free_result(result);
 	mysql_close(con);
 	return RETURN_OK;

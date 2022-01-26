@@ -19,7 +19,9 @@ static CoreAPI *api;
 
 #define MAX_BUF 32
 
-INSTRUCTION_DEF op_get_line(VFrame *cframe)
+static GlobalTypeLink *charArrayGT = NULL;
+
+INSTRUCTION_DEF op_get_line(FrameData* cframe)
 	{
 	char buf[MAX_BUF];
 	memset(buf, '\0', MAX_BUF);
@@ -47,12 +49,17 @@ INSTRUCTION_DEF op_get_line(VFrame *cframe)
 			memcpy(fullText + length, p, strlen(p));
 			length += strlen(p);
 			
-			return_byte_array(cframe, api, (unsigned char*) fullText, length);
+			DanaEl* array = api -> makeArray(charArrayGT, length);
+			memcpy(api -> getArrayContent(array), fullText, length);
+			api -> returnEl(cframe, array);
+			
 			free(fullText);
 			}
 			else if (length != 0)
 			{
-			return_byte_array(cframe, api, (unsigned char*) fullText, length);
+			DanaEl* array = api -> makeArray(charArrayGT, length);
+			memcpy(api -> getArrayContent(array), fullText, length);
+			api -> returnEl(cframe, array);
 			free(fullText);
 			}
 		}
@@ -64,6 +71,8 @@ Interface* load(CoreAPI *capi)
 	{
 	api = capi;
 	
+	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
+	
 	setInterfaceFunction("getLine", op_get_line);
 	
 	return getPublicInterface();
@@ -71,4 +80,5 @@ Interface* load(CoreAPI *capi)
 
 void unload()
 	{
+	api -> decrementGTRefCount(charArrayGT);
 	}

@@ -30,16 +30,13 @@ static GlobalTypeLink *charArrayGT = NULL;
 static GlobalTypeLink *fileEntryGT = NULL;
 static GlobalTypeLink *fileEntryArrayGT = NULL;
 
-INSTRUCTION_DEF op_file_open(VFrame *cframe)
+INSTRUCTION_DEF op_file_open(FrameData *cframe)
 	{
-	size_t xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 1), 1);
-
-	char *path = getParam_char_array(cframe, 0);
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	while (strchr(path, '\\') != NULL) memset(strchr(path, '\\'), '/', 1);
-
-	unsigned int mode = xs;
+	
+	unsigned int mode = api -> getParamRaw(cframe, 1)[0];
 
 	FILE *fd = NULL;
 
@@ -71,10 +68,8 @@ INSTRUCTION_DEF op_file_open(VFrame *cframe)
 
 	if (fd == NULL)
 		api -> throwException(cframe, strerror(errno));
-
-	//the return value is written to local variable 0
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &fd, sizeof(size_t));
+	
+	api -> returnRaw(cframe, (unsigned char*) &fd, sizeof(size_t));
 
 	free(path);
 
@@ -82,55 +77,50 @@ INSTRUCTION_DEF op_file_open(VFrame *cframe)
 	}
 
 #define BUF_LEN 64
-INSTRUCTION_DEF op_file_write(VFrame *cframe)
+INSTRUCTION_DEF op_file_write(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
-
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	DanaEl* array = api -> getParamEl(cframe, 1);
+	size_t len = api -> getArrayLength(array);
+	unsigned char* cnt = api -> getArrayContent(array);
+	
 	size_t amt = 0;
-
-	//printf("io_file::write %u\n", len);
-	//printf(" - %p\n", fd);
-
+	
 	//iterate through param 2's contents
 	if (array != NULL)
-		amt += fwrite(array -> data, sizeof(unsigned char), array -> length, fd);
-
-	//the return value is written to local variable 0
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	copyHostInteger((unsigned char*) result, (unsigned char*) &amt, sizeof(size_t));
-
+		amt += fwrite(cnt, sizeof(unsigned char), len, fd);
+	
+	api -> returnInt(cframe, amt);
+	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_flush(VFrame *cframe)
+INSTRUCTION_DEF op_file_flush(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	int osres = fflush(fd);
 
 	unsigned char res = osres == 0;
 
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-
+	api -> returnRaw(cframe, &res, 1);
+	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_read(VFrame *cframe)
+INSTRUCTION_DEF op_file_read(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
-	size_t len = 0;
-	copyHostInteger((unsigned char*) &len, getVariableContent(cframe, 1), sizeof(size_t));
-
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
-
+	size_t len = api -> getParamInt(cframe, 1);
+	
+	DanaEl* array = api -> makeArray(charArrayGT, len);
+	unsigned char* cnt = api -> getArrayContent(array);
+	
 	if (array == NULL)
 		{
 		len = 0;
@@ -144,31 +134,30 @@ INSTRUCTION_DEF op_file_read(VFrame *cframe)
 	//read data up to length of param 2 or until we run out of data, whichever is first
 	while ((len > 0) && (amt != 0))
 		{
-		amt = fread((array -> data + totalAmt), sizeof(unsigned char), len, fd);
+		amt = fread((cnt + totalAmt), sizeof(unsigned char), len, fd);
 		totalAmt += amt;
 		len -= amt;
 		}
 
 	if (totalAmt > 0)
 		{
-		array -> length = totalAmt;
-		return_array(cframe, array);
+		api -> setArrayLength(array, totalAmt);
+		api -> returnEl(cframe, array);
 		}
 		else
 		{
-		free_array(api, array);
+		api -> destroyArray(array);
 		}
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_seek(VFrame *cframe)
+INSTRUCTION_DEF op_file_seek(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
-	size_t seekpos = 0;
-	copyHostInteger((unsigned char*) &seekpos, getVariableContent(cframe, 1), sizeof(size_t));
+	size_t seekpos = api -> getParamInt(cframe, 1);
 
 	//check size
 	size_t fpos = ftell(fd);
@@ -195,18 +184,16 @@ INSTRUCTION_DEF op_file_seek(VFrame *cframe)
 		res = 0;
 		fseek(fd, fpos, SEEK_SET);
 		}
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-
+	
+	api -> returnRaw(cframe, &res, 1);
+	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_size(VFrame *cframe)
+INSTRUCTION_DEF op_file_size(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	size_t fpos = ftell(fd);
 
@@ -215,16 +202,16 @@ INSTRUCTION_DEF op_file_size(VFrame *cframe)
 	size_t sz = ftell(fd);
 
 	fseek(fd, fpos, SEEK_SET);
-
-	return_int(cframe, sz);
+	
+	api -> returnInt(cframe, sz);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_eof(VFrame *cframe)
+INSTRUCTION_DEF op_file_eof(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	size_t fpos = ftell(fd);
 	fseek(fd, 0, SEEK_END);
@@ -232,18 +219,16 @@ INSTRUCTION_DEF op_file_eof(VFrame *cframe)
 	fseek(fd, fpos, SEEK_SET);
 
 	unsigned char res = fpos == sz;
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
+	
+	api -> returnRaw(cframe, &res, 1);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_close(VFrame *cframe)
+INSTRUCTION_DEF op_file_close(FrameData* cframe)
 	{
 	FILE *fd;
-	memcpy(&fd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&fd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (fd != NULL)
 		fclose(fd);
@@ -251,15 +236,15 @@ INSTRUCTION_DEF op_file_close(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_exists(VFrame *cframe)
+INSTRUCTION_DEF op_file_exists(FrameData* cframe)
 	{
-	char *path = getParam_char_array(cframe, 0);
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	while (strchr(path, '\\') != NULL) memset(strchr(path, '\\'), '/', 1);
 
 	#ifdef WINDOWS
 	//this is a patch for Windows - stat() fails for directories if you include a trailing slash...
-	// (TODO: maybe update this operation to use Windows' own file system functions, not the mingw ones?)
+	// (TODO: maybe update this to use Windows' own file system functions, not the mingw ones?)
 	if (strrchr(path, '/') != NULL && ((strrchr(path, '/') - path) == strlen(path) - 1))
 		{
 		memset(strrchr(path, '/'), '\0', 1);
@@ -271,42 +256,38 @@ INSTRUCTION_DEF op_file_exists(VFrame *cframe)
 
 	struct stat st;
 	if (stat(path, &st) == 0) res = 1;
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
-
+	
+	api -> returnRaw(cframe, &res, 1);
+	
 	free(path);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_delete(VFrame *cframe)
+INSTRUCTION_DEF op_file_delete(FrameData* cframe)
 	{
-	char *path = getParam_char_array(cframe, 0);
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	while (strchr(path, '\\') != NULL) memset(strchr(path, '\\'), '/', 1);
 
 	remove(path);
 
 	unsigned char ok = 1;
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ok, sizeof(unsigned char));
+	
+	api -> returnRaw(cframe, &ok, 1);
 
 	free(path);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_file_move(VFrame *cframe)
+INSTRUCTION_DEF op_file_move(FrameData* cframe)
 	{
-	char *path = getParam_char_array(cframe, 0);
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	while (strchr(path, '\\') != NULL) memset(strchr(path, '\\'), '/', 1);
 
-	char *newPath = getParam_char_array(cframe, 1);
+	char *newPath = x_getParam_char_array(api, cframe, 1);
 
 	while (strchr(newPath, '\\') != NULL) memset(strchr(newPath, '\\'), '/', 1);
 
@@ -319,11 +300,9 @@ INSTRUCTION_DEF op_file_move(VFrame *cframe)
 	#endif
 
 	unsigned char ok = 1;
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ok, sizeof(unsigned char));
-
+	
+	api -> returnRaw(cframe, &ok, 1);
+	
 	free(path);
 	free(newPath);
 
@@ -355,13 +334,13 @@ bool copyfile(char *from, char *to)
 	return true;
 	}
 
-INSTRUCTION_DEF op_file_copy(VFrame *cframe)
+INSTRUCTION_DEF op_file_copy(FrameData* cframe)
 	{
-	char *path = getParam_char_array(cframe, 0);
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	while (strchr(path, '\\') != NULL) memset(strchr(path, '\\'), '/', 1);
 
-	char *newPath = getParam_char_array(cframe, 1);
+	char *newPath = x_getParam_char_array(api, cframe, 1);
 
 	while (strchr(newPath, '\\') != NULL) memset(strchr(newPath, '\\'), '/', 1);
 
@@ -370,11 +349,9 @@ INSTRUCTION_DEF op_file_copy(VFrame *cframe)
 	unsigned char ok = 1;
 
 	copyfile(path, newPath);
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ok, sizeof(unsigned char));
-
+	
+	api -> returnRaw(cframe, &ok, 1);
+	
 	free(path);
 	free(newPath);
 
@@ -382,18 +359,16 @@ INSTRUCTION_DEF op_file_copy(VFrame *cframe)
 	}
 
 typedef struct _fii{
-	LiveData *data;
+	DanaEl* data;
 	struct _fii *next;
 	} FileInfoItem;
 
 // http://stackoverflow.com/questions/612097/how-can-i-get-a-list-of-files-in-a-directory-using-c-or-c
-INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
+INSTRUCTION_DEF op_get_dir_content(FrameData* cframe)
 	{
-	char *path = getParam_char_array(cframe, 0);
-
-	LiveData *data = (LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-
-	DanaComponent *dataOwner = cframe -> blocking -> instance;
+	char *path = x_getParam_char_array(api, cframe, 0);
+	
+	DanaEl* data = api -> getParamEl(cframe, 1);
 
 	FileInfoItem *itemList = NULL;
 	FileInfoItem *lastItem = NULL;
@@ -427,32 +402,17 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 
 					FileInfoItem *newItem = malloc(sizeof(FileInfoItem));
 					memset(newItem, '\0', sizeof(FileInfoItem));
-
-					size_t sz = sizeof(VVarLivePTR);
-					newItem -> data = malloc(sizeof(LiveData)+sz);
-					memset(newItem -> data, '\0', sizeof(LiveData)+sz);
-
-					newItem -> data -> refi.ocm = dataOwner;
-					newItem -> data -> gtLink = fileEntryGT;
-					api -> incrementGTRefCount(newItem -> data -> gtLink);
-
-					newItem -> data -> data = ((unsigned char*) newItem -> data) + sizeof(LiveData);
-
-					VVarLivePTR *ptrh = (VVarLivePTR*) newItem -> data -> data;
-
+					
+					newItem -> data = api -> makeData(fileEntryGT);
+					
 					size_t asz = strlen(fi.cFileName);
-					LiveArray *itemArray = malloc(sizeof(LiveArray)+asz);
-					memset(itemArray, '\0', sizeof(LiveArray)+asz);
-					itemArray -> refi.ocm = dataOwner;
-					itemArray -> gtLink = charArrayGT;
-					api -> incrementGTRefCount(itemArray -> gtLink);
-					itemArray -> data = ((unsigned char*) itemArray) + sizeof(LiveArray);
-					memcpy(itemArray -> data, fi.cFileName, asz);
-					itemArray -> length = asz;
-
-					ptrh -> content = (unsigned char*) itemArray;
-					itemArray -> refi.refCount ++;
-					itemArray -> refi.type = itemArray -> gtLink -> typeLink;
+					
+					DanaEl* fName = api -> makeArray(charArrayGT, asz);
+					
+					unsigned char* cnt = api -> getArrayContent(fName);
+					memcpy(cnt, fi.cFileName, asz);
+					
+					api -> setDataFieldEl(newItem -> data, 0, fName);
 
 					if (itemList == NULL)
 						itemList = newItem;
@@ -490,30 +450,16 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 				FileInfoItem *newItem = malloc(sizeof(FileInfoItem));
 				memset(newItem, '\0', sizeof(FileInfoItem));
 
-				size_t sz = sizeof(VVarLivePTR);
-				newItem -> data = malloc(sizeof(LiveData)+sz);
-				memset(newItem -> data, '\0', sizeof(LiveData)+sz);
-				newItem -> data -> refi.ocm = dataOwner;
-				newItem -> data -> gtLink = fileEntryGT;
-				api -> incrementGTRefCount(newItem -> data -> gtLink);
-
-				newItem -> data -> data = ((unsigned char*) newItem -> data) + sizeof(LiveData);
-				VVarLivePTR *ptrh = (VVarLivePTR*) newItem -> data -> data;
-
+				newItem -> data = api -> makeData(fileEntryGT);
+				
 				size_t asz = strlen(dp->d_name);
-				LiveArray *itemArray = malloc(sizeof(LiveArray)+asz);
-				memset(itemArray, '\0', sizeof(LiveArray)+asz);
-				itemArray -> refi.ocm = dataOwner;
-				itemArray -> gtLink = charArrayGT;
-				api -> incrementGTRefCount(itemArray -> gtLink);
-				itemArray -> data = ((unsigned char*) itemArray) + sizeof(LiveArray);
-				memcpy(itemArray -> data, dp->d_name, asz);
-				itemArray -> length = asz;
-
-				ptrh -> content = (unsigned char*) itemArray;
-				itemArray -> refi.refCount ++;
-				itemArray -> refi.type = itemArray -> gtLink -> typeLink;
-
+				DanaEl* fName = api -> makeArray(charArrayGT, asz);
+				
+				unsigned char* cnt = api -> getArrayContent(fName);
+				memcpy(cnt, dp->d_name, asz);
+				
+				api -> setDataFieldEl(newItem -> data, 0, fName);
+				
 				if (itemList == NULL)
 					itemList = newItem;
 					else
@@ -527,34 +473,20 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 
 	if (count > 0)
 		{
-		size_t asz = sizeof(VVarLivePTR) * count;
-		LiveArray *newArray = malloc(sizeof(LiveArray)+asz);
-		memset(newArray, '\0', sizeof(LiveArray)+asz);
-
-		newArray -> refi.ocm = dataOwner;
-		newArray -> gtLink = fileEntryArrayGT;
-		api -> incrementGTRefCount(newArray -> gtLink);
-		newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
-		newArray -> length = count;
-		newArray -> refi.type = newArray -> gtLink -> typeLink;
-
+		DanaEl* newArray = api -> makeArray(fileEntryArrayGT, count);
+		
 		FileInfoItem *fw = itemList;
 		int i = 0;
 		for (i = 0; i < count; i++)
 			{
-			VVarLivePTR *ptrh = (VVarLivePTR*) (&newArray -> data[sizeof(VVarLivePTR) * i]);
-			ptrh -> content = (unsigned char*) fw -> data;
-			fw -> data -> refi.refCount ++;
-			fw -> data -> refi.type = fw -> data -> gtLink -> typeLink;
-
+			api -> setArrayCellEl(newArray, i, fw -> data);
+			
 			FileInfoItem *td = fw;
 			fw = fw -> next;
 			free(td);
 			}
-
-		VVarLivePTR *ptrh = (VVarLivePTR*) data -> data;
-		ptrh -> content = (unsigned char*) newArray;
-		newArray -> refi.refCount ++;
+		
+		api -> setDataFieldEl(data, 0, newArray);
 		}
 
 	free(path);
@@ -562,9 +494,9 @@ INSTRUCTION_DEF op_get_dir_content(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_make_dir(VFrame *cframe)
+INSTRUCTION_DEF op_make_dir(FrameData* cframe)
 	{
-	char *path = getParam_char_array(cframe, 0);
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	unsigned char ok = 1;
 
@@ -576,73 +508,48 @@ INSTRUCTION_DEF op_make_dir(VFrame *cframe)
 	ok = mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0;
 	#endif
 
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ok, sizeof(unsigned char));
+	api -> returnRaw(cframe, &ok, 1);
 
 	free(path);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_delete_dir(VFrame *cframe)
+INSTRUCTION_DEF op_delete_dir(FrameData* cframe)
 	{
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
-
-	char *path = NULL;
-
-	if (array != NULL)
-		{
-		path = malloc(array -> length + 1);
-		memset(path, '\0', array -> length + 1);
-		memcpy(path, array -> data, array -> length);
-		}
-		else
-		{
-		path = strdup("");
-		}
+	char *path = x_getParam_char_array(api, cframe, 0);
 
 	unsigned char ok = 0;
-	if (array != NULL)
-		{
-		memcpy(path, array -> data, array -> length);
 
-		//del directory + contents, recursively
+	#ifdef WINDOWS
+	ok = RemoveDirectory(path);
+	#endif
 
-		ok = 1;
-
-		#ifdef WINDOWS
-		ok = RemoveDirectory(path);
-		#endif
-
-		#ifdef LINUX
-		ok = rmdir(path) == 0;
-		#endif
-		}
-
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ok, sizeof(unsigned char));
-
+	#ifdef LINUX
+	ok = rmdir(path) == 0;
+	#endif
+	
+	api -> returnRaw(cframe, &ok, 1);
+	
 	free(path);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_info(VFrame *cframe)
+INSTRUCTION_DEF op_get_info(FrameData* cframe)
 	{
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl *array = api -> getParamEl(cframe, 0);
 
 	if (array != NULL)
 		{
-		char *path = NULL;
-
-		path = malloc(array -> length + 1);
-		memset(path, '\0', array -> length + 1);
-		memcpy(path, array -> data, array -> length);
-
-		unsigned char *content = ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
-		unsigned char *contentL2 = ((LiveData*) ((VVarLivePTR*) &content[sizeof(size_t) * 2]) -> content) -> data;
+		char *path = x_getParam_char_array(api, cframe, 0);
+		
+		DanaEl* info = api -> getParamEl(cframe, 1);
+		
+		DanaEl* modInfo = api -> getDataFieldEl(info, 2);
+		
+		unsigned char *content = api -> getDataContent(info);
+		unsigned char *contentL2 = api -> getDataContent(modInfo);
 
 		size_t ndx = 0;
 
@@ -762,12 +669,13 @@ INSTRUCTION_DEF op_get_info(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_full_path(VFrame *cframe)
+INSTRUCTION_DEF op_get_full_path(FrameData* cframe)
 	{
-	char *qpath = getParam_char_array(cframe, 0);
+	char *qpath = x_getParam_char_array(api, cframe, 0);
 
 	#ifdef WINDOWS
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, MAX_PATH);
+	DanaEl* array = api -> makeArray(charArrayGT, PATH_MAX);
+	unsigned char* cnt = api -> getArrayContent(array);
 
 	if (array == NULL)
 		{
@@ -775,40 +683,41 @@ INSTRUCTION_DEF op_get_full_path(VFrame *cframe)
 		return RETURN_OK;
 		}
 
-	if (GetFullPathNameA(qpath, MAX_PATH, (char*) array -> data, NULL) == 0)
+	if (GetFullPathNameA(qpath, MAX_PATH, (char*) cnt, NULL) == 0)
 		{
 		api -> throwException(cframe, "failed to resolve path");
-		free_array(api, array);
+		api -> destroyArray(array);
 		return RETURN_OK;
 		}
 
-	while (strchr((char*) array -> data, '\\') != NULL) memset(strchr((char*) array -> data, '\\'), '/', 1);
+	while (strchr((char*) cnt, '\\') != NULL) memset(strchr((char*) cnt, '\\'), '/', 1);
+	
+	api -> setArrayLength(array, strlen((char*) cnt));
 
-	array -> length = strlen((char*) array -> data);
-
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	#endif
 	#ifdef LINUX
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, PATH_MAX);
-
+	DanaEl* array = api -> makeArray(charArrayGT, PATH_MAX);
+	unsigned char* cnt = api -> getArrayContent(array);
+	
 	if (array == NULL)
 		{
 		api -> throwException(cframe, "out of memory");
 		return RETURN_OK;
 		}
 
-	char *ptr = realpath(qpath, (char*) array -> data);
+	char *ptr = realpath(qpath, (char*) cnt);
 
 	if (ptr == NULL)
 		{
 		api -> throwException(cframe, "failed to resolve path");
-		free_array(api, array);
+		api -> destroyArray(array);
 		return RETURN_OK;
 		}
 
-	array -> length = strlen((char*) array -> data);
-
-	return_array(cframe, array);
+	api -> setArrayLength(array, strlen((char*) cnt));
+	
+	api -> returnEl(cframe, array);
 	#endif
 
 	free(qpath);

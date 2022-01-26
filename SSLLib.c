@@ -51,48 +51,6 @@ static GlobalTypeLink *charArrayGT = NULL;
 static GlobalTypeLink *stringArrayGT = NULL;
 static GlobalTypeLink *stringItemGT = NULL;
 
-static LiveArray* makeByteArray(VFrame *f, size_t len)
-	{
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray)+len);
-	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	array -> length = len;
-	
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	return array;
-	}
-
-static void returnArray(VFrame *f, LiveArray *array)
-	{
-	array -> refi.refCount ++;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-	}
-
-static LiveArray* makeStringArray(unsigned char *str, size_t len, DanaComponent *owner)
-	{
-	LiveArray *result = malloc(sizeof(LiveArray)+len);
-	memset(result, '\0', sizeof(LiveArray));
-	result -> refi.ocm = owner;
-	result -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(result -> gtLink);
-	
-	result -> data = ((unsigned char*) result) + sizeof(LiveArray);
-	memcpy(result -> data, str, len);
-	result -> length = len;
-	
-	result -> refi.type = result -> gtLink -> typeLink;
-	
-	return result;
-	}
-
 static X509* parseCertificate(unsigned char *data, size_t len)
 	{
 	BIO *biomem = BIO_new(BIO_s_mem());
@@ -109,21 +67,21 @@ static X509* parseCertificate(unsigned char *data, size_t len)
 	return cert;
 	}
 
-static STACK_OF(X509)* parseChain(unsigned char *data, size_t len)
+static STACK_OF(X509)* parseChain(DanaEl* array)
 	{
 	STACK_OF(X509) *certStack;
 	
 	certStack = sk_X509_new_null();
 	
+	int len = api -> getArrayLength(array);
 	int i = 0;
-	VVarLivePTR *nxt = (VVarLivePTR*) data;
 	for (i = 0; i < len; i++)
 		{
-		LiveData *qd = (LiveData*) nxt -> content;
-		LiveArray *qa = (LiveArray*) ((VVarLivePTR*) qd -> data) -> content;
+		DanaEl* qd = api -> getArrayCellEl(array, i);
+		DanaEl *qa = api -> getDataFieldEl(qd, 0);
 		
 		BIO *biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, qa -> data, qa -> length);
+		BIO_write(biomem, api -> getArrayContent(qa), api -> getArrayLength(qa));
 		X509* cert = PEM_read_bio_X509(biomem, NULL, NULL, NULL);
 		if (cert == NULL)
 			{
@@ -134,8 +92,6 @@ static STACK_OF(X509)* parseChain(unsigned char *data, size_t len)
 
 		BIO_free(biomem);
 		//X509_free(cert);
-		
-		nxt ++;
 		}
 	
 	return certStack;
@@ -157,24 +113,23 @@ static void cleanupStack(STACK_OF(X509) *certStack)
 
 // -- cert store --
 
-INSTRUCTION_DEF op_create_cert_store(VFrame *cframe)
+INSTRUCTION_DEF op_create_cert_store(FrameData *cframe)
 	{
 	X509_STORE *store = X509_STORE_new();
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &store, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &store, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_certificate(VFrame *cframe)
+INSTRUCTION_DEF op_add_certificate(FrameData *cframe)
 	{
 	X509_STORE *store;
-	memcpy(&store, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&store, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *certArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* certArray = api -> getParamEl(cframe, 1);
 	
-	X509 *cert = parseCertificate(certArray -> data, certArray -> length);
+	X509 *cert = parseCertificate(api -> getArrayContent(certArray), api -> getArrayLength(certArray));
 	
 	X509_STORE_add_cert(store, cert);
 	
@@ -183,27 +138,22 @@ INSTRUCTION_DEF op_add_certificate(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_load_cert_location(VFrame *cframe)
+INSTRUCTION_DEF op_load_cert_location(FrameData *cframe)
 	{
 	X509_STORE *store;
-	memcpy(&store, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&store, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-	
-	char *path = malloc(array -> length + 1);
-	memset(path, '\0', array -> length + 1);
-	
-	memcpy(path, array -> data, array -> length);
+	char *path = x_getParam_char_array(api, cframe, 1);
 	
 	X509_STORE_load_locations(store, path, NULL);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_free_cert_store(VFrame *cframe)
+INSTRUCTION_DEF op_free_cert_store(FrameData *cframe)
 	{
 	X509_STORE *store;
-	memcpy(&store, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&store, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	X509_STORE_free(store);
 	
@@ -212,9 +162,9 @@ INSTRUCTION_DEF op_free_cert_store(VFrame *cframe)
 
 // -- contexts --
 
-INSTRUCTION_DEF op_create_context(VFrame *cframe)
+INSTRUCTION_DEF op_create_context(FrameData *cframe)
 	{
-	bool serverMode = getVariableContent(cframe, 0)[0];
+	bool serverMode = api -> getParamRaw(cframe, 0)[0];
 	
     const SSL_METHOD *method;
     SSL_CTX *ctx;
@@ -246,24 +196,23 @@ INSTRUCTION_DEF op_create_context(VFrame *cframe)
 	//const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
 	//SSL_CTX_set_options(ctx, flags);
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ctx, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &ctx, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_certificate(VFrame *cframe)
+INSTRUCTION_DEF op_set_certificate(FrameData *cframe)
 	{
 	SSL_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl *array = api -> getParamEl(cframe, 1);
 	
-	LiveArray *arrayKey = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
+	DanaEl *arrayKey = api -> getParamEl(cframe, 2);
 	
 	// -- certificate is provided as a base64-encoded raw PEM, so we convert to X509 first --
 	BIO *biomem = BIO_new(BIO_s_mem());
-	BIO_write(biomem, array -> data, array -> length);
+	BIO_write(biomem, api -> getArrayContent(array), api -> getArrayLength(array));
 	X509* cert = PEM_read_bio_X509(biomem, NULL, NULL, NULL);
 	if (cert == NULL)
 		{
@@ -285,7 +234,7 @@ INSTRUCTION_DEF op_set_certificate(VFrame *cframe)
 	// (note that newer formats may use PKCS8)
 	
 	biomem = BIO_new(BIO_s_mem());
-	BIO_write(biomem, arrayKey -> data, arrayKey -> length);
+	BIO_write(biomem, api -> getArrayContent(arrayKey), api -> getArrayLength(arrayKey));
 
 	EVP_PKEY* pkey = NULL;
 	PEM_read_bio_PrivateKey(biomem, &pkey, 0, 0);
@@ -310,29 +259,28 @@ INSTRUCTION_DEF op_set_certificate(VFrame *cframe)
 	
 	unsigned char res = 1;
 	
-	//return boolean
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
+	api -> returnRaw(cframe, &res, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_certificate_chain(VFrame *cframe)
+INSTRUCTION_DEF op_set_certificate_chain(FrameData *cframe)
 	{
 	SSL_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(array);
 	
-	VVarLivePTR *nxt = (VVarLivePTR*) array -> data;
 	int i = 0;
-	for (i = 0; i < array -> length; i++)
+	for (i = 0; i < alen; i++)
 		{
-		LiveData *qd = (LiveData*) nxt -> content;
-		LiveArray *qa = (LiveArray*) ((VVarLivePTR*) qd -> data) -> content;
+		DanaEl* qd = api -> getArrayCellEl(array, i);
+		
+		DanaEl *qa = api -> getDataFieldEl(qd, 0);
 		
 		BIO *biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, qa -> data, qa -> length);
+		BIO_write(biomem, api -> getArrayContent(qa), api -> getArrayLength(qa));
 		X509* cert = PEM_read_bio_X509(biomem, NULL, NULL, NULL);
 		if (cert == NULL)
 			{
@@ -349,20 +297,17 @@ INSTRUCTION_DEF op_set_certificate_chain(VFrame *cframe)
 
 		BIO_free(biomem);
 		X509_free(cert);
-		
-		nxt ++;
 		}
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_cipher_set(VFrame *cframe)
+INSTRUCTION_DEF op_set_cipher_set(FrameData *cframe)
 	{
 	SSL_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	size_t set = 0;
-	copyHostInteger((unsigned char*) &set, getVariableContent(cframe, 1), sizeof(size_t));
+	size_t set = api -> getParamInt(cframe, 1);
 	
 	if (set == 0)
 		{
@@ -380,20 +325,20 @@ INSTRUCTION_DEF op_set_cipher_set(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_free_context(VFrame *cframe)
+INSTRUCTION_DEF op_free_context(FrameData *cframe)
 	{
 	SSL_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	SSL_CTX_free(ctx);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_make_ssl(VFrame *cframe)
+INSTRUCTION_DEF op_make_ssl(FrameData *cframe)
 	{
 	SSL_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	SSL *ssl;
 	
@@ -405,19 +350,18 @@ INSTRUCTION_DEF op_make_ssl(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ssl, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &ssl, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_accept(VFrame *cframe)
+INSTRUCTION_DEF op_accept(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	size_t xs = 0;
-	memcpy(&xs, getVariableContent(cframe, 1), sizeof(size_t));
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
 	
 	int socket = xs;
 	
@@ -441,19 +385,18 @@ INSTRUCTION_DEF op_accept(VFrame *cframe)
 		}
 	
 	//return boolean
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
+	api -> returnRaw(cframe, &res, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_connect(VFrame *cframe)
+INSTRUCTION_DEF op_connect(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	size_t xs = 0;
-	memcpy(&xs, getVariableContent(cframe, 1), sizeof(size_t));
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
 	
 	int socket = xs;
 	
@@ -471,16 +414,15 @@ INSTRUCTION_DEF op_connect(VFrame *cframe)
 		}
 	
 	//return boolean
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
+	api -> returnRaw(cframe, &res, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_peer_cert(VFrame *cframe)
+INSTRUCTION_DEF op_get_peer_cert(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	X509 *cert = SSL_get_peer_certificate(ssl);
 	
@@ -490,7 +432,8 @@ INSTRUCTION_DEF op_get_peer_cert(VFrame *cframe)
 	unsigned char *pbuf = NULL;
 	size_t len = BIO_get_mem_data(biomem, &pbuf);
 	
-	return_byte_array(cframe, api, pbuf, len);
+	DanaEl* array = api -> makeArray(charArrayGT, len);
+	memcpy(api -> getArrayContent(array), pbuf, len);
 	
 	X509_free(cert);
 	BIO_free(biomem);
@@ -498,10 +441,10 @@ INSTRUCTION_DEF op_get_peer_cert(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
+INSTRUCTION_DEF op_get_peer_cert_chain(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	STACK_OF(X509) *sk = SSL_get_peer_cert_chain(ssl);
 	
@@ -509,21 +452,9 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 	
 	if (len > 0)
 		{
-		DanaComponent *dataOwner = cframe -> instance;
-		
 		//allocate a String array of length "len"
 		
-		size_t asz = sizeof(VVarLivePTR) * len;
-		LiveArray *newArray = malloc(sizeof(LiveArray)+asz);
-		memset(newArray, '\0', sizeof(LiveArray));
-		
-		newArray -> refi.ocm = dataOwner;
-		newArray -> gtLink = stringArrayGT;
-		api -> incrementGTRefCount(newArray -> gtLink);
-		newArray -> data = ((unsigned char*) newArray) + sizeof(LiveArray);
-		memset(newArray -> data, '\0', sizeof(VVarLivePTR) * len);
-		newArray -> length = len;
-		newArray -> refi.type = newArray -> gtLink -> typeLink;
+		DanaEl* newArray = api -> makeArray(stringArrayGT, len);
 		
 		size_t i = 0;
 		for (i = 0; i < len; i++)
@@ -540,70 +471,50 @@ INSTRUCTION_DEF op_get_peer_cert_chain(VFrame *cframe)
 			
 			// --
 			
-			size_t sz = sizeof(VVarLivePTR);
-			LiveData *newData = malloc(sizeof(LiveData)+sz);
-			memset(newData, '\0', sizeof(LiveData)+sz);
-			newData -> refi.ocm = dataOwner;
-			newData -> gtLink = stringItemGT;
-			api -> incrementGTRefCount(newData -> gtLink);
+			DanaEl* newData = api -> makeData(stringItemGT);
 			
-			newData -> data = ((unsigned char*) newData) + sizeof(LiveData);
+			DanaEl* itemArray = api -> makeArray(charArrayGT, len);
+			memcpy(api -> getArrayContent(itemArray), pbuf, len);
 			
-			VVarLivePTR *ptrh = (VVarLivePTR*) newData -> data;
-			
-			LiveArray *itemArray = makeStringArray(pbuf, len, dataOwner);
-			
-			ptrh -> content = (unsigned char*) itemArray;
-			itemArray -> refi.refCount ++;
-			itemArray -> refi.ocm = dataOwner;
+			api -> setDataFieldEl(newData, 0, itemArray);
 			
 			// -- reference in array --
-			VVarLivePTR *ptrhA = (VVarLivePTR*) (&newArray -> data[sizeof(VVarLivePTR) * i]);
-			ptrhA -> content = (unsigned char*) newData;
-			newData -> refi.refCount ++;
-			newData -> refi.type = newData -> gtLink -> typeLink;
+			api -> setArrayCellEl(newArray, i, newData);
 			
 			// --
 			
 			BIO_free(biomem);
 			}
 		
-		newArray -> refi.refCount = 1;
-		
-		VVarLivePTR *ptrh = (VVarLivePTR*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-		
-		ptrh -> content = (unsigned char*) newArray;
-
+		api -> returnEl(cframe, newArray);
 		}
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
+INSTRUCTION_DEF op_verify_certificate(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	X509_STORE *store;
-	memcpy(&store, getVariableContent(cframe, 1), sizeof(size_t));
+	memcpy(&store, api -> getParamRaw(cframe, 1), sizeof(size_t));
 	
 	//get and parse both the certificate and chain, if provided
 	
-	LiveData *verifyResult = (LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
+	DanaEl* verifyResult = api -> getParamEl(cframe, 2);
 	
-	LiveArray *certArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 3)) -> content;
+	DanaEl* certArray = api -> getParamEl(cframe, 3);
 	
-	LiveArray *certChainArray = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 4)) -> content;
-	
-	DanaComponent *dataOwner = cframe -> instance;
-	
+	DanaEl* certChainArray = api -> getParamEl(cframe, 4);
+		
 	X509 *cert = NULL;
 	STACK_OF(X509) *certStack = NULL;
 	
-	cert = parseCertificate(certArray -> data, certArray -> length);
+	cert = parseCertificate(api -> getArrayContent(certArray), api -> getArrayLength(certArray));
 	
 	if (certChainArray != NULL)
-		certStack = parseChain(certChainArray -> data, certChainArray -> length);
+		certStack = parseChain(certChainArray);
 	
 	X509_STORE_CTX *ctx = X509_STORE_CTX_new();
 	
@@ -627,10 +538,9 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 	
 	int rc = X509_verify_cert(ctx);
 	
-	if (rc != 1) core_result = 1;
+	if (rc != 1)
 		{
-		size_t *vres = (size_t*) verifyResult -> data;
-		copyHostInteger((unsigned char*) vres, (unsigned char*) &core_result, sizeof(size_t));
+		api -> setDataFieldInt(verifyResult, 0, 1);
 		}
 	
 	if (rc != 1) {
@@ -660,17 +570,14 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 		*/
 		
 		//find which certificate failed on the verify
-		VVarLivePTR *aptr = (VVarLivePTR*) (verifyResult -> data + sizeof(size_t));
 		
 		if (badCert == cert)
 			{
-			aptr -> content = (unsigned char*) certArray;
-			certArray -> refi.refCount ++;
+			api -> setDataFieldEl(verifyResult, 1, certArray);
 			}
 			else if (certStack != NULL)
 			{
 			unsigned int len = sk_X509_num(certStack);
-			VVarLivePTR *kp = (VVarLivePTR*) certChainArray -> data;
 			
 			size_t i = 0;
 			for (i = 0; i < len; i++)
@@ -679,16 +586,13 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 				
 				if (cert == badCert)
 					{
-					LiveData *cfd = (LiveData*) kp -> content;
-					LiveArray *cfa = (LiveArray*) ((VVarLivePTR*) cfd -> data) -> content;
+					DanaEl *cfd = api -> getArrayCellEl(certChainArray, i);
+					DanaEl *cfa = api -> getDataFieldEl(cfd, 0);
 					
-					aptr -> content = (unsigned char*) cfa;
-					cfa -> refi.refCount ++;
+					api -> setDataFieldEl(verifyResult, 1, cfa);
 					
 					break;
 					}
-				
-				kp ++;
 				}
 			}
 			else
@@ -696,14 +600,11 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 			//TODO: it's something from the CertStore; get the raw certificate... (?)
 			}
 		
-		aptr ++;
-		
 		//get a string reason for verify failure, if any
-		LiveArray *reason = makeStringArray((unsigned char*) failReason, strlen(failReason), dataOwner);
+		DanaEl* reason = api -> makeArray(charArrayGT, strlen(failReason));
+		memcpy(api -> getArrayContent(reason), failReason, strlen(failReason));
 		
-		aptr -> content = (unsigned char*) reason;
-		reason -> refi.refCount ++;
-		reason -> refi.ocm = dataOwner;
+		api -> setDataFieldEl(verifyResult, 2, reason);
 		}
 	
 	if (certStack != NULL)
@@ -718,42 +619,41 @@ INSTRUCTION_DEF op_verify_certificate(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_write(VFrame *cframe)
+INSTRUCTION_DEF op_write(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
 	
 	int sz = 0;
 	
 	if (array != NULL)
 		{
-		sz = SSL_write(ssl, (char*) array -> data, array -> length);
+		sz = SSL_write(ssl, (char*) api -> getArrayContent(array), api -> getArrayLength(array));
 		}
 	
 	//return # bytes written
 	
 	if (sz > 0)
 		{
-		size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-		copyHostInteger((unsigned char*) result, (unsigned char*) &sz, sizeof(size_t));
+		api -> returnInt(cframe, sz);
 		}
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_read(VFrame *cframe)
+INSTRUCTION_DEF op_read(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	size_t len = 0;
-	copyHostInteger((unsigned char*) &len, getVariableContent(cframe, 1), sizeof(size_t));
+	size_t len = api -> getParamInt(cframe, 1);
 	
 	//read data
 	
-	LiveArray *array = makeByteArray(cframe, len);
+	DanaEl* array = api -> makeArray(charArrayGT, len);
+	unsigned char* cnt = api -> getArrayContent(array);
 	
 	if (array == NULL)
 		{
@@ -766,7 +666,7 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 	
 	while ((len > 0) && (amt != 0))
 		{
-		amt = SSL_read(ssl, (char*) (array -> data +totalAmt), len);
+		amt = SSL_read(ssl, (char*) (cnt + totalAmt), len);
 		
 		if (amt < 0)
 			{
@@ -776,8 +676,7 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 				api -> throwException(cframe, ERR_error_string(errC, NULL));
 				}
 			
-			api -> decrementGTRefCount(array -> gtLink);
-			free(array);
+			api -> destroyArray(array);
 			return RETURN_OK;
 			}
 		
@@ -787,32 +686,31 @@ INSTRUCTION_DEF op_read(VFrame *cframe)
 	
 	if (totalAmt > 0)
 		{
-		array -> length = totalAmt;
-		returnArray(cframe, array);
+		api -> setArrayLength(array, totalAmt);
+		api -> returnEl(cframe, array);
 		}
 		else
 		{
-		api -> decrementGTRefCount(array -> gtLink);
-		free(array);
+		api -> destroyArray(array);
 		}
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_close_ssl(VFrame *cframe)
+INSTRUCTION_DEF op_close_ssl(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	SSL_shutdown(ssl);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_free_ssl(VFrame *cframe)
+INSTRUCTION_DEF op_free_ssl(FrameData *cframe)
 	{
 	SSL *ssl;
-	memcpy(&ssl, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	SSL_free(ssl);
 	

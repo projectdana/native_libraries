@@ -34,6 +34,8 @@
 
 static CoreAPI *api;
 
+static GlobalTypeLink *charArrayGT = NULL;
+
 #ifdef WINDOWS
 static int initialise(void)
 {
@@ -56,9 +58,9 @@ static void uninitialise (void)
 
 #define MAX_VAR_NAME 2048
 
-INSTRUCTION_DEF op_get_host_by_name(VFrame *cframe)
+INSTRUCTION_DEF op_get_host_by_name(FrameData* cframe)
 	{
-	char *vn = getParam_char_array(cframe, 0);
+	char *vn = x_getParam_char_array(api, cframe, 0);
 
 	char ip[100];
 	
@@ -97,7 +99,9 @@ INSTRUCTION_DEF op_get_host_by_name(VFrame *cframe)
 	
 	if (val != NULL)
 		{
-		return_char_array(cframe, api, val);
+		DanaEl* array = api -> makeArray(charArrayGT, strlen(val));
+		memcpy(api -> getArrayContent(array), val, strlen(val));
+		api -> returnEl(cframe, array);
 		}
 
 	free(vn);
@@ -109,6 +113,8 @@ Interface* load(CoreAPI *capi)
 	{
 	api = capi;
 	
+	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
+	
 	setInterfaceFunction("getHostIP", op_get_host_by_name);
 	
 	return getPublicInterface();
@@ -116,4 +122,5 @@ Interface* load(CoreAPI *capi)
 
 void unload()
 	{
+	api -> decrementGTRefCount(charArrayGT);
 	}

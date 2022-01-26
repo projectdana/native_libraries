@@ -25,6 +25,8 @@
 
 static CoreAPI *api;
 
+static GlobalTypeLink *byteArrayGT = NULL;
+
 #define CHUNK 16384
 
 typedef struct inflateStatus {
@@ -34,7 +36,7 @@ typedef struct inflateStatus {
 		z_stream stream;
 } InflateStatus;
 
-INSTRUCTION_DEF op_deflate_init(VFrame *cframe)
+INSTRUCTION_DEF op_deflate_init(FrameData* cframe)
 	{
 	int ret;
 	int level = Z_DEFAULT_COMPRESSION;
@@ -48,13 +50,12 @@ INSTRUCTION_DEF op_deflate_init(VFrame *cframe)
 	//initialise deflate in "raw" mode (-15) with a large history window (i.e., 15)
 	ret = deflateInit2(stream, level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &stream, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &stream, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_deflate(VFrame *cframe)
+INSTRUCTION_DEF op_deflate(FrameData* cframe)
 	{
 	int ret;
 	int have;
@@ -64,9 +65,9 @@ INSTRUCTION_DEF op_deflate(VFrame *cframe)
 	unsigned int result_len = 0;
 	
 	z_stream *stream;
-	memcpy(&stream, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&stream, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
 	
 	if (array == NULL)
 		{
@@ -74,13 +75,12 @@ INSTRUCTION_DEF op_deflate(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	unsigned char xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 2), 1);
+	unsigned char xs = api -> getParamRaw(cframe, 2)[0];
 	
 	int flush = xs == 0 ? Z_NO_FLUSH : Z_FINISH;
 	
-	stream -> next_in = array -> data;
-	stream -> avail_in = array -> length;
+	stream -> next_in = api -> getArrayContent(array);
+	stream -> avail_in = api -> getArrayLength(array);
 	
 	do {
 		stream -> avail_out = CHUNK;
@@ -95,17 +95,19 @@ INSTRUCTION_DEF op_deflate(VFrame *cframe)
 		} while (stream -> avail_out == 0);
 	
 	//return the compressed chunk as a byte array
-	return_byte_array(cframe, api, (unsigned char*) result, result_len);
+	DanaEl* array_r = api -> makeArray(byteArrayGT, result_len);
+	memcpy(api -> getArrayContent(array_r), result, result_len);
+	api -> returnEl(cframe, array_r);
 	
 	free(result);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_deflate_end(VFrame *cframe)
+INSTRUCTION_DEF op_deflate_end(FrameData* cframe)
 	{
 	z_stream *stream;
-	memcpy(&stream, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&stream, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	deflateEnd(stream);
 	
@@ -114,7 +116,7 @@ INSTRUCTION_DEF op_deflate_end(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_inflate_init(VFrame *cframe)
+INSTRUCTION_DEF op_inflate_init(FrameData* cframe)
 	{
 	int ret;
 	
@@ -129,8 +131,7 @@ INSTRUCTION_DEF op_inflate_init(VFrame *cframe)
 	
 	ret = inflateInit2(&ist -> stream, -15);
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ist, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &ist, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
@@ -159,7 +160,7 @@ void zerr(int ret)
     }
 }
 
-INSTRUCTION_DEF op_inflate(VFrame *cframe)
+INSTRUCTION_DEF op_inflate(FrameData* cframe)
 	{
 	int ret;
 	int have;
@@ -169,9 +170,9 @@ INSTRUCTION_DEF op_inflate(VFrame *cframe)
 	unsigned int result_len = 0;
 	
 	InflateStatus *ist;
-	memcpy(&ist, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ist, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
 	
 	if (array == NULL)
 		{
@@ -179,8 +180,10 @@ INSTRUCTION_DEF op_inflate(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	ist -> stream.avail_in = array -> length;
-	ist -> stream.next_in = array -> data;
+	size_t alen = api -> getArrayLength(array);
+	
+	ist -> stream.avail_in = alen;
+	ist -> stream.next_in = api -> getArrayContent(array);
 	
 	do {
 		ist -> stream.avail_out = CHUNK;
@@ -208,40 +211,40 @@ INSTRUCTION_DEF op_inflate(VFrame *cframe)
 	if (ist -> stream.avail_in != 0)
 		{
 		//end-of-stream
-		ist -> totalLength += (array -> length - ist -> stream.avail_in);
-		ist -> lastBlockLength = array -> length - ist -> stream.avail_in;
+		ist -> totalLength += (alen - ist -> stream.avail_in);
+		ist -> lastBlockLength = alen - ist -> stream.avail_in;
 		ist -> status = 1;
 		}
 		else
 		{
 		//keep counting bytes...
-		ist -> totalLength += array -> length;
+		ist -> totalLength += alen;
 		}
 	
 	//return the decompressed chunk as a byte array
-	return_byte_array(cframe, api, (unsigned char*) result, result_len);
+	DanaEl* array_r = api -> makeArray(byteArrayGT, result_len);
+	memcpy(api -> getArrayContent(array_r), result, result_len);
+	api -> returnEl(cframe, array_r);
 	
 	free(result);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_inflate_status(VFrame *cframe)
+INSTRUCTION_DEF op_inflate_status(FrameData* cframe)
 	{
 	InflateStatus *ist;
-	memcpy(&ist, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ist, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ist -> status, sizeof(unsigned char));
+	api -> returnRaw(cframe, &ist -> status, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_inflate_end(VFrame *cframe)
+INSTRUCTION_DEF op_inflate_end(FrameData* cframe)
 	{
 	InflateStatus *ist;
-	memcpy(&ist, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ist, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	size_t len = ist -> totalLength;
 	size_t lcLen = ist -> lastBlockLength;
 	
@@ -250,7 +253,7 @@ INSTRUCTION_DEF op_inflate_end(VFrame *cframe)
 	free(ist);
 	
 	//return actual length of the last compressed chunk we handled
-	return_int(cframe, lcLen);
+	api -> returnInt(cframe, lcLen);
 	
 	return RETURN_OK;
 	}
@@ -258,6 +261,8 @@ INSTRUCTION_DEF op_inflate_end(VFrame *cframe)
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
+	
+	byteArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("byte[]"));
 	
 	setInterfaceFunction("deflateInit", op_deflate_init);
 	setInterfaceFunction("deflate", op_deflate);
@@ -273,4 +278,5 @@ Interface* load(CoreAPI *capi)
 
 void unload()
 	{
+	api -> decrementGTRefCount(byteArrayGT);
 	}

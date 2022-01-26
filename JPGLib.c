@@ -42,24 +42,13 @@ my_error_exit (j_common_ptr cinfo)
   longjmp(myerr->setjmp_buffer, 1);
 }
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+static void returnByteArray(FrameData* f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
+	DanaEl* array = api -> makeArray(byteArrayGT, len);
 	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, data, len);
-	array -> length = len;
+	memcpy(api -> getArrayContent(array), data, len);
 	
-	array -> gtLink = byteArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
+	api -> returnEl(f, array);
 	}
 
 /*
@@ -222,15 +211,15 @@ static void copyPixelsOut(unsigned char *ar, size_t rowNumber, unsigned char *jp
 		}
 	}
 
-INSTRUCTION_DEF op_load_image(VFrame *cframe)
+INSTRUCTION_DEF op_load_image(FrameData* cframe)
 	{
 	unsigned char res = 0;
 	
-	LiveArray *fdata = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl* fdata = api -> getParamEl(cframe, 0);
 	
 	size_t width = 0;
 	size_t height = 0;
-	unsigned char *bmp_data = read_mem(fdata -> data, fdata -> length, &width, &height);
+	unsigned char *bmp_data = read_mem(api -> getArrayContent(fdata), api -> getArrayLength(fdata), &width, &height);
 	
 	if (bmp_data == NULL)
 		{
@@ -238,53 +227,32 @@ INSTRUCTION_DEF op_load_image(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 1);
+	DanaEl* ct = api -> getParamEl(cframe, 1);
 	
 	//there are now two pointers: one to the LiveData of the WH instance, and one to the LiveArray of the pixel map
-	VVarLivePTR *ict = (VVarLivePTR*) ((LiveData*) ct -> content) -> data;
+	DanaEl *ict = api -> getDataFieldEl(ct, 0);
 	
-	size_t *num = (size_t*) ((LiveData*) ict -> content) -> data;
-	
-	copyHostInteger((unsigned char*) num, (unsigned char*) &width, sizeof(width));
-	
-	num ++;
-	
-	copyHostInteger((unsigned char*) num, (unsigned char*) &height, sizeof(height));
+	api -> setDataFieldInt(ict, 0, width);
+	api -> setDataFieldInt(ict, 1, height);
 	
 	//...and the pixel map
-	ict ++;
-	
 	size_t len = (width * DANA_PIXEL_WIDTH) * height;
 	
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
+	DanaEl* array = api -> makeArray(byteArrayGT, len);
 	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	array -> length = len;
-	
-	array -> gtLink = byteArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = cframe -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	ict -> content = (unsigned char*) array;
+	api -> setDataFieldEl(ct, 1, array);
 	
 	//populate the pixel map (see above helper function)
-	copyPixels(array -> data, bmp_data, width, height);
+	copyPixels(api -> getArrayContent(array), bmp_data, width, height);
 	
 	free(bmp_data);
 	
 	res = 1;
 	
-	//the return value is written to local variable 0
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &res, sizeof(unsigned char));
+	api -> returnRaw(cframe, &res, 1);
 	
 	return RETURN_OK;
 	}
-
 
 unsigned char* write_jpg_file(unsigned char *pixelMap, size_t width, size_t height, size_t *memlen)
 	{
@@ -352,33 +320,26 @@ unsigned char* write_jpg_file(unsigned char *pixelMap, size_t width, size_t heig
 	return buf;
 	}
 
-INSTRUCTION_DEF op_save_image(VFrame *cframe)
+INSTRUCTION_DEF op_save_image(FrameData *cframe)
 	{
 	unsigned char res = 0;
 	
 	size_t width = 0;
 	size_t height = 0;
 	
-	VVarLivePTR *ct = (VVarLivePTR*) getVariableContent(cframe, 0);
+	DanaEl* ct = api -> getParamEl(cframe, 0);
 	
 	//there are now two pointers: one to the LiveData of the WH instance, and one to the LiveArray of the pixel map
-	VVarLivePTR *ict = (VVarLivePTR*) ((LiveData*) ct -> content) -> data;
+	DanaEl* ict = api -> getDataFieldEl(ct, 0);
 	
-	size_t *num = (size_t*) ((LiveData*) ict -> content) -> data;
-	
-	copyHostInteger((unsigned char*) &width, (unsigned char*) num, sizeof(width));
-	
-	num ++;
-	
-	copyHostInteger((unsigned char*) &height, (unsigned char*) num, sizeof(height));
+	width = api -> getDataFieldInt(ict, 0);
+	height = api -> getDataFieldInt(ict, 1);
 	
 	//...and the pixel map
-	ict ++;
-	
-	LiveArray *array = (LiveArray*) ict -> content;
+	DanaEl* array = api -> getDataFieldEl(ct, 2);
 	
 	size_t size = 0;
-	unsigned char *buf = write_jpg_file(array -> data, width, height, &size);
+	unsigned char *buf = write_jpg_file(api -> getArrayContent(array), width, height, &size);
 	
 	returnByteArray(cframe, buf, size);
 	

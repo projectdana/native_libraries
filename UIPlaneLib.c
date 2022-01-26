@@ -303,12 +303,6 @@ typedef struct{
 	SDL_Texture *baseTexture;
 	bool sceneChanged;
 
-	VVarLivePTR clickListener;
-	unsigned char* clickListenerObject;
-
-	VVarLivePTR mouseListener;
-	unsigned char* mouseListenerObject;
-
 #ifdef WINDOWS
 	HANDLE renderLock;
 #endif
@@ -382,24 +376,13 @@ static sem_t frameworkShutdownLock;
 #endif
 #endif
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
+static void returnByteArray(FrameData* f, unsigned char *data, size_t len)
 	{
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
+	DanaEl* array = api -> makeArray(charArrayGT, len);
 	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, data, len);
-	array -> length = len;
+	memcpy(api -> getArrayContent(array), data, len);
 	
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
+	api -> returnEl(f, array);
 	}
 
 void semaphore_init(Semaphore *s, unsigned int initialValue)
@@ -1125,8 +1108,8 @@ typedef struct{
 typedef struct{
 	char *text;
 	TTF_Font *font;
-	VFrame *vframe;
-	unsigned char *resultData;
+	FrameData* vframe;
+	DanaEl *resultData;
 	SDL_Color color;
 #ifdef WINDOWS
 	HANDLE sem;
@@ -1142,8 +1125,8 @@ typedef struct{
 
 typedef struct{
 	UIBitmap *bitmapData;
-	VFrame *vframe;
-	unsigned char *sourceData;
+	FrameData* vframe;
+	DanaEl* sourceData;
 	size_t scaledWidth;
 	size_t scaledHeight;
 #ifdef WINDOWS
@@ -1161,7 +1144,7 @@ typedef struct{
 typedef struct{
 	char *fontPath;
 	size_t size;
-	VFrame *vframe;
+	FrameData* vframe;
 	FontHolder *fontHandle;
 #ifdef WINDOWS
 	HANDLE sem;
@@ -1178,7 +1161,7 @@ typedef struct{
 typedef struct{
 	char *text;
 	TTF_Font *font;
-	VFrame *vframe;
+	FrameData* vframe;
 #ifdef WINDOWS
 	HANDLE sem;
 #endif
@@ -1216,21 +1199,14 @@ static unsigned int DX_SYSTEM_SHUTDOWN = 0;
 
 static bool resizeAvailable = true;
 
-static SDL_Surface* pixelMapToSurface(LiveData *pm)
+static SDL_Surface* pixelMapToSurface(DanaEl* pm)
 	{
-	LiveData *bitmapData = pm;
-	LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
-	LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
-	unsigned char *pixelArray = pixelArrayH -> data;
+	DanaEl* whData = api -> getDataFieldEl(pm, 0);
+	DanaEl* pixelArrayH = api -> getDataFieldEl(pm, 1);
+	unsigned char *pixelArray = api -> getArrayContent(pixelArrayH);
 
-	size_t *dr_width = (size_t*) whData -> data;
-	size_t *dr_height = (size_t*) (whData -> data + sizeof(size_t));
-
-	size_t w = 0;
-	size_t h = 0;
-
-	copyHostInteger((unsigned char*) &w, (unsigned char*) dr_width, sizeof(size_t));
-	copyHostInteger((unsigned char*) &h, (unsigned char*) dr_height, sizeof(size_t));
+	size_t w = api -> getDataFieldInt(whData, 0);
+	size_t h = api -> getDataFieldInt(whData, 1);
 
 	//printf(" -- draw bitmap -- %u pixels in %u:%u --\n", pixelArrayH -> length, w, h);
 
@@ -1527,7 +1503,7 @@ static void render_thread()
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
 				
-				LiveData *pixelMap = (LiveData*) e.user.data2;
+				DanaEl *pixelMap = (DanaEl*) e.user.data2;
 				
 				SDL_Surface *surface = pixelMapToSurface(pixelMap);
 				
@@ -1661,16 +1637,9 @@ static void render_thread()
 				SDL_GetCurrentDisplayMode(0, &DM);
 				//SDL_GetDesktopDisplayMode(0, &DM);
 				
-				LiveData *data = (LiveData*) e.user.data2;
-				size_t *v = (size_t*) data -> data;
-				
-				size_t xv = DM.w;
-				copyHostInteger((unsigned char*) v, (unsigned char*) &xv, sizeof(size_t));
-				
-				v ++;
-				
-				xv = DM.h;
-				copyHostInteger((unsigned char*) v, (unsigned char*) &xv, sizeof(size_t));
+				DanaEl* data = (DanaEl*) e.user.data2;
+				api -> setDataFieldInt(data, 0, DM.w);
+				api -> setDataFieldInt(data, 1, DM.h);
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(wi -> stateSem, 1, NULL);
@@ -1688,19 +1657,7 @@ static void render_thread()
 				CloseWindowInfo *cwi = (CloseWindowInfo*) e.user.data1;
 
 				removeListItem(&instances, &lastInstance, cwi -> wi);
-
-				if (cwi -> wi -> clickListener.content != NULL)
-					{
-					cwi -> wi -> clickListenerObject = NULL;
-					cwi -> wi -> clickListener.content = NULL;
-					}
-
-				if (cwi -> wi -> mouseListener.content != NULL)
-					{
-					cwi -> wi -> mouseListenerObject = NULL;
-					cwi -> wi -> mouseListener.content = NULL;
-					}
-
+				
 				if (cwi -> wi -> baseTexture != NULL)
 					SDL_DestroyTexture(cwi -> wi -> baseTexture);
 				
@@ -1725,13 +1682,9 @@ static void render_thread()
 				{
 				GenerateTextBitmapData *data = (GenerateTextBitmapData*) e.user.data1;
 
-				VFrame *frame = data -> vframe;
-
-				LiveData *bitmapData = (LiveData*) data -> resultData;
-				LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
-
-				VVarLivePTR *arrayPTR = (VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR));
-
+				DanaEl *bitmapData = data -> resultData;
+				DanaEl *whData = api -> getDataFieldEl(bitmapData, 0);
+				
 				//printf("rendering text with color %u:%u:%u:%u\n", data -> color.r, data -> color.g, data -> color.b, data -> color.a);
 
 				SDL_Surface *surf = TTF_RenderText_Blended(data -> font, data -> text, data -> color);
@@ -1740,42 +1693,28 @@ static void render_thread()
 					printf("SDL surface error from RT for '%s': %s\n", data -> text, SDL_GetError());
 					}
 
-				size_t *dr_width = (size_t*) whData -> data;
-				size_t *dr_height = (size_t*) (whData -> data + sizeof(size_t));
-
 				size_t w = surf -> w;
 				size_t h = surf -> h;
 
 				size_t totalPixels = w * h;
 				size_t sz = 4;
-
-				copyHostInteger((unsigned char*) dr_width, (unsigned char*) &w, sizeof(size_t));
-				copyHostInteger((unsigned char*) dr_height, (unsigned char*) &h, sizeof(size_t));
-
+				
+				api -> setDataFieldInt(whData, 0, w);
+				api -> setDataFieldInt(whData, 1, h);
+				
 				//set up the pixel array
 			
 				size_t asz = totalPixels * sz;
-				LiveArray *pixelArrayH = malloc(sizeof(LiveArray)+asz);
-				memset(pixelArrayH, '\0', sizeof(LiveArray));
-
-				pixelArrayH -> data = ((unsigned char*) pixelArrayH) + sizeof(LiveArray);
-				pixelArrayH -> length = totalPixels;
-				// - there are two possibilities: either we can't copy arrays of records in general; or the way in which this array in initialised is wrong...
-
-				pixelArrayH -> gtLink = charArrayGT;
-				api -> incrementGTRefCount(pixelArrayH -> gtLink);
-
-				pixelArrayH -> refi.ocm = frame -> blocking -> instance;
-
-				arrayPTR -> content = (unsigned char*) pixelArrayH;
-				pixelArrayH -> refi.refCount ++;
-				pixelArrayH -> refi.type = pixelArrayH -> gtLink -> typeLink;
-
+				
+				DanaEl* pixelArrayH = api -> makeArray(charArrayGT, asz);
+				
+				api -> setDataFieldEl(bitmapData, 1, pixelArrayH);
+				
 				//printf("size: %u | %u\n", totalPixels, ((StructuredType*) pixelArrayH -> gtLink -> typeLink -> definition.content) -> size);
 
 				//printf(" -- generate bitmap -- %u pixels in %u:%u --\n", pixelArrayH -> length, w, h);
 
-				unsigned char *pixelArray = pixelArrayH -> data;
+				unsigned char *pixelArray = api -> getArrayContent(pixelArrayH);
 
 				SDL_PixelFormat *fmt;
 				fmt = surf -> format;
@@ -1852,7 +1791,7 @@ static void render_thread()
 				{
 				GenerateBitmapSurfaceData *data = (GenerateBitmapSurfaceData*) e.user.data1;
 
-				SDL_Surface *primarySurface = pixelMapToSurface((LiveData*) data -> sourceData);
+				SDL_Surface *primarySurface = pixelMapToSurface(data -> sourceData);
 				
 				// -- generate the surface with matching pixel data
 				#if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -1898,7 +1837,7 @@ static void render_thread()
 				else if (e.type == DX_LOAD_FONT)
 				{
 				LoadFontData *lfd = (LoadFontData*) e.user.data1;
-				VFrame *frame = lfd -> vframe;
+				FrameData* frame = lfd -> vframe;
 				
 				TTF_Font *font = TTF_OpenFont(lfd -> fontPath, lfd -> size);
 				if (font == NULL)
@@ -1913,8 +1852,7 @@ static void render_thread()
 				fhold -> font = font;
 				
 				size_t xs = (size_t) fhold;
-				size_t *result = (size_t*) &frame -> localsData[((DanaType*) frame -> localsDef) -> fields[0].offset];
-				memcpy(result, &xs, sizeof(size_t));
+				api -> returnRaw(frame, (unsigned char*) &xs, sizeof(size_t));
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(lfd -> sem, 1, NULL);
@@ -1954,17 +1892,15 @@ static void render_thread()
 				else if (e.type == DX_GET_TEXT_WIDTH)
 				{
 				GetTextWidthInfo *gwi = (GetTextWidthInfo*) e.user.data1;
-				VFrame *frame = gwi -> vframe;
+				FrameData* frame = gwi -> vframe;
 
 				size_t width = 0;
 				int sdl_width = 0;
 				TTF_SizeUTF8(gwi -> font, gwi -> text, &sdl_width, NULL);
 				width = sdl_width;
-
-				size_t *result = (size_t*) &frame -> localsData[((DanaType*) frame -> localsDef) -> fields[0].offset];
-
-				copyHostInteger((unsigned char*) result, (unsigned char*) &width, sizeof(size_t));
-
+				
+				api -> returnInt(frame, width);
+				
 				#ifdef WINDOWS
 				ReleaseSemaphore(gwi -> sem, 1, NULL);
 				#endif
@@ -2020,7 +1956,7 @@ static void render_thread()
 	#endif
 	}
 
-INSTRUCTION_DEF op_make_window(VFrame *cframe)
+INSTRUCTION_DEF op_make_window(FrameData* cframe)
 	{
 	MakeWindowInfo *mwInfo = malloc(sizeof(MakeWindowInfo));
 	memset(mwInfo, '\0', sizeof(MakeWindowInfo));
@@ -2070,28 +2006,27 @@ INSTRUCTION_DEF op_make_window(VFrame *cframe)
 	
 	//return "mwInfo -> instanceResult" as an unsigned int
 	size_t xs = (size_t) mwInfo -> instanceResult;
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &xs, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &xs, sizeof(size_t));
 	
 	if (mwInfo -> instanceResult != NULL)
-		mwInfo -> instanceResult -> eqObject = cframe -> io;
+		mwInfo -> instanceResult -> eqObject = api -> getInstanceObject(cframe);
 	
 	free(mwInfo);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_start_poly(VFrame *cframe)
+INSTRUCTION_DEF op_start_poly(FrameData *cframe)
 	{
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_poly_point(VFrame *cframe)
+INSTRUCTION_DEF op_add_poly_point(FrameData *cframe)
 	{
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_end_poly(VFrame *cframe)
+INSTRUCTION_DEF op_end_poly(FrameData *cframe)
 	{
 	return RETURN_OK;
 	}
@@ -2120,34 +2055,30 @@ static void addUIObject(WindowInstance *instance, UIObject *o)
 		}
 	}
 
-INSTRUCTION_DEF op_add_rect(VFrame *cframe)
+INSTRUCTION_DEF op_add_rect(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 1), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 1);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 2);
 
-		size_t w = 0;
-		copyHostInteger((unsigned char*) &w, getVariableContent(cframe, 3), sizeof(size_t));
+		size_t w = api -> getParamInt(cframe, 3);
 
-		size_t h = 0;
-		copyHostInteger((unsigned char*) &h, getVariableContent(cframe, 4), sizeof(size_t));
+		size_t h = api -> getParamInt(cframe, 4);
 
-		unsigned char r = getVariableContent(cframe, 5)[0];
+		unsigned char r = api -> getParamRaw(cframe, 5)[0];
 
-		unsigned char g = getVariableContent(cframe, 6)[0];
+		unsigned char g = api -> getParamRaw(cframe, 6)[0];
 
-		unsigned char b = getVariableContent(cframe, 7)[0];
+		unsigned char b = api -> getParamRaw(cframe, 7)[0];
 
-		unsigned char a = getVariableContent(cframe, 8)[0];
+		unsigned char a = api -> getParamRaw(cframe, 8)[0];
 
 		// -- create the container --
 
@@ -2175,38 +2106,30 @@ INSTRUCTION_DEF op_add_rect(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_line(VFrame *cframe)
+INSTRUCTION_DEF op_add_line(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		size_t sx = 0;
-		copyHostInteger((unsigned char*) &sx, getVariableContent(cframe, 1), sizeof(size_t));
+		size_t sx = api -> getParamInt(cframe, 1);
 
-		size_t sy = 0;
-		copyHostInteger((unsigned char*) &sy, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t sy = api -> getParamInt(cframe, 2);
 
-		size_t ex = 0;
-		copyHostInteger((unsigned char*) &ex, getVariableContent(cframe, 3), sizeof(size_t));
+		size_t ex = api -> getParamInt(cframe, 3);
 
-		size_t ey = 0;
-		copyHostInteger((unsigned char*) &ey, getVariableContent(cframe, 4), sizeof(size_t));
+		size_t ey = api -> getParamInt(cframe, 4);
 
-		size_t r = 0;
-		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 5), 1);
+		size_t r = api -> getParamRaw(cframe, 5)[0];
 
-		size_t g = 0;
-		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 6), 1);
+		size_t g = api -> getParamRaw(cframe, 6)[0];
 
-		size_t b = 0;
-		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 7), 1);
+		size_t b = api -> getParamRaw(cframe, 7)[0];
 
-		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 8), 1);
+		size_t a = api -> getParamRaw(cframe, 8)[0];
 
 		// -- create the container --
 
@@ -2234,32 +2157,26 @@ INSTRUCTION_DEF op_add_line(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_point(VFrame *cframe)
+INSTRUCTION_DEF op_add_point(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 1), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 1);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 2);
 
-		size_t r = 0;
-		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 3), 1);
+		size_t r = api -> getParamRaw(cframe, 3)[0];
 
-		size_t g = 0;
-		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 4), 1);
+		size_t g = api -> getParamRaw(cframe, 4)[0];
 
-		size_t b = 0;
-		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 5), 1);
+		size_t b = api -> getParamRaw(cframe, 5)[0];
 
-		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 6), 1);
+		size_t a = api -> getParamRaw(cframe, 6)[0];
 
 		// -- create the container --
 
@@ -2284,47 +2201,41 @@ INSTRUCTION_DEF op_add_point(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
+INSTRUCTION_DEF op_add_bitmap(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 		
-		unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		DanaEl* bitmapData = api -> getParamEl(cframe, 1);
 		
-		if (cnt == NULL)
+		if (bitmapData == NULL)
 			{
 			api -> throwException(cframe, "null pointer");
 			return RETURN_OK;
 			}
 		
-		LiveData *bitmapData = (LiveData*) cnt;
-		LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
-		LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
+		DanaEl *whData = api -> getDataFieldEl(bitmapData, 0);
+		DanaEl *pixelArrayH = api -> getDataFieldEl(bitmapData, 1);
 		
-		if (whData == NULL || pixelArrayH == NULL || pixelArrayH -> data == NULL)
+		if (whData == NULL || pixelArrayH == NULL || api -> getArrayContent(pixelArrayH) == NULL)
 			{
 			api -> throwException(cframe, "null pointer");
 			return RETURN_OK;
 			}
 
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 3), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 3);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 4), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 4);
 		
-		size_t sWidth = 0;
-		copyHostInteger((unsigned char*) &sWidth, getVariableContent(cframe, 5), sizeof(size_t));
+		size_t sWidth = api -> getParamInt(cframe, 5);
 
-		size_t sHeight = 0;
-		copyHostInteger((unsigned char*) &sHeight, getVariableContent(cframe, 6), sizeof(size_t));
+		size_t sHeight = api -> getParamInt(cframe, 6);
 		
-		size_t rotation = 0;
-		copyHostInteger((unsigned char*) &rotation, getVariableContent(cframe, 7), sizeof(size_t));
+		size_t rotation = api -> getParamInt(cframe, 7);
 
 		// -- create the container --
 
@@ -2343,7 +2254,7 @@ INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
 
 		GenerateBitmapSurfaceData *gb = malloc(sizeof(GenerateBitmapSurfaceData));
 		memset(gb, '\0', sizeof(GenerateBitmapSurfaceData));
-		gb -> sourceData = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		gb -> sourceData = api -> getParamEl(cframe, 1);
 		gb -> vframe = cframe;
 		gb -> bitmapData = poly;
 		gb -> scaledHeight = sHeight;
@@ -2399,45 +2310,38 @@ INSTRUCTION_DEF op_add_bitmap(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
+INSTRUCTION_DEF op_add_text_with(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
 		size_t font_hnd = 0;
-		memcpy(&font_hnd, getVariableContent(cframe, 1), sizeof(size_t));
+		memcpy(&font_hnd, api -> getParamRaw(cframe, 1), sizeof(size_t));
 		FontHolder *fHold = (FontHolder*) font_hnd;
 		
 		lockedInc(&fHold -> refCount);
 
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 2);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 3), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 3);
 		
-		size_t rotation = 0;
-		copyHostInteger((unsigned char*) &rotation, getVariableContent(cframe, 4), sizeof(size_t));
+		size_t rotation = api -> getParamInt(cframe, 4);
+		
+		DanaEl* array = api -> getParamEl(cframe, 5);
 
-		LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 5)) -> content;
+		size_t r = api -> getParamRaw(cframe, 6)[0];
 
-		size_t r = 0;
-		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 6), 1);
+		size_t g = api -> getParamRaw(cframe, 7)[0];
 
-		size_t g = 0;
-		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 7), 1);
+		size_t b = api -> getParamRaw(cframe, 8)[0];
 
-		size_t b = 0;
-		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 8), 1);
+		size_t a = api -> getParamRaw(cframe, 9)[0];
 
-		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 9), 1);
-
-		size_t tlen = array != NULL ? array -> length : 0;
+		size_t tlen = api -> getArrayLength(array);
 
 		if (tlen > 0)
 			{
@@ -2457,7 +2361,7 @@ INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 			poly -> textLen = tlen;
 			poly -> text = (char*) malloc(tlen + 1);
 			memset(poly -> text, '\0', tlen + 1);
-			memcpy(poly -> text, array -> data, tlen);
+			memcpy(poly -> text, api -> getArrayContent(array), tlen);
 
 			poly -> x = x;
 			poly -> y = y;
@@ -2474,16 +2378,16 @@ INSTRUCTION_DEF op_add_text_with(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_text_width_with(VFrame *cframe)
+INSTRUCTION_DEF op_get_text_width_with(FrameData* cframe)
 	{
 	size_t font_hnd = 0;
-	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&font_hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	FontHolder *fHold = (FontHolder*) font_hnd;
 	TTF_Font *font = fHold -> font;
 
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
 
-	size_t tlen = array != NULL ? array -> length : 0;
+	size_t tlen = api -> getArrayLength(array);
 
 	size_t width = 0;
 
@@ -2491,7 +2395,7 @@ INSTRUCTION_DEF op_get_text_width_with(VFrame *cframe)
 		{
 		char *text = (char*) malloc(tlen + 1);
 		memset(text, '\0', tlen + 1);
-		memcpy(text, array -> data, tlen);
+		memcpy(text, api -> getArrayContent(array), tlen);
 
 		GetTextWidthInfo *gwi = malloc(sizeof(GetTextWidthInfo));
 		memset(gwi, '\0', sizeof(GetTextWidthInfo));
@@ -2546,17 +2450,16 @@ INSTRUCTION_DEF op_get_text_width_with(VFrame *cframe)
 
 		return RETURN_OK;
 		}
-
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	copyHostInteger((unsigned char*) result, (unsigned char*) &width, sizeof(size_t));
-
+	
+	api -> returnInt(cframe, width);
+	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_push_surface(VFrame *cframe)
+INSTRUCTION_DEF op_push_surface(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
@@ -2580,26 +2483,19 @@ INSTRUCTION_DEF op_push_surface(VFrame *cframe)
 		instance -> surfaceStack = newStackObject;
 
 		// --
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 1), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 1);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 2);
 
-		size_t w = 0;
-		copyHostInteger((unsigned char*) &w, getVariableContent(cframe, 3), sizeof(size_t));
+		size_t w = api -> getParamInt(cframe, 3);
 
-		size_t h = 0;
-		copyHostInteger((unsigned char*) &h, getVariableContent(cframe, 4), sizeof(size_t));
+		size_t h = api -> getParamInt(cframe, 4);
 
-		size_t xs = 0;
-		copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 5), sizeof(size_t));
+		size_t xs = api -> getParamInt(cframe, 5);
 
-		size_t ys = 0;
-		copyHostInteger((unsigned char*) &ys, getVariableContent(cframe, 6), sizeof(size_t));
+		size_t ys = api -> getParamInt(cframe, 6);
 		
-		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 7), 1);
+		size_t a = api -> getParamRaw(cframe, 7)[0];
 		// --
 
 		newObject -> type = UI_TYPE_SURFACE;
@@ -2618,10 +2514,10 @@ INSTRUCTION_DEF op_push_surface(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_pop_surface(VFrame *cframe)
+INSTRUCTION_DEF op_pop_surface(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
@@ -2640,53 +2536,45 @@ INSTRUCTION_DEF op_pop_surface(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_font_metrics(VFrame *cframe)
+INSTRUCTION_DEF op_get_font_metrics(FrameData* cframe)
 	{
 	size_t font_hnd = 0;
-	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&font_hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	FontHolder *fHold = (FontHolder*) font_hnd;
 	TTF_Font *font = fHold -> font;
-
-	unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	
+	DanaEl* mdata = api -> getParamEl(cframe, 1);
 
 	int sdl_x;
-	size_t x;
-	size_t *xs = (size_t*) ((LiveData*) cnt) -> data;
 
 	//TODO: don't use any TTF_ functions outside of the main rendering loop?
 
 	// -- --
 
 	sdl_x = TTF_FontHeight(font);
-	x = sdl_x;
-	copyHostInteger((unsigned char*) xs, (unsigned char*) &x, sizeof(size_t));
-
-	xs ++;
-
+	
+	api -> setDataFieldInt(mdata, 0, sdl_x);
+	
 	sdl_x = TTF_FontAscent(font);
-	x = sdl_x;
-	copyHostInteger((unsigned char*) xs, (unsigned char*) &x, sizeof(size_t));
-
-	xs ++;
+	
+	api -> setDataFieldInt(mdata, 1, sdl_x);
 
 	sdl_x = TTF_FontDescent(font);
-	x = sdl_x * -1;
-	copyHostInteger((unsigned char*) xs, (unsigned char*) &x, sizeof(size_t));
-
-	xs ++;
+	
+	api -> setDataFieldInt(mdata, 2, sdl_x * -1);
 
 	sdl_x = TTF_FontLineSkip(font);
-	x = sdl_x;
-	copyHostInteger((unsigned char*) xs, (unsigned char*) &x, sizeof(size_t));
-
+	
+	api -> setDataFieldInt(mdata, 3, sdl_x);
+	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_font_name(VFrame *cframe)
+INSTRUCTION_DEF op_get_font_name(FrameData* cframe)
 	{
 	size_t font_hnd = 0;
-	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&font_hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	FontHolder *fHold = (FontHolder*) font_hnd;
 	TTF_Font *font = fHold -> font;
 
@@ -2702,49 +2590,46 @@ INSTRUCTION_DEF op_get_font_name(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_is_font_fixed_width(VFrame *cframe)
+INSTRUCTION_DEF op_is_font_fixed_width(FrameData* cframe)
 	{
 	size_t font_hnd = 0;
-	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&font_hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	FontHolder *fHold = (FontHolder*) font_hnd;
 	TTF_Font *font = fHold -> font;
 
 	//TODO: don't use any TTF_ functions outside of the main rendering loop?
-	cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset] = TTF_FontFaceIsFixedWidth(font) == 0 ? 0 : 1;
+	unsigned char is = TTF_FontFaceIsFixedWidth(font) == 0 ? 0 : 1;
+	api -> returnRaw(cframe, &is, 1);
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_text_bitmap_with(VFrame *cframe)
+INSTRUCTION_DEF op_get_text_bitmap_with(FrameData* cframe)
 	{
 	size_t font_hnd = 0;
-	memcpy(&font_hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&font_hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	FontHolder *fHold = (FontHolder*) font_hnd;
 	TTF_Font *font = fHold -> font;
 
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
 
-	size_t tlen = array != NULL ? array -> length : 0;
+	size_t tlen = api -> getArrayLength(array);
+	
+	DanaEl* pixelcnt = api -> getParamEl(cframe, 2);
 
-	unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
+	size_t r = api -> getParamRaw(cframe, 3)[0];
 
-	size_t r = 0;
-	copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 3), 1);
+	size_t g = api -> getParamRaw(cframe, 4)[0];
 
-	size_t g = 0;
-	copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 4), 1);
+	size_t b = api -> getParamRaw(cframe, 5)[0];
 
-	size_t b = 0;
-	copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 5), 1);
-
-	size_t a = 0;
-	copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 6), 1);
+	size_t a = api -> getParamRaw(cframe, 6)[0];
 
 	if (tlen > 0)
 		{
 		char *text = (char*) malloc(tlen + 1);
 		memset(text, '\0', tlen + 1);
-		memcpy(text, array -> data, tlen);
+		memcpy(text, api -> getArrayContent(array), tlen);
 
 		//render the text to a surface as normal
 		// - then get the w/h of the surface and iterate through its pixels
@@ -2753,7 +2638,7 @@ INSTRUCTION_DEF op_get_text_bitmap_with(VFrame *cframe)
 		memset(gb, '\0', sizeof(GenerateTextBitmapData));
 		gb -> text = text;
 		gb -> vframe = cframe;
-		gb -> resultData = cnt;
+		gb -> resultData = pixelcnt;
 		gb -> font = font;
 		gb -> color.r = r;
 		gb -> color.g = g;
@@ -2810,10 +2695,10 @@ INSTRUCTION_DEF op_get_text_bitmap_with(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_commit_buffer(VFrame *cframe)
+INSTRUCTION_DEF op_commit_buffer(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
@@ -2836,24 +2721,11 @@ INSTRUCTION_DEF op_commit_buffer(VFrame *cframe)
 
 static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y)
 	{
-	size_t sz = sizeof(size_t) * 3;
+	DanaEl *nd = api -> makeData(windowDataGT);
 	
-	LiveData *nd = malloc(sizeof(LiveData)+sz);
-	memset(nd, '\0', sizeof(LiveData)+sz);
-	
-	nd -> data = ((unsigned char*) nd) + sizeof(LiveData);
-	
-	nd -> gtLink = windowDataGT;
-	api -> incrementGTRefCount(nd -> gtLink);
-	nd -> refi.type = nd -> gtLink -> typeLink;
-	
-	unsigned char *wd_bid = nd -> data;
-	unsigned char *wd_x = nd -> data + sizeof(size_t);
-	unsigned char *wd_y = nd -> data + sizeof(size_t) + sizeof(size_t);
-	
-	copyHostInteger(wd_bid, (unsigned char*) &button_id, sizeof(size_t));
-	copyHostInteger(wd_x, (unsigned char*) &x, sizeof(size_t));
-	copyHostInteger(wd_y, (unsigned char*) &y, sizeof(size_t));
+	api -> setDataFieldInt(nd, 0, button_id);
+	api -> setDataFieldInt(nd, 1, x);
+	api -> setDataFieldInt(nd, 2, y);
 	
 	api -> pushEvent(w -> eqObject, 0, type, nd);
 	}
@@ -2866,39 +2738,18 @@ static void normalisePath(char *p)
 
 static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
 	{
-	size_t sz = sizeof(VVarLivePTR) + sizeof(size_t) + sizeof(size_t);
+	DanaEl* nd = api -> makeData(dropDataGT);
 	
-	LiveData *nd = malloc(sizeof(LiveData)+sz);
-	memset(nd, '\0', sizeof(LiveData)+sz);
-	
-	nd -> data = ((unsigned char*) nd) + sizeof(LiveData);
-	
-	nd -> gtLink = dropDataGT;
-	api -> incrementGTRefCount(nd -> gtLink);
-	nd -> refi.type = nd -> gtLink -> typeLink;
-	
-	unsigned char *dd_x = nd -> data;
-	unsigned char *dd_y = nd -> data + sizeof(size_t);
-	VVarLivePTR *ptrh = (VVarLivePTR*) (nd -> data + sizeof(size_t) + sizeof(size_t));
+	api -> setDataFieldInt(nd, 0, x);
+	api -> setDataFieldInt(nd, 1, y);
 	
 	size_t asz = strlen(path);
-	LiveArray *na = malloc(sizeof(LiveArray)+asz);
-	memset(na, '\0', sizeof(LiveArray));
+	DanaEl* na = api -> makeArray(charArrayGT, asz);
+	unsigned char* content = api -> getArrayContent(na);
+	memcpy(content, path, asz);
+	normalisePath((char*) content);
 	
-	na -> data = ((unsigned char*) na) + sizeof(LiveArray);
-	memcpy(na -> data, path, asz);
-	na -> length = asz;
-	normalisePath((char*) na -> data);
-	
-	na -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(na -> gtLink);
-	na -> refi.type = na -> gtLink -> typeLink;
-	
-	ptrh -> content = (unsigned char*) na;
-	na -> refi.refCount = 1;
-	
-	copyHostInteger(dd_x, (unsigned char*) &x, sizeof(size_t));
-	copyHostInteger(dd_y, (unsigned char*) &y, sizeof(size_t));
+	api -> setDataFieldEl(nd, 2, na);
 	
 	api -> pushEvent(w -> eqObject, 0, 7, nd);
 	}
@@ -2908,20 +2759,18 @@ static void pushEvent(WindowInstance *w, size_t type)
 	api -> pushEvent(w -> eqObject, 0, type, NULL);
 	}
 
-INSTRUCTION_DEF op_set_size(VFrame *cframe)
+INSTRUCTION_DEF op_set_size(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 1), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 1);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 2);
 		
 		instance -> windowedWidth = x;
 		instance -> windowedHeight = y;
@@ -2937,20 +2786,18 @@ INSTRUCTION_DEF op_set_size(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_position(VFrame *cframe)
+INSTRUCTION_DEF op_set_position(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		size_t x = 0;
-		copyHostInteger((unsigned char*) &x, getVariableContent(cframe, 1), sizeof(size_t));
+		size_t x = api -> getParamInt(cframe, 1);
 
-		size_t y = 0;
-		copyHostInteger((unsigned char*) &y, getVariableContent(cframe, 2), sizeof(size_t));
+		size_t y = api -> getParamInt(cframe, 2);
 
 		instance -> windowX = x;
 		instance -> windowY = y;
@@ -2966,16 +2813,16 @@ INSTRUCTION_DEF op_set_position(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_visible(VFrame *cframe)
+INSTRUCTION_DEF op_set_visible(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		unsigned char v = getVariableContent(cframe, 1)[0];
+		unsigned char v = api -> getParamRaw(cframe, 1)[0];
 
 		SDL_Event newEvent;
 		SDL_zero(newEvent);
@@ -2999,7 +2846,7 @@ INSTRUCTION_DEF op_set_visible(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_resizable(VFrame *cframe)
+INSTRUCTION_DEF op_set_resizable(FrameData* cframe)
 	{
 	if (!resizeAvailable)
 		{
@@ -3008,13 +2855,13 @@ INSTRUCTION_DEF op_set_resizable(VFrame *cframe)
 		}
 	
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		unsigned char v = getVariableContent(cframe, 1)[0];
+		unsigned char v = api -> getParamRaw(cframe, 1)[0];
 
 		SDL_Event newEvent;
 		SDL_zero(newEvent);
@@ -3027,22 +2874,21 @@ INSTRUCTION_DEF op_set_resizable(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_fullscreen(VFrame *cframe)
+INSTRUCTION_DEF op_set_fullscreen(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		unsigned char v = getVariableContent(cframe, 1)[0];
+		unsigned char v = api -> getParamRaw(cframe, 1)[0];
 
 		SDL_Event newEvent;
 		SDL_zero(newEvent);
 		newEvent.type = v ? DX_FULLSCREEN_WINDOW : DX_WINDOWED_WINDOW;
 		newEvent.user.data1 = instance;
-		newEvent.user.data2 = ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
 
 		SDL_PushEvent(&newEvent);
 		
@@ -3061,10 +2907,10 @@ INSTRUCTION_DEF op_set_fullscreen(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_resolution(VFrame *cframe)
+INSTRUCTION_DEF op_get_resolution(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	if (hnd != 0)
 		{
@@ -3074,7 +2920,7 @@ INSTRUCTION_DEF op_get_resolution(VFrame *cframe)
 		SDL_zero(newEvent);
 		newEvent.type = DX_GET_RESOLUTION;
 		newEvent.user.data1 = instance;
-		newEvent.user.data2 = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		newEvent.user.data2 = api -> getParamEl(cframe, 1);
 
 		SDL_PushEvent(&newEvent);
 		
@@ -3093,24 +2939,26 @@ INSTRUCTION_DEF op_get_resolution(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_title(VFrame *cframe)
+INSTRUCTION_DEF op_set_title(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
-
-		LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-
+		
+		DanaEl* array = api -> getParamEl(cframe, 1);
+		
+		size_t tlen = api -> getArrayLength(array);
+		
 		char *text = NULL;
 
 		if (array != NULL)
 			{
-			text = (char*) malloc(array -> length + 1);
-			memset(text, '\0', array -> length + 1);
-			memcpy((unsigned char*) text, array -> data, array -> length);
+			text = (char*) malloc(tlen + 1);
+			memset(text, '\0', tlen + 1);
+			memcpy((unsigned char*) text, api -> getArrayContent(array), tlen);
 			}
 			else
 			{
@@ -3129,28 +2977,27 @@ INSTRUCTION_DEF op_set_title(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_icon(VFrame *cframe)
+INSTRUCTION_DEF op_set_icon(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 		
-		unsigned char *cnt = ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+		DanaEl* bitmapData = api -> getParamEl(cframe, 1);
 		
-		if (cnt == NULL)
+		if (bitmapData == NULL)
 			{
 			api -> throwException(cframe, "null pointer");
 			return RETURN_OK;
 			}
 		
-		LiveData *bitmapData = (LiveData*) cnt;
-		LiveData *whData = (LiveData*) ((VVarLivePTR*) bitmapData -> data) -> content;
-		LiveArray *pixelArrayH = (LiveArray*) ((VVarLivePTR*) (bitmapData -> data + sizeof(VVarLivePTR))) -> content;
+		DanaEl* whData = api -> getDataFieldEl(bitmapData, 0);
+		DanaEl* pixelArrayH = api -> getDataFieldEl(bitmapData, 1);
 		
-		if (whData == NULL || pixelArrayH == NULL || pixelArrayH -> data == NULL)
+		if (whData == NULL || pixelArrayH == NULL || api -> getArrayContent(pixelArrayH) == NULL)
 			{
 			api -> throwException(cframe, "null pointer");
 			return RETURN_OK;
@@ -3160,7 +3007,7 @@ INSTRUCTION_DEF op_set_icon(VFrame *cframe)
 		SDL_zero(newEvent);
 		newEvent.type = DX_SET_WINDOW_ICON;
 		newEvent.user.data1 = instance;
-		newEvent.user.data2 = cnt;
+		newEvent.user.data2 = bitmapData;
 
 		SDL_PushEvent(&newEvent);
 		}
@@ -3168,10 +3015,10 @@ INSTRUCTION_DEF op_set_icon(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_maximise_window(VFrame *cframe)
+INSTRUCTION_DEF op_maximise_window(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
@@ -3188,10 +3035,10 @@ INSTRUCTION_DEF op_maximise_window(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_minimise_window(VFrame *cframe)
+INSTRUCTION_DEF op_minimise_window(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
@@ -3208,49 +3055,38 @@ INSTRUCTION_DEF op_minimise_window(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_maximised_screen_rect(VFrame *cframe)
+INSTRUCTION_DEF op_get_maximised_screen_rect(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		//WindowInstance *instance = (WindowInstance*) hnd;
-
-		size_t *xs = (size_t*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
+		
+		DanaEl* rdata = api -> getParamEl(cframe, 1);
+		
+		size_t *xs = (size_t*) api -> getDataContent(rdata);
 
 		#ifdef WINDOWS
 		//NOTE: below only works for primary monitor - see GetMonitorInfo for other monitors (not sure how we know which monitor a window is considered to be "on")
 		RECT r;
 		SystemParametersInfo(SPI_GETWORKAREA, 0, &r, 0);
-
-		size_t v = r.left;
-		copyHostInteger((unsigned char*) xs, (unsigned char*) &v, sizeof(size_t));
-
-		xs ++;
-
-		v = r.top;
-		copyHostInteger((unsigned char*) xs, (unsigned char*) &v, sizeof(size_t));
-
-		xs ++;
-
-		v = r.right - r.left;
-		copyHostInteger((unsigned char*) xs, (unsigned char*) &v, sizeof(size_t));
-
-		xs ++;
-
-		v = r.bottom - r.top;
-		copyHostInteger((unsigned char*) xs, (unsigned char*) &v, sizeof(size_t));
+		
+		api -> setDataFieldInt(rdata, 0, r.left);
+		api -> setDataFieldInt(rdata, 1, r.top);
+		api -> setDataFieldInt(rdata, 2, r.right - r.left);
+		api -> setDataFieldInt(rdata, 3, r.bottom - r.top);
 		#endif
 		}
 
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_close_window(VFrame *cframe)
+INSTRUCTION_DEF op_close_window(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
@@ -3314,26 +3150,22 @@ INSTRUCTION_DEF op_close_window(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_set_background_colour(VFrame *cframe)
+INSTRUCTION_DEF op_set_background_colour(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	if (hnd != 0)
 		{
 		WindowInstance *instance = (WindowInstance*) hnd;
 
-		size_t r = 0;
-		copyHostInteger((unsigned char*) &r, getVariableContent(cframe, 1), 1);
+		size_t r = api -> getParamRaw(cframe, 1)[0];
 
-		size_t g = 0;
-		copyHostInteger((unsigned char*) &g, getVariableContent(cframe, 2), 1);
+		size_t g = api -> getParamRaw(cframe, 2)[0];
 
-		size_t b = 0;
-		copyHostInteger((unsigned char*) &b, getVariableContent(cframe, 3), 1);
+		size_t b = api -> getParamRaw(cframe, 3)[0];
 
-		size_t a = 0;
-		copyHostInteger((unsigned char*) &a, getVariableContent(cframe, 4), 1);
+		//size_t a = api -> getParamRaw(cframe, 4)[0];
 
 		instance -> backgroundColour.r = r;
 		instance -> backgroundColour.g = g;
@@ -3343,9 +3175,9 @@ INSTRUCTION_DEF op_set_background_colour(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_load_font(VFrame *cframe)
+INSTRUCTION_DEF op_load_font(FrameData* cframe)
 	{
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 0);
 	
 	if (array == NULL)
 		{
@@ -3353,14 +3185,13 @@ INSTRUCTION_DEF op_load_font(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	size_t tlen = array != NULL ? array -> length : 0;
+	size_t tlen = api -> getArrayLength(array);
 
 	char *path = (char*) malloc(tlen + 1);
 	memset(path, '\0', tlen + 1);
-	memcpy(path, array -> data, tlen);
-
-	size_t sz = 0;
-	copyHostInteger((unsigned char*) &sz, getVariableContent(cframe, 1), sizeof(size_t));
+	memcpy(path, api -> getArrayContent(array), tlen);
+	
+	size_t sz = api -> getParamInt(cframe, 1);
 
 	//load the typeface...
 	char *fontPath = malloc(2048);
@@ -3433,10 +3264,10 @@ INSTRUCTION_DEF op_load_font(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_unload_font(VFrame *cframe)
+INSTRUCTION_DEF op_unload_font(FrameData* cframe)
 	{
 	size_t hnd = 0;
-	memcpy(&hnd, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	if (hnd != 0)
 		{
@@ -3498,7 +3329,7 @@ INSTRUCTION_DEF op_unload_font(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_init_media_layer(VFrame *cframe)
+INSTRUCTION_DEF op_init_media_layer(FrameData* cframe)
 	{
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC) != 0)
 	//if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
@@ -3534,7 +3365,7 @@ INSTRUCTION_DEF op_init_media_layer(VFrame *cframe)
 	DX_GET_TEXT_WIDTH = SDL_RegisterEvents(1);
 	DX_SYSTEM_SHUTDOWN = SDL_RegisterEvents(1);
 	
-	systemEventObject = cframe -> io;
+	systemEventObject = api -> getInstanceObject(cframe);
 	
 	#ifdef WINDOWS
 	frameworkShutdownLock = CreateSemaphore(NULL, 0, 1, NULL);
@@ -3550,20 +3381,19 @@ INSTRUCTION_DEF op_init_media_layer(VFrame *cframe)
 	#endif
 	
 	unsigned char ok = 1;
-	unsigned char *result = (unsigned char*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ok, sizeof(unsigned char));
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_run_system_loop(VFrame *cframe)
+INSTRUCTION_DEF op_run_system_loop(FrameData* cframe)
 	{
 	render_thread();
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_shutdown(VFrame *cframe)
+INSTRUCTION_DEF op_shutdown(FrameData* cframe)
 	{
 	SDL_Event newEvent;
 	newEvent.type = DX_SYSTEM_SHUTDOWN;

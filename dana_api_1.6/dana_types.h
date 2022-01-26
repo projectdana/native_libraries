@@ -22,9 +22,13 @@
 #define TYPE_DECIMAL		14
 
 #define X_FLAT				0
-#define X_VLIST_CNT			1
-#define X_VLIST_LNK			2
 #define X_POINTER			16
+
+typedef struct vvlptr{
+	unsigned char *c;
+	unsigned char r;
+	unsigned char s;
+	} VVarLivePTR;
 
 typedef struct livebindpoint{
 	void *t;
@@ -39,126 +43,19 @@ typedef struct __interface{
 	void *d;
 	LiveBindpoint lbp;
 	} Interface;
-
-typedef struct livethread{
-	void *a;
-	void *b;
-	void *c;
-	void *d;
-	} LiveThread;
-
-typedef struct vv{
-	void *a;
-	void *ptrs;
-	size_t b;
-	size_t c;
-	unsigned char d; unsigned char e;
-	size_t etype;
-	} VVar;
-
-typedef struct scope{
-	VVar scopePointers;
-	size_t flags;
-	} LiveScope;
-
-typedef struct lcntvl{
-	unsigned char *content;
-	struct vv *ptrs;
-	size_t offset;
-	size_t vsize;
-	LiveScope scope;
-	} LiveCntVL;
-
-typedef struct vvlptr{
-	unsigned char *content;
-	unsigned char readOnly;
-	} VVarLivePTR;
-
+	
 struct _s_danaType;
 
 typedef struct rvv{
-	unsigned char *content;
-	size_t vsize;
-	struct component *owner;
-	unsigned char type; unsigned char xtype;
-	unsigned char readOnly;
-	size_t etype;
-	struct _s_danaType *typeLink;
-	} VVarR;
-
-typedef struct __refi {
-	
-	struct _s_danaType *type;
-	
-	size_t refCount;
-	
-	void *ocm;
-	
-	bool p;
-	bool v;
-	bool w;
-	
-	size_t z;
-	size_t q;
 	size_t a;
-	struct __refi *n;
-	struct __refi *d;
-	struct __refi *c;
-	
-	} ReFI;
-
-typedef struct oi{
-	void *wv;
-	void *wt;
-	void *nx;
-	size_t knr;
-	} ObjectIdentity;
-
-typedef struct lo{
-	ReFI refi;
-	ObjectIdentity identity;
-	ObjectIdentity *identities;
-	unsigned char *state;
-	void *spec;
-	void *stl;
-	void *otl;
-	void *tstl;
-	void *pe;
-	void *phe;
-	void *lcj;
-	void *ts;
-	size_t flags;
-	LiveScope scope;
-	} LiveObject;
-
-typedef struct _live_data{
-	ReFI refi;
-	unsigned char *data;
-	struct __globalTypeLink *gtLink;
-	size_t flags;
-	
-	size_t csa;
-	size_t csb;
-	size_t csc;
-	size_t csd;
-	size_t cse;
-#ifdef MACHINE_32
-	#ifdef LINUX
-	size_t csf;
-	#endif
-	#ifdef WINDOWS
-	size_t csf;
-	#endif
-#endif
-	} LiveData;
-
-typedef struct{
-	ReFI refi;
-	unsigned char *data;
-	struct __globalTypeLink *gtLink;
-	size_t flags;
-	size_t length;
-	} LiveArray;
+	size_t b;
+	size_t c;
+	unsigned char d;
+	unsigned char e;
+	unsigned char f;
+	size_t g;
+	size_t h;
+	} VVarR;
 
 typedef struct _s_danaType{
 	uint8 typeClass;
@@ -196,7 +93,7 @@ typedef struct vthread{
 	size_t ln;
 	unsigned int *khd;
 	struct component *instance;
-	LiveObject *io;
+	size_t io;
 	void *tc;
 	struct vthread *a;
 	struct vthread *blocking;
@@ -252,7 +149,7 @@ typedef struct component{
 	void *gref;
 	unsigned char *globalsData;
 	SourceHeader *header;
-	VVarLivePTR createdItems;
+	VVarLivePTR ci;
 	void *ho;
 	ObjectSpec *objects;
 	void *bs;

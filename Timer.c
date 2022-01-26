@@ -21,9 +21,9 @@ static CoreAPI *api;
 #include "nli_util.h"
 #include "vmi_util.h"
 
-INSTRUCTION_DEF op_timer_sleep(VFrame *cframe)
+INSTRUCTION_DEF op_timer_sleep(FrameData* cframe)
 	{
-	size_t ms = getParam_int(cframe, 0);
+	size_t ms = api -> getParamInt(cframe, 0);
 	
 	#ifdef WINDOWS
 	Sleep(ms);

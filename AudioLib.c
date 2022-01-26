@@ -57,6 +57,7 @@ pthread_mutexattr_t mAttr;
 #define E_DEVICE_STOP  2
 
 static GlobalTypeLink *trackInfoGT = NULL;
+static GlobalTypeLink *typeLink_char = NULL;
 
 typedef struct _device_item {
 	//the device data
@@ -76,7 +77,7 @@ typedef struct _device_item {
 	pthread_t eventThread;
 	#endif
 	
-	LiveObject *audioObject;
+	DanaEl* audioObject;
 	
 	Semaphore eventSem;
 	int eventID;
@@ -109,8 +110,7 @@ typedef struct _track_item {
 	bool inCleanup;
 	bool sendStopEvent;
 	bool loop;
-	LiveObject *objectRef;
-	DanaType *orType;
+	DanaEl *objectRef;
 	struct _track_item *next;
 	struct _track_item *prev;
 	} TrackInstance;
@@ -257,21 +257,8 @@ static void * event_thread(void *ptr)
 				//send event?
 				if (ti -> sendStopEvent)
 					{
-					size_t sz = sizeof(VVarLivePTR);
-					
-					LiveData *nd = malloc(sizeof(LiveData)+sz);
-					memset(nd, '\0', sizeof(LiveData)+sz);
-					
-					nd -> data = ((unsigned char*) nd) + sizeof(LiveData);
-					
-					nd -> gtLink = trackInfoGT;
-					api -> incrementGTRefCount(nd -> gtLink);
-					nd -> refi.type = nd -> gtLink -> typeLink;
-					
-					VVarLivePTR *ptrh = (VVarLivePTR*) nd -> data;
-					
-					ptrh -> content = (unsigned char*) ti -> objectRef;
-					api -> incRef(NULL, ti -> objectRef);
+					DanaEl* nd = api -> makeData(trackInfoGT);
+					api -> setDataFieldEl(nd, 0, ti -> objectRef);
 					
 					api -> pushEvent(instance -> audioObject, 0, 0, nd);
 					}
@@ -510,17 +497,14 @@ static bool createEventThread(DeviceInstance *instance)
 	return true;
 	}
 
-INSTRUCTION_DEF op_device_init(VFrame *cframe)
+INSTRUCTION_DEF op_device_init(FrameData *cframe)
 	{
-	size_t deviceID = 0;
-	copyHostInteger((unsigned char*) &deviceID, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t deviceID = api -> getParamInt(cframe, 0);
 	
 	//...decode format details
-	unsigned char format = getVariableContent(cframe, 1)[0];
-	size_t sampleRate = 0;
-	copyHostInteger((unsigned char*) &sampleRate, getVariableContent(cframe, 2), sizeof(size_t));
-	size_t channels = 0;
-	copyHostInteger((unsigned char*) &channels, getVariableContent(cframe, 3), sizeof(size_t));
+	unsigned char format = api -> getParamRaw(cframe, 1)[0];
+	size_t sampleRate = api -> getParamInt(cframe, 2);
+	size_t channels = api -> getParamInt(cframe, 3);
 	
 	ma_format formatCode = 0;
 	
@@ -572,15 +556,14 @@ INSTRUCTION_DEF op_device_init(VFrame *cframe)
 	
 	createEventThread(instance);
 	
-	instance -> audioObject = cframe -> io;
+	instance -> audioObject = api -> getInstanceObject(cframe);
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &instance, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &instance, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-static bool playTrack(VFrame *frame, DeviceInstance *device, TrackInstance *track, bool loop)
+static bool playTrack(FrameData *frame, DeviceInstance *device, TrackInstance *track, bool loop)
 	{
 	bool OK = true;
 	
@@ -649,37 +632,36 @@ static bool playTrack(VFrame *frame, DeviceInstance *device, TrackInstance *trac
 	return OK;
 	}
 
-INSTRUCTION_DEF op_device_play(VFrame *cframe)
+INSTRUCTION_DEF op_device_play(FrameData *cframe)
 	{
 	//add this source to the given device and play it (if it's not already playing!)
 	DeviceInstance *deviceInstance;
-	memcpy(&deviceInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&deviceInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	//param 1 is the object reference, which we need to refCount ++
-	LiveObject *obj = (LiveObject*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* obj = api -> getParamEl(cframe, 1);
 	
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 2), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 2), sizeof(size_t));
 	
 	trackInstance -> objectRef = obj;
-	trackInstance -> orType = ((ReFI*) obj) -> type;
 	
 	playTrack(cframe, deviceInstance, trackInstance, false);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_device_loop(VFrame *cframe)
+INSTRUCTION_DEF op_device_loop(FrameData *cframe)
 	{
 	//(as above, but add a loop flag)
 	DeviceInstance *deviceInstance;
-	memcpy(&deviceInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&deviceInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	//param 1 is the object reference, which we need to refCount ++
-	LiveObject *obj = (LiveObject*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* obj = api -> getParamEl(cframe, 1);
 	
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 2), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 2), sizeof(size_t));
 	
 	trackInstance -> objectRef = obj;
 	
@@ -688,13 +670,13 @@ INSTRUCTION_DEF op_device_loop(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_device_stop(VFrame *cframe)
+INSTRUCTION_DEF op_device_stop(FrameData *cframe)
 	{
 	DeviceInstance *deviceInstance;
-	memcpy(&deviceInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&deviceInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 1), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 1), sizeof(size_t));
 	
 	startCriticalSection(&deviceInstance -> dlock);
 	
@@ -727,10 +709,10 @@ INSTRUCTION_DEF op_device_stop(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_device_stop_all(VFrame *cframe)
+INSTRUCTION_DEF op_device_stop_all(FrameData *cframe)
 	{
 	DeviceInstance *deviceInstance;
-	memcpy(&deviceInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&deviceInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	TrackInstance *tracks = NULL;
 	
@@ -764,10 +746,10 @@ INSTRUCTION_DEF op_device_stop_all(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_device_destroy(VFrame *cframe)
+INSTRUCTION_DEF op_device_destroy(FrameData *cframe)
 	{
 	DeviceInstance *deviceInstance;
-	memcpy(&deviceInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&deviceInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	//run stopAll first
 	op_device_stop_all(cframe);
@@ -779,22 +761,20 @@ INSTRUCTION_DEF op_device_destroy(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_decoder_load(VFrame *cframe)
+INSTRUCTION_DEF op_decoder_load(FrameData *cframe)
 	{
 	//create a decoder instance, and prep it for playing the given in-memory audio data
 	
 	//variable 0 is the decode ID/type...
 	
-	unsigned char dtype = getVariableContent(cframe, 0)[0];
+	unsigned char dtype = api -> getParamRaw(cframe, 0)[0];
 	
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* array = api -> getParamEl(cframe, 1);
 	
 	//...decode format details
-	unsigned char format = getVariableContent(cframe, 2)[0];
-	size_t sampleRate = 0;
-	copyHostInteger((unsigned char*) &sampleRate, getVariableContent(cframe, 3), sizeof(size_t));
-	size_t channels = 0;
-	copyHostInteger((unsigned char*) &channels, getVariableContent(cframe, 4), sizeof(size_t));
+	unsigned char format = api -> getParamRaw(cframe, 2)[0];
+	size_t sampleRate = api -> getParamInt(cframe, 3);
+	size_t channels = api -> getParamInt(cframe, 4);
 	
 	ma_format formatCode = 0;
 	
@@ -825,15 +805,15 @@ INSTRUCTION_DEF op_decoder_load(VFrame *cframe)
 	instance -> decoderConfig = ma_decoder_config_init(formatCode, channels, sampleRate);
 	
 	if (dtype == 0)
-		result = ma_decoder_init_memory_raw(array -> data, array -> length, &instance -> decoderConfig, &instance -> decoderConfig, &instance -> decoder);
+		result = ma_decoder_init_memory_raw(api -> getArrayContent(array), api -> getArrayLength(array), &instance -> decoderConfig, &instance -> decoderConfig, &instance -> decoder);
 		else if (dtype == 1)
-		result = ma_decoder_init_memory_wav(array -> data, array -> length, &instance -> decoderConfig, &instance -> decoder);
+		result = ma_decoder_init_memory_wav(api -> getArrayContent(array), api -> getArrayLength(array), &instance -> decoderConfig, &instance -> decoder);
 		else if (dtype == 2)
-		result = ma_decoder_init_memory_mp3(array -> data, array -> length, &instance -> decoderConfig, &instance -> decoder);
+		result = ma_decoder_init_memory_mp3(api -> getArrayContent(array), api -> getArrayLength(array), &instance -> decoderConfig, &instance -> decoder);
 		else if (dtype == 3)
-		result = ma_decoder_init_memory_flac(array -> data, array -> length, &instance -> decoderConfig, &instance -> decoder);
+		result = ma_decoder_init_memory_flac(api -> getArrayContent(array), api -> getArrayLength(array), &instance -> decoderConfig, &instance -> decoder);
 		else if (dtype == 4)
-		result = ma_decoder_init_memory_vorbis(array -> data, array -> length, &instance -> decoderConfig, &instance -> decoder);
+		result = ma_decoder_init_memory_vorbis(api -> getArrayContent(array), api -> getArrayLength(array), &instance -> decoderConfig, &instance -> decoder);
 		else
 		{
 		api -> throwException(cframe, "unknown decoder type");
@@ -848,20 +828,19 @@ INSTRUCTION_DEF op_decoder_load(VFrame *cframe)
         return RETURN_OK;
 		}
 	
-	instance -> inputData = array -> data;
-	instance -> inputLength = array -> length;
+	instance -> inputData = api -> getArrayContent(array);
+	instance -> inputLength = api -> getArrayLength(array);
 	instance -> type = dtype;
 	
-	size_t *ret = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(ret, &instance, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &instance, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_decoder_get_length_frames(VFrame *cframe)
+INSTRUCTION_DEF op_decoder_get_length_frames(FrameData *cframe)
 	{
 	DecoderInstance *instance;
-	memcpy(&instance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	size_t totalLength = 0;
 	
@@ -898,15 +877,15 @@ INSTRUCTION_DEF op_decoder_get_length_frames(VFrame *cframe)
 		ma_free(pAudioData, NULL);
 		}
 	
-	return_int(cframe, totalLength);
+	api -> returnInt(cframe, totalLength);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_decoder_get_raw_data(VFrame *cframe)
+INSTRUCTION_DEF op_decoder_get_raw_data(FrameData *cframe)
 	{
 	DecoderInstance *decoderInstance;
-	memcpy(&decoderInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&decoderInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	ma_result result;
 	
@@ -937,21 +916,21 @@ INSTRUCTION_DEF op_decoder_get_raw_data(VFrame *cframe)
 	
 	size_t totalLen = multi * frameCount;
 	
-	LiveArray *array = make_byte_array(cframe, api, totalLen);
+	DanaEl* array = api -> makeArray(typeLink_char, totalLen);
 	
-	memcpy(array -> data, pAudioData, totalLen);
+	memcpy(api -> getArrayContent(array), pAudioData, totalLen);
 	
 	ma_free(pAudioData, NULL);
 	
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_decoder_destroy(VFrame *cframe)
+INSTRUCTION_DEF op_decoder_destroy(FrameData *cframe)
 	{
 	DecoderInstance *decoderInstance;
-	memcpy(&decoderInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&decoderInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	ma_decoder_uninit(&decoderInstance -> decoder);
 	
@@ -960,10 +939,10 @@ INSTRUCTION_DEF op_decoder_destroy(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_track_load(VFrame *cframe)
+INSTRUCTION_DEF op_track_load(FrameData *cframe)
 	{
 	DecoderInstance *decoderInstance;
-	memcpy(&decoderInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&decoderInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
     TrackInstance *instance = malloc(sizeof(TrackInstance));
 	memset(instance, '\0', sizeof(TrackInstance));
@@ -987,19 +966,17 @@ INSTRUCTION_DEF op_track_load(VFrame *cframe)
 		else if (instance -> source -> type == 4)
 		result = ma_decoder_init_memory_vorbis(instance -> source -> inputData, instance -> source -> inputLength, &instance -> source -> decoderConfig, &instance -> decoder);
 	
-	size_t *ret = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(ret, &instance, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &instance, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_track_set_volume(VFrame *cframe)
+INSTRUCTION_DEF op_track_set_volume(FrameData *cframe)
 	{
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	size_t xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 1), sizeof(size_t));
+	size_t xs = api -> getParamInt(cframe, 1);
 	
 	float newVol = ((float) xs) / 100.0f;
 	
@@ -1008,15 +985,14 @@ INSTRUCTION_DEF op_track_set_volume(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_track_seek(VFrame *cframe)
+INSTRUCTION_DEF op_track_seek(FrameData *cframe)
 	{
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	//here we just set a new seekpos, which is detected by the decode callback
 	
-	size_t frameIndex = 0;
-	copyHostInteger((unsigned char*) &frameIndex, getVariableContent(cframe, 1), sizeof(size_t));
+	size_t frameIndex = api -> getParamInt(cframe, 1);
 	
 	trackInstance -> cursor = frameIndex;
 	trackInstance -> newSeekPos = true;
@@ -1024,34 +1000,34 @@ INSTRUCTION_DEF op_track_seek(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_track_get_pos(VFrame *cframe)
+INSTRUCTION_DEF op_track_get_pos(FrameData *cframe)
 	{
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	size_t pos = trackInstance -> cursor;
 	
-	return_int(cframe, pos);
+	api -> returnInt(cframe, pos);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_track_set_finish_event(VFrame *cframe)
+INSTRUCTION_DEF op_track_set_finish_event(FrameData *cframe)
 	{
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	bool on = getVariableContent(cframe, 1)[0];
+	bool on = api -> getParamRaw(cframe, 1)[0];
 	
 	trackInstance -> sendStopEvent = on;
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_track_destroy(VFrame *cframe)
+INSTRUCTION_DEF op_track_destroy(FrameData *cframe)
 	{
 	TrackInstance *trackInstance;
-	memcpy(&trackInstance, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&trackInstance, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	ma_decoder_uninit(&trackInstance -> decoder);
 	
@@ -1076,6 +1052,7 @@ Interface* load(CoreAPI *capi)
 	#endif
 	
 	trackInfoGT = api -> resolveGlobalTypeMapping(getTypeDefinition("TrackInfo"));
+	typeLink_char = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	
 	setInterfaceFunction("deviceInit", op_device_init);
 	setInterfaceFunction("devicePlay", op_device_play);

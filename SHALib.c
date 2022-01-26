@@ -49,27 +49,7 @@ static CoreAPI *api;
 
 static GlobalTypeLink *charArrayGT = NULL;
 
-static void returnByteArray(VFrame *f, unsigned char *data, size_t len)
-	{
-	LiveArray *array = malloc(sizeof(LiveArray)+len);
-	memset(array, '\0', sizeof(LiveArray));
-	
-	array -> data = ((unsigned char*) array) + sizeof(LiveArray);
-	memcpy(array -> data, data, len);
-	array -> length = len;
-	
-	array -> gtLink = charArrayGT;
-	api -> incrementGTRefCount(array -> gtLink);
-	array -> refi.ocm = f -> blocking -> instance;
-	
-	array -> refi.refCount ++;
-	array -> refi.type = array -> gtLink -> typeLink;
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) &f -> localsData[((DanaType*) f -> localsDef) -> fields[0].offset];
-	ptrh -> content = (unsigned char*) array;
-	}
-
-INSTRUCTION_DEF op_hash_data_sha1(VFrame *cframe)
+INSTRUCTION_DEF op_hash_data_sha1(FrameData* cframe)
 	{
 	// https://www.openssl.org/docs/man1.0.2/man3/EVP_DigestInit.html
 	// - https://www.openssl.org/docs/man1.1.0/man3/EVP_get_digestbyname.html
@@ -77,7 +57,7 @@ INSTRUCTION_DEF op_hash_data_sha1(VFrame *cframe)
 	EVP_MD_CTX *mdctx = NULL;
 	const EVP_MD *md = NULL;
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 0);
 	
 	unsigned char md_value[EVP_MAX_MD_SIZE];
 	unsigned int md_len;
@@ -86,7 +66,7 @@ INSTRUCTION_DEF op_hash_data_sha1(VFrame *cframe)
 	
 	mdctx = EVP_MD_CTX_create();
 	EVP_DigestInit_ex(mdctx, md, NULL);
-	EVP_DigestUpdate(mdctx, input -> data, input -> length);
+	EVP_DigestUpdate(mdctx, api -> getArrayContent(input), api -> getArrayLength(input));
 	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
 	EVP_MD_CTX_destroy(mdctx);
 	
@@ -98,15 +78,15 @@ INSTRUCTION_DEF op_hash_data_sha1(VFrame *cframe)
 	printf("\n");
 	*/
 	
-	unsigned char *hashed = malloc(md_len);
-	memcpy(hashed, md_value, md_len);
+	DanaEl* array = api -> makeArray(charArrayGT, md_len);
+	memcpy(api -> getArrayContent(array), md_value, md_len);
 	
-	returnByteArray(cframe, hashed, md_len);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_hash_data_sha2(VFrame *cframe)
+INSTRUCTION_DEF op_hash_data_sha2(FrameData *cframe)
 	{
 	// https://www.openssl.org/docs/man1.0.2/man3/EVP_DigestInit.html
 	// - https://www.openssl.org/docs/man1.1.0/man3/EVP_get_digestbyname.html
@@ -114,8 +94,8 @@ INSTRUCTION_DEF op_hash_data_sha2(VFrame *cframe)
 	EVP_MD_CTX *mdctx = NULL;
 	const EVP_MD *md = NULL;
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
-	unsigned char type = getVariableContent(cframe, 1)[0];
+	DanaEl* input = api -> getParamEl(cframe, 0);
+	unsigned char type = api -> getParamRaw(cframe, 1)[0];
 	
 	unsigned char md_value[EVP_MAX_MD_SIZE];
 	unsigned int md_len;
@@ -136,7 +116,7 @@ INSTRUCTION_DEF op_hash_data_sha2(VFrame *cframe)
 	
 	mdctx = EVP_MD_CTX_create();
 	EVP_DigestInit_ex(mdctx, md, NULL);
-	EVP_DigestUpdate(mdctx, input -> data, input -> length);
+	EVP_DigestUpdate(mdctx, api -> getArrayContent(input), api -> getArrayLength(input));
 	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
 	EVP_MD_CTX_destroy(mdctx);
 	
@@ -148,15 +128,15 @@ INSTRUCTION_DEF op_hash_data_sha2(VFrame *cframe)
 	printf("\n");
 	*/
 	
-	unsigned char *hashed = malloc(md_len);
-	memcpy(hashed, md_value, md_len);
+	DanaEl* array = api -> makeArray(charArrayGT, md_len);
+	memcpy(api -> getArrayContent(array), md_value, md_len);
 	
-	returnByteArray(cframe, hashed, md_len);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_hash_data_sha3(VFrame *cframe)
+INSTRUCTION_DEF op_hash_data_sha3(FrameData *cframe)
 	{
 	// https://www.openssl.org/docs/man1.0.2/man3/EVP_DigestInit.html
 	// - https://www.openssl.org/docs/man1.1.0/man3/EVP_get_digestbyname.html
@@ -164,8 +144,8 @@ INSTRUCTION_DEF op_hash_data_sha3(VFrame *cframe)
 	EVP_MD_CTX *mdctx = NULL;
 	const EVP_MD *md = NULL;
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
-	unsigned char type = getVariableContent(cframe, 1)[0];
+	DanaEl* input = api -> getParamEl(cframe, 0);
+	unsigned char type = api -> getParamRaw(cframe, 1)[0];
 	
 	unsigned char md_value[EVP_MAX_MD_SIZE];
 	unsigned int md_len;
@@ -186,7 +166,7 @@ INSTRUCTION_DEF op_hash_data_sha3(VFrame *cframe)
 	
 	mdctx = EVP_MD_CTX_create();
 	EVP_DigestInit_ex(mdctx, md, NULL);
-	EVP_DigestUpdate(mdctx, input -> data, input -> length);
+	EVP_DigestUpdate(mdctx, api -> getArrayContent(input), api -> getArrayLength(input));
 	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
 	EVP_MD_CTX_destroy(mdctx);
 	
@@ -198,10 +178,10 @@ INSTRUCTION_DEF op_hash_data_sha3(VFrame *cframe)
 	printf("\n");
 	*/
 	
-	unsigned char *hashed = malloc(md_len);
-	memcpy(hashed, md_value, md_len);
+	DanaEl* array = api -> makeArray(charArrayGT, md_len);
+	memcpy(api -> getArrayContent(array), md_value, md_len);
 	
-	returnByteArray(cframe, hashed, md_len);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}

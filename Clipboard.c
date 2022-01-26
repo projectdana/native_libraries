@@ -42,6 +42,8 @@
 
 static CoreAPI *api;
 
+static GlobalTypeLink *charArrayGT = NULL;
+
 #ifdef LINUX
 #ifndef OSX
 
@@ -185,9 +187,9 @@ static void* clip_thread(void *ptr)
 #endif
 #endif
 
-INSTRUCTION_DEF op_set_content(VFrame *cframe)
+INSTRUCTION_DEF op_set_content(FrameData* cframe)
 	{
-	char *vn = getParam_char_array(cframe, 0);
+	char *vn = x_getParam_char_array(api, cframe, 0);
 
 	#ifdef WINDOWS
 	if (OpenClipboard(NULL))
@@ -269,7 +271,7 @@ INSTRUCTION_DEF op_set_content(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_content(VFrame *cframe)
+INSTRUCTION_DEF op_get_content(FrameData* cframe)
 	{
 	#ifdef WINDOWS
 	if (IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(NULL))
@@ -284,12 +286,13 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 				int srclen = wcslen(buffer);
 				int reqLen = WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, NULL, 0, NULL, NULL);
 				
-				LiveArray *array = make_byte_array(cframe, api, reqLen+1);
+				DanaEl* array = api -> makeArray(charArrayGT, reqLen+1);
+				unsigned char* content = api -> getArrayContent(array);
 				
-				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, (char*) array -> data, reqLen+1, NULL, NULL);
+				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, (char*) content, reqLen+1, NULL, NULL);
 				
-				array -> length = reqLen;
-				return_array(cframe, array);
+				api -> setArrayLength(array, reqLen);
+				api -> returnEl(cframe, array);
 
 				GlobalUnlock(hMem);
 				}
@@ -304,8 +307,13 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 			LPTSTR lptstr = GlobalLock(hglb);
 			if (lptstr != NULL)
 				{
-				return_char_array(cframe, api, lptstr);
-
+				DanaEl* array = api -> makeArray(charArrayGT, strlen(lptstr));
+				unsigned char* content = api -> getArrayContent(array);
+				
+				memcpy(content, lptstr, strlen(lptstr));
+				
+				api -> returnEl(cframe, array);
+				
 				GlobalUnlock(hglb);
 				}
 			}
@@ -344,7 +352,11 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 
 	if (!pendingGet && resultGet != NULL)
 		{
-		return_char_array(cframe, api, resultGet);
+		DanaEl* array = api -> makeArray(charArrayGT, strlen(resultGet));
+		unsigned char* content = api -> getArrayContent(array);
+		memcpy(content, resultGet, strlen(resultGet));
+		api -> returnEl(cframe, array);
+		
 		XFree(resultGet);
 		}
 	
@@ -376,12 +388,16 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 
 		PasteboardGetItemIdentifier(clipboard, itemIndex, &itemID);
 
-		CFDataRef   flavorData;
+		CFDataRef flavorData;
 
 		if (PasteboardCopyItemFlavorData(clipboard, itemID, kUTTypeUTF8PlainText, &flavorData) >= 0)
 			{
 			const char *pszString = (const char *)CFDataGetBytePtr(flavorData);
-			return_char_array(cframe, api, pszString);
+			
+			DanaEl* array = api -> makeArray(charArrayGT, strlen(pszString));
+			unsigned char* content = api -> getArrayContent(array);
+			memcpy(content, pszString, strlen(pszString));
+			api -> returnEl(cframe, array);
 			}
 
 		CFRelease(clipboard);
@@ -394,7 +410,9 @@ INSTRUCTION_DEF op_get_content(VFrame *cframe)
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
-
+	
+	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
+	
 	setInterfaceFunction("setContent", op_set_content);
 	setInterfaceFunction("getContent", op_get_content);
 

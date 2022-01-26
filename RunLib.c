@@ -23,19 +23,11 @@
 
 static CoreAPI *api;
 
-INSTRUCTION_DEF op_execute(VFrame *cframe)
+INSTRUCTION_DEF op_execute(FrameData* cframe)
 	{
-	LiveArray *array = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	char *vn = x_getParam_char_array(api, cframe, 0);
 	
-	char *vn = NULL;
-	
-	if (array != NULL)
-		{
-		vn = malloc(array -> length + 1);
-		memset(vn, '\0', array -> length + 1);
-		memcpy(vn, array -> data, array -> length);
-		}
-		else
+	if (vn == NULL)
 		{
 		vn = strdup("");
 		}
@@ -53,18 +45,17 @@ INSTRUCTION_DEF op_execute(VFrame *cframe)
 			}
 		#endif
 		
-		size_t *resultValue = (size_t*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
+		DanaEl* dcon = api -> getParamEl(cframe, 1);
 		
 		size_t res = k;
 		
-		copyHostInteger((unsigned char*) resultValue, (unsigned char*) &res, sizeof(size_t));
+		api -> setDataFieldInt(dcon, 0, res);
 		
 	    ok = 1;
     	}
     
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	copyHostInteger((unsigned char*) result, (unsigned char*) &ok, sizeof(ok));
-	
+    api -> returnRaw(cframe, (unsigned char*) &ok, 1);
+    
 	free(vn);
 	
 	return RETURN_OK;

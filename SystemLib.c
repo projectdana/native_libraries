@@ -11,7 +11,12 @@
 #ifdef LINUX
 #include <sys/utsname.h>
 #include <unistd.h>
+#ifndef OSX
 #include <sys/sysinfo.h>
+#endif
+#ifdef OSX
+#include <sys/sysctl.h>
+#endif
 #include <errno.h>
 #endif
 
@@ -25,16 +30,18 @@
 
 static CoreAPI *api;
 
+static GlobalTypeLink *charArrayGT = NULL;
+
 #define MAX_VAR_NAME 2048
 
-INSTRUCTION_DEF op_get_platform_name(VFrame *cframe)
+INSTRUCTION_DEF op_get_platform_name(FrameData* cframe)
 	{
 	char *name = "Unknown";
-	
+
 	#ifdef WINDOWS
 	name = "Windows";
 	#endif
-	
+
 	#ifdef LINUX
 	struct utsname nm;
 	if (uname(&nm) == 0)
@@ -43,47 +50,49 @@ INSTRUCTION_DEF op_get_platform_name(VFrame *cframe)
 		}
 	#endif
 	
-	return_char_array(cframe, api, name);
-	
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(name));
+	memcpy(api -> getArrayContent(array), name, strlen(name));
+	api -> returnEl(cframe, array);
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_platform_version(VFrame *cframe)
+INSTRUCTION_DEF op_get_platform_version(FrameData* cframe)
 	{
 	char sres[MAX_VAR_NAME];
 	memset(sres, '\0', sizeof(sres));
-	
+
 	#ifdef WINDOWS
 	char ires[MAX_VAR_NAME];
 	memset(ires, '\0', sizeof(ires));
-	
+
 	OSVERSIONINFO osvi;
 	osvi.dwOSVersionInfoSize = sizeof(osvi);
-	
+
 	GetVersionEx(&osvi);
-	
+
 	size_t majorVer = osvi.dwMajorVersion;
 	size_t minorVer = osvi.dwMinorVersion;
 	size_t buildNum = osvi.dwBuildNumber;
-	
+
 	itoa(majorVer, ires, 10);
 	strcat(sres, ires);
-	
+
 	memset(ires, '\0', sizeof(ires));
 	strcat(sres, ".");
-	
+
 	itoa(minorVer, ires, 10);
 	strcat(sres, ires);
-	
+
 	memset(ires, '\0', sizeof(ires));
 	strcat(sres, " [");
-	
+
 	itoa(buildNum, ires, 10);
 	strcat(sres, ires);
-	
+
 	strcat(sres, "]");
 	#endif
-	
+
 	#ifdef LINUX
 	struct utsname name;
 	if (uname(&name) == 0)
@@ -92,63 +101,71 @@ INSTRUCTION_DEF op_get_platform_version(VFrame *cframe)
 		}
 	#endif
 	
-	return_char_array(cframe, api, sres);
-	
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(sres));
+	memcpy(api -> getArrayContent(array), sres, strlen(sres));
+	api -> returnEl(cframe, array);
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_chip_name(VFrame *cframe)
+INSTRUCTION_DEF op_get_chip_name(FrameData* cframe)
 	{
-	return_char_array(cframe, api, CHIP_NAME);
-	
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(CHIP_NAME));
+	memcpy(api -> getArrayContent(array), CHIP_NAME, strlen(CHIP_NAME));
+	api -> returnEl(cframe, array);
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_host_name(VFrame *cframe)
+INSTRUCTION_DEF op_get_host_name(FrameData* cframe)
 	{
 	char sres[MAX_VAR_NAME];
 	memset(sres, 0, sizeof(sres));
-	
+
 	#ifdef WINDOWS
 	DWORD len = MAX_VAR_NAME;
 	GetComputerNameEx(ComputerNameDnsFullyQualified, sres, &len);
 	#endif
-	
+
 	#ifdef LINUX
 	gethostname(sres, MAX_VAR_NAME);
 	#endif
-	
-	return_char_array(cframe, api, sres);
-	
+
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(sres));
+	memcpy(api -> getArrayContent(array), sres, strlen(sres));
+	api -> returnEl(cframe, array);
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_variable(VFrame *cframe)
+INSTRUCTION_DEF op_get_variable(FrameData* cframe)
 	{
-	char *vn = getParam_char_array(cframe, 0);
-	
+	char *vn = x_getParam_char_array(api, cframe, 0);
+
 	char *val = getenv(vn);
-	
+
 	if (val != NULL)
 		{
-		return_char_array(cframe, api, val);
+		DanaEl* array = api -> makeArray(charArrayGT, strlen(val));
+		memcpy(api -> getArrayContent(array), val, strlen(val));
+		api -> returnEl(cframe, array);
     	}
-    
+
 	free(vn);
-	
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_system_font(VFrame *cframe)
+INSTRUCTION_DEF op_get_system_font(FrameData* cframe)
 	{
-	unsigned char monospaced = getVariableContent(cframe, 0)[0];
-	
+	unsigned char monospaced = api -> getParamRaw(cframe, 0)[0];
+
 	char *home = api -> getDanaHome();
-	
+
 	if (home != NULL)
 		{
 		char *fontPath = NULL;
-		
+
 		if (monospaced)
 			{
 			fontPath = malloc(strlen(home) + strlen("/resources-ext/fonts/LiberationMono.ttf") + 1);
@@ -163,51 +180,53 @@ INSTRUCTION_DEF op_get_system_font(VFrame *cframe)
 			strcpy(fontPath, home);
 			strcat(fontPath, "/resources-ext/fonts/SourceSansPro.ttf");
 			}
-		
+
 		struct stat st;
 		if (stat(fontPath, &st) == 0)
 			{
-			return_char_array(cframe, api, fontPath);
+			DanaEl* array = api -> makeArray(charArrayGT, strlen(fontPath));
+			memcpy(api -> getArrayContent(array), fontPath, strlen(fontPath));
+			api -> returnEl(cframe, array);
 			}
-		
+
 		free(fontPath);
 		}
-	
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_core_count(VFrame *cframe)
+INSTRUCTION_DEF op_get_core_count(FrameData* cframe)
 	{
 	size_t res = 0;
-	
+
 	#ifdef WINDOWS
 	SYSTEM_INFO sInfo;
 	GetSystemInfo(&sInfo);
-	
+
 	res = sInfo.dwNumberOfProcessors;
 	#endif
-	
+
 	#ifdef LINUX
 	int q = sysconf(_SC_NPROCESSORS_ONLN);
-	
+
 	if (q == -1)
 		{
 		api -> throwException(cframe, strerror(errno));
 		return RETURN_OK;
 		}
-	
+
 	res = q;
 	#endif
 	
-	return_int(cframe, res);
-	
+	api -> returnInt(cframe, res);
+
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_get_memory_size(VFrame *cframe)
+INSTRUCTION_DEF op_get_memory_size(FrameData* cframe)
 	{
 	size_t res = 0;
-	
+
 	#ifdef WINDOWS
 	unsigned long long q;
 	if (!GetPhysicallyInstalledSystemMemory(&q))
@@ -216,24 +235,36 @@ INSTRUCTION_DEF op_get_memory_size(VFrame *cframe)
 		api -> throwException(cframe, "operation failed");
 		return RETURN_OK;
 		}
-	
+
 	res = q / 1024;
 	#endif
-	
+
 	#ifdef LINUX
+	#ifndef OSX
 	struct sysinfo sInfo;
-	
+
 	if (sysinfo(&sInfo) == -1)
 		{
 		api -> throwException(cframe, strerror(errno));
 		return RETURN_OK;
 		}
-	
+
 	res = (sInfo.totalram / 1024) / 1024;
 	#endif
-	
-	return_int(cframe, res);
-	
+	#ifdef OSX
+	int mib[] = {CTL_HW, HW_MEMSIZE};
+	int64_t value = 0;
+	size_t len = sizeof(value);
+	if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
+		{
+		}
+
+	res = (value / 1024) / 1024;
+	#endif
+	#endif
+
+	api -> returnInt(cframe, res);
+
 	return RETURN_OK;
 	}
 
@@ -241,19 +272,22 @@ Interface* load(CoreAPI *capi)
 	{
 	api = capi;
 	
+	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
+
 	setInterfaceFunction("getPlatformName", op_get_platform_name);
 	setInterfaceFunction("getPlatformVersion", op_get_platform_version);
 	setInterfaceFunction("getChipName", op_get_chip_name);
 	setInterfaceFunction("getHostName", op_get_host_name);
 	setInterfaceFunction("getVar", op_get_variable);
 	setInterfaceFunction("getSystemFont", op_get_system_font);
-	
+
 	setInterfaceFunction("getCoreCount", op_get_core_count);
 	setInterfaceFunction("getMemorySize", op_get_memory_size);
-	
+
 	return getPublicInterface();
 	}
 
 void unload()
 	{
+	api -> decrementGTRefCount(charArrayGT);
 	}

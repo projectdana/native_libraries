@@ -70,7 +70,7 @@ AES-CBC functions
 *************************************************
 ************************************************/
 
-INSTRUCTION_DEF op_aes_cbc_encryptInit(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_encryptInit(FrameData* cframe)
 	{
 	// https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
 	
@@ -85,12 +85,11 @@ INSTRUCTION_DEF op_aes_cbc_encryptInit(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	size_t xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t xs = api -> getParamInt(cframe, 0);
 	
-	unsigned char *key = (unsigned char*) getParam_char_array(cframe, 1);
+	unsigned char *key = (unsigned char*) x_getParam_char_array(api, cframe, 1);
 	
-	unsigned char *iv = (unsigned char*) getParam_char_array(cframe, 2);
+	unsigned char *iv = (unsigned char*) x_getParam_char_array(api, cframe, 2);
 	
 	if (xs == 128)
 		{
@@ -143,20 +142,20 @@ INSTRUCTION_DEF op_aes_cbc_encryptInit(VFrame *cframe)
 	
 	cst -> ok = true;
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &cst, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &cst, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_encryptPart(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_encryptPart(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
 	
 	if (array == NULL)
 		{
@@ -171,23 +170,23 @@ INSTRUCTION_DEF op_aes_cbc_encryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if (1 != EVP_EncryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
+    if (1 != EVP_EncryptUpdate(cst -> ctx, api -> getArrayContent(array), &len, api -> getArrayContent(input), alen))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	array -> length = len;
-	return_array(cframe, array);
+	api -> setArrayLength(array, len);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_encryptFinish(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_encryptFinish(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	unsigned char ciphertext[128];
 	int len = 0;
@@ -203,26 +202,26 @@ INSTRUCTION_DEF op_aes_cbc_encryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
+	DanaEl *array = api -> makeArray(charArrayGT, len);
+	memcpy(api -> getArrayContent(array), ciphertext, len);
 	
-	memcpy(array -> data, ciphertext, len);
-	
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_encryptOK(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_encryptOK(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	return_bool(cframe, cst -> ok);
+	unsigned char ok = cst -> ok;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_decryptInit(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_decryptInit(FrameData* cframe)
 	{
 	// https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
 	
@@ -237,12 +236,11 @@ INSTRUCTION_DEF op_aes_cbc_decryptInit(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	size_t xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t xs = api -> getParamInt(cframe, 0);
 	
-	unsigned char *key = (unsigned char*) getParam_char_array(cframe, 1);
+	unsigned char *key = (unsigned char*) x_getParam_char_array(api, cframe, 1);
 	
-	unsigned char *iv = (unsigned char*) getParam_char_array(cframe, 2);
+	unsigned char *iv = (unsigned char*) x_getParam_char_array(api, cframe, 2);
 	
 	if (xs == 128)
 		{
@@ -295,20 +293,20 @@ INSTRUCTION_DEF op_aes_cbc_decryptInit(VFrame *cframe)
 	
 	cst -> ok = true;
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &cst, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &cst, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_decryptPart(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_decryptPart(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
 	
 	if (array == NULL)
 		{
@@ -323,23 +321,24 @@ INSTRUCTION_DEF op_aes_cbc_decryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_DecryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
+    if(1 != EVP_DecryptUpdate(cst -> ctx, api -> getArrayContent(array), &len, api -> getArrayContent(input), alen))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	array -> length = len;
-	return_array(cframe, array);
+	api -> setArrayLength(array, len);
+	
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_decryptFinish(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_decryptFinish(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	unsigned char output_text[128];
 	int len = 0;
@@ -355,21 +354,21 @@ INSTRUCTION_DEF op_aes_cbc_decryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
+	DanaEl *array = api -> makeArray(charArrayGT, len);
+	memcpy(api -> getArrayContent(array), output_text, len);
 	
-	memcpy(array -> data, output_text, len);
-	
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_cbc_decryptOK(VFrame *cframe)
+INSTRUCTION_DEF op_aes_cbc_decryptOK(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	return_bool(cframe, cst -> ok);
+	unsigned char ok = cst -> ok;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
@@ -382,7 +381,7 @@ AES-GCM functions
 *************************************************
 ************************************************/
 
-INSTRUCTION_DEF op_aes_gcm_encryptInit(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_encryptInit(FrameData* cframe)
 	{
 	// https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
 	
@@ -397,12 +396,11 @@ INSTRUCTION_DEF op_aes_gcm_encryptInit(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	size_t xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t xs = api -> getParamInt(cframe, 0);
 	
-	unsigned char *key = (unsigned char*) getParam_char_array(cframe, 1);
+	unsigned char *key = (unsigned char*) x_getParam_char_array(api, cframe, 1);
 	
-	unsigned char *iv = (unsigned char*) getParam_char_array(cframe, 2);
+	unsigned char *iv = (unsigned char*) x_getParam_char_array(api, cframe, 2);
 	
 	if (xs == 128)
 		{
@@ -479,18 +477,18 @@ INSTRUCTION_DEF op_aes_gcm_encryptInit(VFrame *cframe)
 	
 	cst -> ok = true;
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &cst, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &cst, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_encryptAAD(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_encryptAAD(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
 	int len = 0;
 	
@@ -498,7 +496,7 @@ INSTRUCTION_DEF op_aes_gcm_encryptAAD(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_EncryptUpdate(cst -> ctx, NULL, &len, input -> data, input -> length))
+    if(1 != EVP_EncryptUpdate(cst -> ctx, NULL, &len, api -> getArrayContent(input), alen))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
@@ -508,14 +506,15 @@ INSTRUCTION_DEF op_aes_gcm_encryptAAD(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_encryptPart(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_encryptPart(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
 	
 	if (array == NULL)
 		{
@@ -530,23 +529,23 @@ INSTRUCTION_DEF op_aes_gcm_encryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_EncryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_EncryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
+    if(1 != EVP_EncryptUpdate(cst -> ctx, api -> getArrayContent(array), &len, api -> getArrayContent(input), alen))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	array -> length = len;
-	return_array(cframe, array);
+	api -> setArrayLength(array, len);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_encryptFinish(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_encryptFinish(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	unsigned char ciphertext[128];
 	int len = 0;
@@ -558,19 +557,18 @@ INSTRUCTION_DEF op_aes_gcm_encryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
+	DanaEl *array = api -> makeArray(charArrayGT, len);
+	memcpy(api -> getArrayContent(array), ciphertext, len);
 	
-	memcpy(array -> data, ciphertext, len);
-	
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_encryptGetTag(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_encryptGetTag(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	unsigned char tag[16]; //16 bytes is the largest possible tag at the time of writing, and is the default
 	int len = 16;
@@ -583,26 +581,26 @@ INSTRUCTION_DEF op_aes_gcm_encryptGetTag(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
+	DanaEl *array = api -> makeArray(charArrayGT, len);
+	memcpy(api -> getArrayContent(array), tag, len);
 	
-	memcpy(array -> data, tag, len);
-	
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_encryptOK(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_encryptOK(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	return_bool(cframe, cst -> ok);
+	unsigned char ok = cst -> ok;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_decryptInit(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_decryptInit(FrameData *cframe)
 	{
 	// https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
 	
@@ -617,12 +615,11 @@ INSTRUCTION_DEF op_aes_gcm_decryptInit(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	size_t xs = 0;
-	copyHostInteger((unsigned char*) &xs, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t xs = api -> getParamInt(cframe, 0);
 	
-	unsigned char *key = (unsigned char*) getParam_char_array(cframe, 1);
+	unsigned char *key = (unsigned char*) x_getParam_char_array(api, cframe, 1);
 	
-	unsigned char *iv = (unsigned char*) getParam_char_array(cframe, 2);
+	unsigned char *iv = (unsigned char*) x_getParam_char_array(api, cframe, 2);
 	
 	if (xs == 128)
 		{
@@ -699,22 +696,22 @@ INSTRUCTION_DEF op_aes_gcm_decryptInit(VFrame *cframe)
 	
 	cst -> ok = true;
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &cst, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &cst, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_decryptAAD(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_decryptAAD(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
 	int len = 0;
 	
-    if(1 != EVP_DecryptUpdate(cst -> ctx, NULL, &len, input -> data, input -> length))
+    if(1 != EVP_DecryptUpdate(cst -> ctx, NULL, &len, api -> getArrayContent(input), alen))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
@@ -724,14 +721,15 @@ INSTRUCTION_DEF op_aes_gcm_decryptAAD(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_decryptPart(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_decryptPart(FrameData *cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
 	
 	if (array == NULL)
 		{
@@ -746,23 +744,23 @@ INSTRUCTION_DEF op_aes_gcm_decryptPart(VFrame *cframe)
      * Provide the message to be encrypted, and obtain the encrypted output.
      * EVP_DecryptUpdate can be called multiple times if necessary
      */
-    if(1 != EVP_DecryptUpdate(cst -> ctx, array -> data, &len, input -> data, input -> length))
+    if(1 != EVP_DecryptUpdate(cst -> ctx, api -> getArrayContent(array), &len, api -> getArrayContent(input), alen))
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		cst -> ok = false;
 		return RETURN_OK;
 		}
 	
-	array -> length = len;
-	return_array(cframe, array);
+	api -> setArrayLength(array, len);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_decryptFinish(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_decryptFinish(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	unsigned char output_text[128];
 	int len = 0;
@@ -776,23 +774,22 @@ INSTRUCTION_DEF op_aes_gcm_decryptFinish(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, len);
+	DanaEl *array = api -> makeArray(charArrayGT, len);
+	memcpy(api -> getArrayContent(array), output_text, len);
 	
-	memcpy(array -> data, output_text, len);
-	
-	return_array(cframe, array);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_decryptSetTag(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_decryptSetTag(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
 	
-	unsigned char *tag = input -> data;
+	unsigned char *tag = api -> getArrayContent(input);
 	
 	/* Set the tag */
     if (!EVP_CIPHER_CTX_ctrl(cst -> ctx, EVP_CTRL_GCM_SET_TAG, 16, tag))
@@ -805,20 +802,21 @@ INSTRUCTION_DEF op_aes_gcm_decryptSetTag(VFrame *cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_aes_gcm_decryptOK(VFrame *cframe)
+INSTRUCTION_DEF op_aes_gcm_decryptOK(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	return_bool(cframe, cst -> ok);
+	unsigned char ok = cst -> ok;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_instance_cleanup(VFrame *cframe)
+INSTRUCTION_DEF op_instance_cleanup(FrameData* cframe)
 	{
 	CipherState *cst;
-	memcpy(&cst, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&cst, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	EVP_CIPHER_CTX_free(cst -> ctx);
 	free(cst -> key);
@@ -833,18 +831,18 @@ INSTRUCTION_DEF op_instance_cleanup(VFrame *cframe)
 // -- https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_sign.html
 // -- https://www.openssl.org/docs/manmaster/man3/EVP_PKEY_verify.html
 
-INSTRUCTION_DEF op_rsa_oaep_init(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_oaep_init(FrameData *cframe)
 	{
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 0);
 	
-	unsigned char mode = getVariableContent(cframe, 1)[0];
+	unsigned char mode = api -> getParamRaw(cframe, 1)[0];
 	
 	EVP_PKEY_CTX *ctx;
 	EVP_PKEY *key = EVP_PKEY_new();
 	
 	//load the key
 	BIO *biomem = BIO_new(BIO_s_mem());
-	BIO_write(biomem, input -> data, input -> length);
+	BIO_write(biomem, api -> getArrayContent(input), api -> getArrayLength(input));
 	if (mode == 1)
 		PEM_read_bio_PUBKEY(biomem, &key, 0, 0);
 		else if (mode == 2)
@@ -883,29 +881,28 @@ INSTRUCTION_DEF op_rsa_oaep_init(VFrame *cframe)
 	
 	EVP_PKEY_free(key);
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ctx, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &ctx, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_oaep_encrypt(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_oaep_encrypt(FrameData *cframe)
 	{
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-	
 	EVP_PKEY_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	DanaEl* input = api -> getParamEl(cframe, 1);
 	
 	size_t outlen = 0;
 	
 	/* Determine buffer length */
-	if (EVP_PKEY_encrypt(ctx, NULL, &outlen, input -> data, input -> length) <= 0)
+	if (EVP_PKEY_encrypt(ctx, NULL, &outlen, api -> getArrayContent(input), api -> getArrayLength(input)) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, outlen);
+	DanaEl* array = api -> makeArray(charArrayGT, outlen);
 	
 	if (array == NULL)
 		{
@@ -913,36 +910,37 @@ INSTRUCTION_DEF op_rsa_oaep_encrypt(VFrame *cframe)
 		return RETURN_OK;
 		}
 
-	if (EVP_PKEY_encrypt(ctx, array -> data, &outlen, input -> data, input -> length) <= 0)
+	if (EVP_PKEY_encrypt(ctx, api -> getArrayContent(array), &outlen, api -> getArrayContent(input), api -> getArrayLength(input)) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		free_array(api, array);
+		api -> destroyArray(array);
 		return RETURN_OK;
 		}
 	
-	array -> length = outlen;
-	return_array(cframe, array);
+	api -> setArrayLength(array, outlen);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_oaep_decrypt(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_oaep_decrypt(FrameData *cframe)
 	{
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-	
 	EVP_PKEY_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
 	size_t outlen = 0;
 	
 	/* Determine buffer length */
-	if (EVP_PKEY_decrypt(ctx, NULL, &outlen, input -> data, input -> length) <= 0)
+	if (EVP_PKEY_decrypt(ctx, NULL, &outlen, api -> getArrayContent(input), alen) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, input -> length + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
 	
 	if (array == NULL)
 		{
@@ -950,41 +948,41 @@ INSTRUCTION_DEF op_rsa_oaep_decrypt(VFrame *cframe)
 		return RETURN_OK;
 		}
 
-	if (EVP_PKEY_decrypt(ctx, array -> data, &outlen, input -> data, input -> length) <= 0)
+	if (EVP_PKEY_decrypt(ctx, api -> getArrayContent(array), &outlen, api -> getArrayContent(input), alen) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		free_array(api, array);
+		api -> destroyArray(array);
 		return RETURN_OK;
 		}
 	
-	array -> length = outlen;
-	return_array(cframe, array);
+	api -> setArrayLength(array, outlen);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_oaep_cleanup(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_oaep_cleanup(FrameData *cframe)
 	{
 	EVP_PKEY_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	EVP_PKEY_CTX_free(ctx);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_pss_init(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_pss_init(FrameData *cframe)
 	{
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 0);
 	
-	unsigned char mode = getVariableContent(cframe, 1)[0];
+	unsigned char mode = api -> getParamRaw(cframe, 1)[0];
 	
 	EVP_PKEY_CTX *ctx;
 	EVP_PKEY *key = EVP_PKEY_new();
 	
 	//load the key
 	BIO *biomem = BIO_new(BIO_s_mem());
-	BIO_write(biomem, input -> data, input -> length);
+	BIO_write(biomem, api -> getArrayContent(input), api -> getArrayLength(input));
 	if (mode == 1)
 		PEM_read_bio_PUBKEY(biomem, &key, 0, 0);
 		else if (mode == 2)
@@ -1029,18 +1027,18 @@ INSTRUCTION_DEF op_rsa_pss_init(VFrame *cframe)
 	
 	EVP_PKEY_free(key);
 	
-	size_t *result = (size_t*) &cframe -> localsData[((DanaType*) cframe -> localsDef) -> fields[0].offset];
-	memcpy(result, &ctx, sizeof(size_t));
+	api -> returnRaw(cframe, (unsigned char*) &ctx, sizeof(size_t));
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_pss_sign(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_pss_sign(FrameData *cframe)
 	{
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-	
 	EVP_PKEY_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	size_t alen = api -> getArrayLength(input);
 	
 	// -- hash the msg first --
 	EVP_MD_CTX *mdctx = NULL;
@@ -1067,7 +1065,7 @@ INSTRUCTION_DEF op_rsa_pss_sign(VFrame *cframe)
 	
 	mdctx = EVP_MD_CTX_create();
 	EVP_DigestInit_ex(mdctx, md, NULL);
-	EVP_DigestUpdate(mdctx, input -> data, input -> length);
+	EVP_DigestUpdate(mdctx, api -> getArrayContent(input), alen);
 	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
 	EVP_MD_CTX_destroy(mdctx);
 	
@@ -1082,7 +1080,7 @@ INSTRUCTION_DEF op_rsa_pss_sign(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	LiveArray *array = make_byte_array_wt(cframe, api, charArrayGT, outlen);
+	DanaEl* array = api -> makeArray(charArrayGT, outlen);
 	
 	if (array == NULL)
 		{
@@ -1090,26 +1088,26 @@ INSTRUCTION_DEF op_rsa_pss_sign(VFrame *cframe)
 		return RETURN_OK;
 		}
 
-	if (EVP_PKEY_sign(ctx, array -> data, &outlen, md_value, md_len) <= 0)
+	if (EVP_PKEY_sign(ctx, api -> getArrayContent(array), &outlen, md_value, md_len) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		free_array(api, array);
+		api -> destroyArray(array);
 		return RETURN_OK;
 		}
 	
-	array -> length = outlen;
-	return_array(cframe, array);
+	api -> setArrayLength(array, outlen);
+	api -> returnEl(cframe, array);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_pss_verify(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_pss_verify(FrameData *cframe)
 	{
 	EVP_PKEY_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
-	LiveArray *input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-	LiveArray *signed_input = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content;
+	DanaEl* input = api -> getParamEl(cframe, 1);
+	DanaEl* signed_input = api -> getParamEl(cframe, 2);
 	
 	// -- hash the msg first --
 	EVP_MD_CTX *mdctx = NULL;
@@ -1136,13 +1134,13 @@ INSTRUCTION_DEF op_rsa_pss_verify(VFrame *cframe)
 	
 	mdctx = EVP_MD_CTX_create();
 	EVP_DigestInit_ex(mdctx, md, NULL);
-	EVP_DigestUpdate(mdctx, input -> data, input -> length);
+	EVP_DigestUpdate(mdctx, api -> getArrayContent(input), api -> getArrayLength(input));
 	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
 	EVP_MD_CTX_destroy(mdctx);
 	
 	// -- --
 	
-	int ret = EVP_PKEY_verify(ctx, signed_input -> data, signed_input -> length, md_value, md_len);
+	int ret = EVP_PKEY_verify(ctx, api -> getArrayContent(signed_input), api -> getArrayLength(signed_input), md_value, md_len);
 	
 	if (ret < 0)
 		{
@@ -1150,25 +1148,25 @@ INSTRUCTION_DEF op_rsa_pss_verify(VFrame *cframe)
 		return RETURN_OK;
 		}
 	
-	return_bool(cframe, ret == 1);
+	unsigned char ok = ret == 1;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_pss_cleanup(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_pss_cleanup(FrameData *cframe)
 	{
 	EVP_PKEY_CTX *ctx;
-	memcpy(&ctx, getVariableContent(cframe, 0), sizeof(size_t));
+	memcpy(&ctx, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	EVP_PKEY_CTX_free(ctx);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_generate_key(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_generate_key(FrameData *cframe)
 	{
-	size_t keyLength = 0;
-	copyHostInteger((unsigned char*) &keyLength, getVariableContent(cframe, 0), sizeof(size_t));
+	size_t keyLength = api -> getParamInt(cframe, 0);
 	
 	int rc;
 	
@@ -1198,54 +1196,47 @@ INSTRUCTION_DEF op_rsa_generate_key(VFrame *cframe)
 	//rc = PEM_write_bio_RSAPublicKey(biomem, rsa); //TODO: should we be using this format instead? i.e. PKCS??? (and change the format for oaes input?)
 	rc = PEM_write_bio_PUBKEY(biomem, pkey);
 	mlen = BIO_get_mem_data(biomem, &pp);
-	LiveArray *newArray = make_byte_array_wt(cframe, api, charArrayGT, mlen);
-	BIO_read(biomem, newArray -> data, mlen);
+	DanaEl* newArray = api -> makeArray(charArrayGT, mlen);
+	BIO_read(biomem, api -> getArrayContent(newArray), mlen);
 	BIO_free(biomem);
 	
 	/* -- */
-	
-	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content) -> data;
-	
-	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refi.refCount ++;
-	newArray -> refi.type = newArray -> gtLink -> typeLink;
+	DanaEl* rdata = api -> getParamEl(cframe, 1);
+	api -> setDataFieldEl(rdata, 0, newArray);
 	/* -- */
 	
 	// Write private key in PKCS PEM
 	biomem = BIO_new(BIO_s_mem());
     rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
 	mlen = BIO_get_mem_data(biomem, &pp);
-	newArray = make_byte_array_wt(cframe, api, charArrayGT, mlen);
-	BIO_read(biomem, newArray -> data, mlen);
+	newArray = api -> makeArray(charArrayGT, mlen);
+	BIO_read(biomem, api -> getArrayContent(newArray), mlen);
 	BIO_free(biomem);
 	
 	/* -- */
-	
-	ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 2)) -> content) -> data;
-	
-	ptrh -> content = (unsigned char*) newArray;
-	newArray -> refi.refCount ++;
-	newArray -> refi.type = newArray -> gtLink -> typeLink;
+	rdata = api -> getParamEl(cframe, 2);
+	api -> setDataFieldEl(rdata, 0, newArray);
 	/* -- */
 	
 	BN_free(bn);
 	EVP_PKEY_free(pkey);
 	RSA_free(rsa);
 	
-	return_bool(cframe, true);
+	unsigned char ok = 1;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
+INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 	{
 	RSA *rsa = NULL;
 	EVP_PKEY *pkey = EVP_PKEY_new();
 	
-	LiveArray *pubKeyIn = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 0)) -> content;
-	LiveArray *priKeyIn = (LiveArray*) ((VVarLivePTR*) getVariableContent(cframe, 1)) -> content;
-	unsigned char inputType = getVariableContent(cframe, 2)[0];
-	unsigned char outputType = getVariableContent(cframe, 5)[0];
+	DanaEl *pubKeyIn = api -> getParamEl(cframe, 0);
+	DanaEl *priKeyIn = api -> getParamEl(cframe, 1);
+	unsigned char inputType = api -> getParamRaw(cframe, 2)[0];
+	unsigned char outputType = api -> getParamRaw(cframe, 5)[0];
 	
 	//read the key in to one of the above structures, depending on the type param
 	
@@ -1255,7 +1246,7 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		{
 		//PKCS
 		BIO *biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, pubKeyIn -> data, pubKeyIn -> length);
+		BIO_write(biomem, api -> getArrayContent(pubKeyIn), api -> getArrayLength(pubKeyIn));
 		if (PEM_read_bio_PUBKEY(biomem, &pkey, 0, 0) == NULL) fail = true;
 		BIO_free(biomem);
 		
@@ -1267,7 +1258,7 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 			}
 		
 		biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, priKeyIn -> data, priKeyIn -> length);
+		BIO_write(biomem, api -> getArrayContent(priKeyIn), api -> getArrayLength(priKeyIn));
 		if (PEM_read_bio_PrivateKey(biomem, &pkey, 0, 0) == NULL) fail = true;
 		BIO_free(biomem);
 		
@@ -1287,7 +1278,7 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		rsa = RSA_new();
 		
 		BIO *biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, pubKeyIn -> data, pubKeyIn -> length);
+		BIO_write(biomem, api -> getArrayContent(pubKeyIn), api -> getArrayLength(pubKeyIn));
 		if (PEM_read_bio_RSAPublicKey(biomem, &rsa, 0, 0) == NULL) fail = true;
 		BIO_free(biomem);
 		
@@ -1300,7 +1291,7 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 			}
 		
 		biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, priKeyIn -> data, priKeyIn -> length);
+		BIO_write(biomem, api -> getArrayContent(priKeyIn), api -> getArrayLength(priKeyIn));
 		if (PEM_read_bio_RSAPrivateKey(biomem, &rsa, 0, 0) == NULL) fail = true;
 		BIO_free(biomem);
 		
@@ -1322,7 +1313,7 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		
 		//i2d_RSAPublicKey_bio i is internal, d is "der"
 		BIO *biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, pubKeyIn -> data, pubKeyIn -> length);
+		BIO_write(biomem, api -> getArrayContent(pubKeyIn), api -> getArrayLength(pubKeyIn));
 		if (d2i_RSAPublicKey_bio(biomem, &rsa) == NULL) fail = true;
 		BIO_free(biomem);
 		
@@ -1335,7 +1326,7 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 			}
 		
 		biomem = BIO_new(BIO_s_mem());
-		BIO_write(biomem, priKeyIn -> data, priKeyIn -> length);
+		BIO_write(biomem, api -> getArrayContent(priKeyIn), api -> getArrayLength(priKeyIn));
 		if (d2i_RSAPrivateKey_bio(biomem, &rsa) == NULL) fail = true;
 		BIO_free(biomem);
 		
@@ -1361,23 +1352,23 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 	
 	int rc = 0;
 	
-	LiveArray *arrayPub = NULL;
-	LiveArray *arrayPri = NULL;
+	DanaEl *arrayPub = NULL;
+	DanaEl *arrayPri = NULL;
 	
 	if (outputType == 1)
 		{
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PUBKEY(biomem, pkey);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPub = make_byte_array_wt(cframe, api, charArrayGT, pubKeyOutLen);
-		BIO_read(biomem, arrayPub -> data, pubKeyOutLen);
+		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen);
+		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPri = make_byte_array_wt(cframe, api, charArrayGT, priKeyOutLen);
-		BIO_read(biomem, arrayPri -> data, priKeyOutLen);
+		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen);
+		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
 		BIO_free(biomem);
 		}
 		else if (outputType == 2)
@@ -1385,15 +1376,15 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_RSAPublicKey(biomem, rsa);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPub = make_byte_array_wt(cframe, api, charArrayGT, pubKeyOutLen);
-		BIO_read(biomem, arrayPub -> data, pubKeyOutLen);
+		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen);
+		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_RSAPrivateKey(biomem, rsa, NULL, NULL, 0, NULL, NULL);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPri = make_byte_array_wt(cframe, api, charArrayGT, priKeyOutLen);
-		BIO_read(biomem, arrayPri -> data, priKeyOutLen);
+		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen);
+		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
 		BIO_free(biomem);
 		}
 		else if (outputType == 4)
@@ -1401,15 +1392,15 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = i2d_RSAPublicKey_bio(biomem, rsa);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPub = make_byte_array_wt(cframe, api, charArrayGT, pubKeyOutLen);
-		BIO_read(biomem, arrayPub -> data, pubKeyOutLen);
+		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen);
+		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = i2d_RSAPrivateKey_bio(biomem, rsa);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPri = make_byte_array_wt(cframe, api, charArrayGT, priKeyOutLen);
-		BIO_read(biomem, arrayPri -> data, priKeyOutLen);
+		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen);
+		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
 		BIO_free(biomem);
 		}
 	
@@ -1417,22 +1408,17 @@ INSTRUCTION_DEF op_rsa_convert_key(VFrame *cframe)
 	RSA_free(rsa);
 	
 	/* -- */
-	VVarLivePTR *ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 3)) -> content) -> data;
-	
-	ptrh -> content = (unsigned char*) arrayPub;
-	arrayPub -> refi.refCount ++;
-	arrayPub -> refi.type = arrayPub -> gtLink -> typeLink;
+	DanaEl* rdata = api -> getParamEl(cframe, 3);
+	api -> setDataFieldEl(rdata, 0, arrayPub);
 	/* -- */
 	
 	/* -- */
-	ptrh = (VVarLivePTR*) ((LiveData*) ((VVarLivePTR*) getVariableContent(cframe, 4)) -> content) -> data;
-	
-	ptrh -> content = (unsigned char*) arrayPri;
-	arrayPri -> refi.refCount ++;
-	arrayPri -> refi.type = arrayPri -> gtLink -> typeLink;
+	rdata = api -> getParamEl(cframe, 4);
+	api -> setDataFieldEl(rdata, 0, arrayPri);
 	/* -- */
 	
-	return_bool(cframe, true);
+	unsigned char ok = 1;
+	api -> returnRaw(cframe, &ok, 1);
 	
 	return RETURN_OK;
 	}
