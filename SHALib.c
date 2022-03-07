@@ -78,8 +78,9 @@ INSTRUCTION_DEF op_hash_data_sha1(FrameData* cframe)
 	printf("\n");
 	*/
 	
-	DanaEl* array = api -> makeArray(charArrayGT, md_len);
-	memcpy(api -> getArrayContent(array), md_value, md_len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, md_len, &cnt);
+	memcpy(cnt, md_value, md_len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -128,8 +129,9 @@ INSTRUCTION_DEF op_hash_data_sha2(FrameData *cframe)
 	printf("\n");
 	*/
 	
-	DanaEl* array = api -> makeArray(charArrayGT, md_len);
-	memcpy(api -> getArrayContent(array), md_value, md_len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, md_len, &cnt);
+	memcpy(cnt, md_value, md_len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -178,8 +180,9 @@ INSTRUCTION_DEF op_hash_data_sha3(FrameData *cframe)
 	printf("\n");
 	*/
 	
-	DanaEl* array = api -> makeArray(charArrayGT, md_len);
-	memcpy(api -> getArrayContent(array), md_value, md_len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, md_len, &cnt);
+	memcpy(cnt, md_value, md_len);
 	
 	api -> returnEl(cframe, array);
 	

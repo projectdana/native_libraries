@@ -99,8 +99,9 @@ INSTRUCTION_DEF op_get_host_by_name(FrameData* cframe)
 	
 	if (val != NULL)
 		{
-		DanaEl* array = api -> makeArray(charArrayGT, strlen(val));
-		memcpy(api -> getArrayContent(array), val, strlen(val));
+		unsigned char* cnt = NULL;
+		DanaEl* array = api -> makeArray(charArrayGT, strlen(val), &cnt);
+		memcpy(cnt, val, strlen(val));
 		api -> returnEl(cframe, array);
 		}
 

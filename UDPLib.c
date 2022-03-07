@@ -337,8 +337,9 @@ INSTRUCTION_DEF op_udp_recv(FrameData *cframe)
 	
 	DanaEl* rdata = api -> getParamEl(cframe, 1);
 	
-	DanaEl* newArray = api -> makeArray(charArrayGT, alen);
-	memcpy(api -> getArrayContent(newArray), ipstr, alen);
+	unsigned char* cnt = NULL;
+	DanaEl* newArray = api -> makeArray(charArrayGT, alen, &cnt);
+	memcpy(cnt, ipstr, alen);
 	
 	api -> setDataFieldEl(rdata, 0, newArray);
 	
@@ -348,8 +349,8 @@ INSTRUCTION_DEF op_udp_recv(FrameData *cframe)
 	
 	//Datagram.content
 	
-	DanaEl* newContentArray = api -> makeArray(charArrayGT, alen);
-	memcpy(api -> getArrayContent(newContentArray), buf, sz);
+	DanaEl* newContentArray = api -> makeArray(charArrayGT, alen, &cnt);
+	memcpy(cnt, buf, sz);
 	
 	api -> setDataFieldEl(rdata, 2, newContentArray);
 	

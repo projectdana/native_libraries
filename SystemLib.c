@@ -50,8 +50,9 @@ INSTRUCTION_DEF op_get_platform_name(FrameData* cframe)
 		}
 	#endif
 	
-	DanaEl* array = api -> makeArray(charArrayGT, strlen(name));
-	memcpy(api -> getArrayContent(array), name, strlen(name));
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(name), &cnt);
+	memcpy(cnt, name, strlen(name));
 	api -> returnEl(cframe, array);
 
 	return RETURN_OK;
@@ -101,8 +102,9 @@ INSTRUCTION_DEF op_get_platform_version(FrameData* cframe)
 		}
 	#endif
 	
-	DanaEl* array = api -> makeArray(charArrayGT, strlen(sres));
-	memcpy(api -> getArrayContent(array), sres, strlen(sres));
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(sres), &cnt);
+	memcpy(cnt, sres, strlen(sres));
 	api -> returnEl(cframe, array);
 
 	return RETURN_OK;
@@ -110,8 +112,9 @@ INSTRUCTION_DEF op_get_platform_version(FrameData* cframe)
 
 INSTRUCTION_DEF op_get_chip_name(FrameData* cframe)
 	{
-	DanaEl* array = api -> makeArray(charArrayGT, strlen(CHIP_NAME));
-	memcpy(api -> getArrayContent(array), CHIP_NAME, strlen(CHIP_NAME));
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(CHIP_NAME), &cnt);
+	memcpy(cnt, CHIP_NAME, strlen(CHIP_NAME));
 	api -> returnEl(cframe, array);
 
 	return RETURN_OK;
@@ -131,8 +134,9 @@ INSTRUCTION_DEF op_get_host_name(FrameData* cframe)
 	gethostname(sres, MAX_VAR_NAME);
 	#endif
 
-	DanaEl* array = api -> makeArray(charArrayGT, strlen(sres));
-	memcpy(api -> getArrayContent(array), sres, strlen(sres));
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(sres), &cnt);
+	memcpy(cnt, sres, strlen(sres));
 	api -> returnEl(cframe, array);
 
 	return RETURN_OK;
@@ -146,8 +150,9 @@ INSTRUCTION_DEF op_get_variable(FrameData* cframe)
 
 	if (val != NULL)
 		{
-		DanaEl* array = api -> makeArray(charArrayGT, strlen(val));
-		memcpy(api -> getArrayContent(array), val, strlen(val));
+		unsigned char* cnt = NULL;
+		DanaEl* array = api -> makeArray(charArrayGT, strlen(val), &cnt);
+		memcpy(cnt, val, strlen(val));
 		api -> returnEl(cframe, array);
     	}
 
@@ -184,8 +189,9 @@ INSTRUCTION_DEF op_get_system_font(FrameData* cframe)
 		struct stat st;
 		if (stat(fontPath, &st) == 0)
 			{
-			DanaEl* array = api -> makeArray(charArrayGT, strlen(fontPath));
-			memcpy(api -> getArrayContent(array), fontPath, strlen(fontPath));
+			unsigned char* cnt = NULL;
+			DanaEl* array = api -> makeArray(charArrayGT, strlen(fontPath), &cnt);
+			memcpy(cnt, fontPath, strlen(fontPath));
 			api -> returnEl(cframe, array);
 			}
 

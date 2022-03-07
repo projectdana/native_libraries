@@ -81,8 +81,9 @@ INSTRUCTION_DEF op_mysql_get_field(FrameData *cframe) {
 	int index = api -> getParamInt(cframe, 1);
 	
 	char* dat = row[index] ? row[index] : "NULL";
-	DanaEl* array = api -> makeArray(charArrayGT, strlen(dat));
-	memcpy(api -> getArrayContent(array), dat, strlen(dat));
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(dat), &cnt);
+	memcpy(cnt, dat, strlen(dat));
 	
 	api -> returnEl(cframe, array);
 	
@@ -96,8 +97,9 @@ INSTRUCTION_DEF op_mysql_get_field_name(FrameData *cframe) {
 	MYSQL_FIELD *field = mysql_fetch_field(result);
 	
 	char* dat = field->name;
-	DanaEl* array = api -> makeArray(charArrayGT, strlen(dat));
-	memcpy(api -> getArrayContent(array), dat, strlen(dat));
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, strlen(dat), &cnt);
+	memcpy(cnt, dat, strlen(dat));
 	
 	api -> returnEl(cframe, array);
 	

@@ -471,7 +471,8 @@ INSTRUCTION_DEF op_tcp_recv(FrameData *cframe)
 	
 	size_t len = api -> getParamInt(cframe, 1);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, len);
+	unsigned char* content = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, len, &content);
 	
 	if (array == NULL)
 		{
@@ -482,8 +483,6 @@ INSTRUCTION_DEF op_tcp_recv(FrameData *cframe)
 	
 	int amt = 1;
 	size_t totalAmt = 0;
-	
-	unsigned char* content = api -> getArrayContent(array);
 	
 	//iterate through param 2's contents
 	while ((len > 0) && (amt != 0))
@@ -597,8 +596,9 @@ INSTRUCTION_DEF op_tcp_get_local_address(FrameData* cframe)
 	
 	DanaEl* rdata = api -> getParamEl(cframe, 1);
 	
-	DanaEl* newArray = api -> makeArray(charArrayGT, alen);
-	memcpy(api -> getArrayContent(newArray), ipstr, alen);
+	unsigned char* cnt = NULL;
+	DanaEl* newArray = api -> makeArray(charArrayGT, alen, &cnt);
+	memcpy(cnt, ipstr, alen);
 	
 	api -> setDataFieldEl(rdata, 0, newArray);
 	api -> setDataFieldInt(rdata, 1, port);
@@ -669,8 +669,9 @@ INSTRUCTION_DEF op_tcp_get_remote_address(FrameData* cframe)
 	
 	DanaEl* rdata = api -> getParamEl(cframe, 1);
 	
-	DanaEl* newArray = api -> makeArray(charArrayGT, alen);
-	memcpy(api -> getArrayContent(newArray), ipstr, alen);
+	unsigned char* cnt = NULL;
+	DanaEl* newArray = api -> makeArray(charArrayGT, alen, &cnt);
+	memcpy(cnt, ipstr, alen);
 	
 	api -> setDataFieldEl(rdata, 0, newArray);
 	api -> setDataFieldInt(rdata, 1, port);

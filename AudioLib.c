@@ -916,9 +916,9 @@ INSTRUCTION_DEF op_decoder_get_raw_data(FrameData *cframe)
 	
 	size_t totalLen = multi * frameCount;
 	
-	DanaEl* array = api -> makeArray(typeLink_char, totalLen);
-	
-	memcpy(api -> getArrayContent(array), pAudioData, totalLen);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(typeLink_char, totalLen, &cnt);
+	memcpy(cnt, pAudioData, totalLen);
 	
 	ma_free(pAudioData, NULL);
 	

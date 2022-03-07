@@ -95,8 +95,9 @@ INSTRUCTION_DEF op_deflate(FrameData* cframe)
 		} while (stream -> avail_out == 0);
 	
 	//return the compressed chunk as a byte array
-	DanaEl* array_r = api -> makeArray(byteArrayGT, result_len);
-	memcpy(api -> getArrayContent(array_r), result, result_len);
+	unsigned char* cnt = NULL;
+	DanaEl* array_r = api -> makeArray(byteArrayGT, result_len, &cnt);
+	memcpy(cnt, result, result_len);
 	api -> returnEl(cframe, array_r);
 	
 	free(result);
@@ -222,8 +223,9 @@ INSTRUCTION_DEF op_inflate(FrameData* cframe)
 		}
 	
 	//return the decompressed chunk as a byte array
-	DanaEl* array_r = api -> makeArray(byteArrayGT, result_len);
-	memcpy(api -> getArrayContent(array_r), result, result_len);
+	unsigned char* cnt = NULL;
+	DanaEl* array_r = api -> makeArray(byteArrayGT, result_len, &cnt);
+	memcpy(cnt, result, result_len);
 	api -> returnEl(cframe, array_r);
 	
 	free(result);

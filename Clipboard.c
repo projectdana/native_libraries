@@ -286,10 +286,10 @@ INSTRUCTION_DEF op_get_content(FrameData* cframe)
 				int srclen = wcslen(buffer);
 				int reqLen = WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, NULL, 0, NULL, NULL);
 				
-				DanaEl* array = api -> makeArray(charArrayGT, reqLen+1);
-				unsigned char* content = api -> getArrayContent(array);
+				unsigned char* cnt = NULL;
+				DanaEl* array = api -> makeArray(charArrayGT, reqLen+1, &cnt);
 				
-				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, (char*) content, reqLen+1, NULL, NULL);
+				WideCharToMultiByte(CP_UTF8, 0, buffer, srclen, (char*) cnt, reqLen+1, NULL, NULL);
 				
 				api -> setArrayLength(array, reqLen);
 				api -> returnEl(cframe, array);
@@ -307,10 +307,10 @@ INSTRUCTION_DEF op_get_content(FrameData* cframe)
 			LPTSTR lptstr = GlobalLock(hglb);
 			if (lptstr != NULL)
 				{
-				DanaEl* array = api -> makeArray(charArrayGT, strlen(lptstr));
-				unsigned char* content = api -> getArrayContent(array);
+				unsigned char* cnt = NULL;
+				DanaEl* array = api -> makeArray(charArrayGT, strlen(lptstr), &cnt);
 				
-				memcpy(content, lptstr, strlen(lptstr));
+				memcpy(cnt, lptstr, strlen(lptstr));
 				
 				api -> returnEl(cframe, array);
 				
@@ -352,9 +352,9 @@ INSTRUCTION_DEF op_get_content(FrameData* cframe)
 
 	if (!pendingGet && resultGet != NULL)
 		{
-		DanaEl* array = api -> makeArray(charArrayGT, strlen(resultGet));
-		unsigned char* content = api -> getArrayContent(array);
-		memcpy(content, resultGet, strlen(resultGet));
+		unsigned char* cnt = NULL;
+		DanaEl* array = api -> makeArray(charArrayGT, strlen(resultGet), &cnt);
+		memcpy(cnt, resultGet, strlen(resultGet));
 		api -> returnEl(cframe, array);
 		
 		XFree(resultGet);
@@ -394,9 +394,9 @@ INSTRUCTION_DEF op_get_content(FrameData* cframe)
 			{
 			const char *pszString = (const char *)CFDataGetBytePtr(flavorData);
 			
-			DanaEl* array = api -> makeArray(charArrayGT, strlen(pszString));
-			unsigned char* content = api -> getArrayContent(array);
-			memcpy(content, pszString, strlen(pszString));
+			unsigned char* cnt = NULL;
+			DanaEl* array = api -> makeArray(charArrayGT, strlen(pszString), &cnt);
+			memcpy(cnt, pszString, strlen(pszString));
 			api -> returnEl(cframe, array);
 			}
 

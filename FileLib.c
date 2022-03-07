@@ -118,8 +118,8 @@ INSTRUCTION_DEF op_file_read(FrameData* cframe)
 
 	size_t len = api -> getParamInt(cframe, 1);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, len);
-	unsigned char* cnt = api -> getArrayContent(array);
+	unsigned char *cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, len, &cnt);
 	
 	if (array == NULL)
 		{
@@ -407,9 +407,8 @@ INSTRUCTION_DEF op_get_dir_content(FrameData* cframe)
 					
 					size_t asz = strlen(fi.cFileName);
 					
-					DanaEl* fName = api -> makeArray(charArrayGT, asz);
-					
-					unsigned char* cnt = api -> getArrayContent(fName);
+					unsigned char* cnt = NULL;
+					DanaEl* fName = api -> makeArray(charArrayGT, asz, &cnt);
 					memcpy(cnt, fi.cFileName, asz);
 					
 					api -> setDataFieldEl(newItem -> data, 0, fName);
@@ -453,9 +452,9 @@ INSTRUCTION_DEF op_get_dir_content(FrameData* cframe)
 				newItem -> data = api -> makeData(fileEntryGT);
 				
 				size_t asz = strlen(dp->d_name);
-				DanaEl* fName = api -> makeArray(charArrayGT, asz);
+				unsigned char* cnt = NULL;
+				DanaEl* fName = api -> makeArray(charArrayGT, asz, &cnt);
 				
-				unsigned char* cnt = api -> getArrayContent(fName);
 				memcpy(cnt, dp->d_name, asz);
 				
 				api -> setDataFieldEl(newItem -> data, 0, fName);
@@ -473,7 +472,7 @@ INSTRUCTION_DEF op_get_dir_content(FrameData* cframe)
 
 	if (count > 0)
 		{
-		DanaEl* newArray = api -> makeArray(fileEntryArrayGT, count);
+		DanaEl* newArray = api -> makeArray(fileEntryArrayGT, count, NULL);
 		
 		FileInfoItem *fw = itemList;
 		int i = 0;
@@ -674,8 +673,8 @@ INSTRUCTION_DEF op_get_full_path(FrameData* cframe)
 	char *qpath = x_getParam_char_array(api, cframe, 0);
 
 	#ifdef WINDOWS
-	DanaEl* array = api -> makeArray(charArrayGT, PATH_MAX);
-	unsigned char* cnt = api -> getArrayContent(array);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, PATH_MAX, &cnt);
 
 	if (array == NULL)
 		{
@@ -697,8 +696,8 @@ INSTRUCTION_DEF op_get_full_path(FrameData* cframe)
 	api -> returnEl(cframe, array);
 	#endif
 	#ifdef LINUX
-	DanaEl* array = api -> makeArray(charArrayGT, PATH_MAX);
-	unsigned char* cnt = api -> getArrayContent(array);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, PATH_MAX, &cnt);
 	
 	if (array == NULL)
 		{

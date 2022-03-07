@@ -378,9 +378,10 @@ static sem_t frameworkShutdownLock;
 
 static void returnByteArray(FrameData* f, unsigned char *data, size_t len)
 	{
-	DanaEl* array = api -> makeArray(charArrayGT, len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, len, &cnt);
 	
-	memcpy(api -> getArrayContent(array), data, len);
+	memcpy(cnt, data, len);
 	
 	api -> returnEl(f, array);
 	}
@@ -1706,15 +1707,14 @@ static void render_thread()
 			
 				size_t asz = totalPixels * sz;
 				
-				DanaEl* pixelArrayH = api -> makeArray(charArrayGT, asz);
+				unsigned char* pixelArray = NULL;
+				DanaEl* pixelArrayH = api -> makeArray(charArrayGT, asz, &pixelArray);
 				
 				api -> setDataFieldEl(bitmapData, 1, pixelArrayH);
 				
 				//printf("size: %u | %u\n", totalPixels, ((StructuredType*) pixelArrayH -> gtLink -> typeLink -> definition.content) -> size);
 
 				//printf(" -- generate bitmap -- %u pixels in %u:%u --\n", pixelArrayH -> length, w, h);
-
-				unsigned char *pixelArray = api -> getArrayContent(pixelArrayH);
 
 				SDL_PixelFormat *fmt;
 				fmt = surf -> format;
@@ -2744,10 +2744,10 @@ static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
 	api -> setDataFieldInt(nd, 1, y);
 	
 	size_t asz = strlen(path);
-	DanaEl* na = api -> makeArray(charArrayGT, asz);
-	unsigned char* content = api -> getArrayContent(na);
-	memcpy(content, path, asz);
-	normalisePath((char*) content);
+	unsigned char* cnt = NULL;
+	DanaEl* na = api -> makeArray(charArrayGT, asz, &cnt);
+	memcpy(cnt, path, asz);
+	normalisePath((char*) cnt);
 	
 	api -> setDataFieldEl(nd, 2, na);
 	

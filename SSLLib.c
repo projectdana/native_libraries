@@ -432,8 +432,9 @@ INSTRUCTION_DEF op_get_peer_cert(FrameData *cframe)
 	unsigned char *pbuf = NULL;
 	size_t len = BIO_get_mem_data(biomem, &pbuf);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, len);
-	memcpy(api -> getArrayContent(array), pbuf, len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, len, &cnt);
+	memcpy(cnt, pbuf, len);
 	
 	X509_free(cert);
 	BIO_free(biomem);
@@ -454,7 +455,7 @@ INSTRUCTION_DEF op_get_peer_cert_chain(FrameData *cframe)
 		{
 		//allocate a String array of length "len"
 		
-		DanaEl* newArray = api -> makeArray(stringArrayGT, len);
+		DanaEl* newArray = api -> makeArray(stringArrayGT, len, NULL);
 		
 		size_t i = 0;
 		for (i = 0; i < len; i++)
@@ -473,8 +474,9 @@ INSTRUCTION_DEF op_get_peer_cert_chain(FrameData *cframe)
 			
 			DanaEl* newData = api -> makeData(stringItemGT);
 			
-			DanaEl* itemArray = api -> makeArray(charArrayGT, len);
-			memcpy(api -> getArrayContent(itemArray), pbuf, len);
+			unsigned char* cnt = NULL;
+			DanaEl* itemArray = api -> makeArray(charArrayGT, len, &cnt);
+			memcpy(cnt, pbuf, len);
 			
 			api -> setDataFieldEl(newData, 0, itemArray);
 			
@@ -601,8 +603,9 @@ INSTRUCTION_DEF op_verify_certificate(FrameData *cframe)
 			}
 		
 		//get a string reason for verify failure, if any
-		DanaEl* reason = api -> makeArray(charArrayGT, strlen(failReason));
-		memcpy(api -> getArrayContent(reason), failReason, strlen(failReason));
+		unsigned char* cnt = NULL;
+		DanaEl* reason = api -> makeArray(charArrayGT, strlen(failReason), &cnt);
+		memcpy(cnt, failReason, strlen(failReason));
 		
 		api -> setDataFieldEl(verifyResult, 2, reason);
 		}
@@ -652,8 +655,8 @@ INSTRUCTION_DEF op_read(FrameData *cframe)
 	
 	//read data
 	
-	DanaEl* array = api -> makeArray(charArrayGT, len);
-	unsigned char* cnt = api -> getArrayContent(array);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, len, &cnt);
 	
 	if (array == NULL)
 		{

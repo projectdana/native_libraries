@@ -155,7 +155,7 @@ INSTRUCTION_DEF op_aes_cbc_encryptPart(FrameData* cframe)
 	DanaEl* input = api -> getParamEl(cframe, 1);
 	size_t alen = api -> getArrayLength(input);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE, NULL);
 	
 	if (array == NULL)
 		{
@@ -202,8 +202,9 @@ INSTRUCTION_DEF op_aes_cbc_encryptFinish(FrameData* cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl *array = api -> makeArray(charArrayGT, len);
-	memcpy(api -> getArrayContent(array), ciphertext, len);
+	unsigned char* cnt = NULL;
+	DanaEl *array = api -> makeArray(charArrayGT, len, &cnt);
+	memcpy(cnt, ciphertext, len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -306,7 +307,7 @@ INSTRUCTION_DEF op_aes_cbc_decryptPart(FrameData *cframe)
 	DanaEl* input = api -> getParamEl(cframe, 1);
 	size_t alen = api -> getArrayLength(input);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE, NULL);
 	
 	if (array == NULL)
 		{
@@ -354,8 +355,9 @@ INSTRUCTION_DEF op_aes_cbc_decryptFinish(FrameData *cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl *array = api -> makeArray(charArrayGT, len);
-	memcpy(api -> getArrayContent(array), output_text, len);
+	unsigned char* cnt = NULL;
+	DanaEl *array = api -> makeArray(charArrayGT, len, &cnt);
+	memcpy(cnt, output_text, len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -514,7 +516,7 @@ INSTRUCTION_DEF op_aes_gcm_encryptPart(FrameData *cframe)
 	DanaEl* input = api -> getParamEl(cframe, 1);
 	size_t alen = api -> getArrayLength(input);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE, NULL);
 	
 	if (array == NULL)
 		{
@@ -557,8 +559,9 @@ INSTRUCTION_DEF op_aes_gcm_encryptFinish(FrameData *cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl *array = api -> makeArray(charArrayGT, len);
-	memcpy(api -> getArrayContent(array), ciphertext, len);
+	unsigned char* cnt = NULL;
+	DanaEl *array = api -> makeArray(charArrayGT, len, &cnt);
+	memcpy(cnt, ciphertext, len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -581,8 +584,9 @@ INSTRUCTION_DEF op_aes_gcm_encryptGetTag(FrameData* cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl *array = api -> makeArray(charArrayGT, len);
-	memcpy(api -> getArrayContent(array), tag, len);
+	unsigned char* cnt = NULL;
+	DanaEl *array = api -> makeArray(charArrayGT, len, &cnt);
+	memcpy(cnt, tag, len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -729,7 +733,7 @@ INSTRUCTION_DEF op_aes_gcm_decryptPart(FrameData *cframe)
 	DanaEl* input = api -> getParamEl(cframe, 1);
 	size_t alen = api -> getArrayLength(input);
 	
-	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE, NULL);
 	
 	if (array == NULL)
 		{
@@ -774,8 +778,9 @@ INSTRUCTION_DEF op_aes_gcm_decryptFinish(FrameData* cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl *array = api -> makeArray(charArrayGT, len);
-	memcpy(api -> getArrayContent(array), output_text, len);
+	unsigned char* cnt = NULL;
+	DanaEl *array = api -> makeArray(charArrayGT, len, &cnt);
+	memcpy(cnt, output_text, len);
 	
 	api -> returnEl(cframe, array);
 	
@@ -902,7 +907,7 @@ INSTRUCTION_DEF op_rsa_oaep_encrypt(FrameData *cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl* array = api -> makeArray(charArrayGT, outlen);
+	DanaEl* array = api -> makeArray(charArrayGT, outlen, NULL);
 	
 	if (array == NULL)
 		{
@@ -940,7 +945,7 @@ INSTRUCTION_DEF op_rsa_oaep_decrypt(FrameData *cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE);
+	DanaEl* array = api -> makeArray(charArrayGT, alen + AES_BLOCK_SIZE, NULL);
 	
 	if (array == NULL)
 		{
@@ -1080,7 +1085,7 @@ INSTRUCTION_DEF op_rsa_pss_sign(FrameData *cframe)
 		return RETURN_OK;
 		}
 	
-	DanaEl* array = api -> makeArray(charArrayGT, outlen);
+	DanaEl* array = api -> makeArray(charArrayGT, outlen, NULL);
 	
 	if (array == NULL)
 		{
@@ -1196,7 +1201,7 @@ INSTRUCTION_DEF op_rsa_generate_key(FrameData *cframe)
 	//rc = PEM_write_bio_RSAPublicKey(biomem, rsa); //TODO: should we be using this format instead? i.e. PKCS??? (and change the format for oaes input?)
 	rc = PEM_write_bio_PUBKEY(biomem, pkey);
 	mlen = BIO_get_mem_data(biomem, &pp);
-	DanaEl* newArray = api -> makeArray(charArrayGT, mlen);
+	DanaEl* newArray = api -> makeArray(charArrayGT, mlen, NULL);
 	BIO_read(biomem, api -> getArrayContent(newArray), mlen);
 	BIO_free(biomem);
 	
@@ -1209,7 +1214,7 @@ INSTRUCTION_DEF op_rsa_generate_key(FrameData *cframe)
 	biomem = BIO_new(BIO_s_mem());
     rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
 	mlen = BIO_get_mem_data(biomem, &pp);
-	newArray = api -> makeArray(charArrayGT, mlen);
+	newArray = api -> makeArray(charArrayGT, mlen, NULL);
 	BIO_read(biomem, api -> getArrayContent(newArray), mlen);
 	BIO_free(biomem);
 	
@@ -1360,14 +1365,14 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PUBKEY(biomem, pkey);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen);
+		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen);
+		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
 		BIO_free(biomem);
 		}
@@ -1376,14 +1381,14 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_RSAPublicKey(biomem, rsa);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen);
+		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_RSAPrivateKey(biomem, rsa, NULL, NULL, 0, NULL, NULL);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen);
+		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
 		BIO_free(biomem);
 		}
@@ -1392,14 +1397,14 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = i2d_RSAPublicKey_bio(biomem, rsa);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen);
+		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = i2d_RSAPrivateKey_bio(biomem, rsa);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
-		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen);
+		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
 		BIO_free(biomem);
 		}

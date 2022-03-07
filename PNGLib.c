@@ -18,9 +18,10 @@ the below read_png_file and write_png_file functions are based on code by Guilla
 
 static void returnByteArray(FrameData* f, unsigned char *data, size_t len)
 	{
-	DanaEl* array = api -> makeArray(byteArrayGT, len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(byteArrayGT, len, &cnt);
 	
-	memcpy(api -> getArrayContent(array), data, len);
+	memcpy(cnt, data, len);
 	
 	api -> returnEl(f, array);
 	}
@@ -208,12 +209,13 @@ INSTRUCTION_DEF op_load_image(FrameData* cframe)
 	
 	size_t len = (width * 4) * height;
 	
-	DanaEl* array = api -> makeArray(byteArrayGT, len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(byteArrayGT, len, &cnt);
 	
 	api -> setDataFieldEl(ct, 1, array);
 	
 	//populate the pixel map (see above helper function)
-	copyPixels(api -> getArrayContent(array), row_pointers, width, height);
+	copyPixels(cnt, row_pointers, width, height);
 	
 	int y = 0;
 	for(y = 0; y < height; y++) {

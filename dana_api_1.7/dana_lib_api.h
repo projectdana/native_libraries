@@ -1,7 +1,7 @@
 #ifndef _DANA_LIB_API
 #define _DANA_LIB_API
 
-#define LIB_API_VERSION 16
+#define LIB_API_VERSION 17
 
 #define RETURN_OK	0
 
@@ -18,7 +18,7 @@ typedef struct _CoreAPI{
 	void (*decrementGTRefCount)(GlobalTypeLink *d);
 	void (*incrementGTRefCount)(GlobalTypeLink *d);
 	unsigned char* (*getDecimalScalingFactor)(size_t byteWidth);
-	void (*throwException)(FrameData *frame, char *reason);
+	void (*throwException)(FrameData* frame, char *reason);
 	void (*incRef)(FrameData* frame, DanaEl* entity);
 	void (*decRef)(FrameData* frame, DanaEl* entity);
 	
@@ -36,9 +36,11 @@ typedef struct _CoreAPI{
 	void (*returnDec)(FrameData* f, double val);
 	void (*returnEl)(FrameData* f, DanaEl* val);
 	
-	DanaEl* (*makeArray)(GlobalTypeLink *d, size_t cells);
-	unsigned char* (*getArrayContent)(DanaEl* array);
+	DanaEl* (*makeArray)(GlobalTypeLink *d, size_t cells, unsigned char** content);
+	DanaEl* (*makeArrayMD)(GlobalTypeLink *d, size_t dimCount, size_t* dimData, unsigned char **content);
 	size_t (*getArrayLength)(DanaEl* array);
+	size_t* (*getArrayDimensions)(DanaEl* array, size_t* dimCount);
+	unsigned char* (*getArrayContent)(DanaEl* array);
 	void (*setArrayLength)(DanaEl* array, size_t length);
 	unsigned char* (*getArrayCellRaw)(DanaEl* array, size_t index);
 	size_t (*getArrayCellInt)(DanaEl* array, size_t index);

@@ -44,9 +44,10 @@ my_error_exit (j_common_ptr cinfo)
 
 static void returnByteArray(FrameData* f, unsigned char *data, size_t len)
 	{
-	DanaEl* array = api -> makeArray(byteArrayGT, len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(byteArrayGT, len, &cnt);
 	
-	memcpy(api -> getArrayContent(array), data, len);
+	memcpy(cnt, data, len);
 	
 	api -> returnEl(f, array);
 	}
@@ -238,12 +239,13 @@ INSTRUCTION_DEF op_load_image(FrameData* cframe)
 	//...and the pixel map
 	size_t len = (width * DANA_PIXEL_WIDTH) * height;
 	
-	DanaEl* array = api -> makeArray(byteArrayGT, len);
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(byteArrayGT, len, &cnt);
 	
 	api -> setDataFieldEl(ct, 1, array);
 	
 	//populate the pixel map (see above helper function)
-	copyPixels(api -> getArrayContent(array), bmp_data, width, height);
+	copyPixels(cnt, bmp_data, width, height);
 	
 	free(bmp_data);
 	

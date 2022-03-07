@@ -49,16 +49,18 @@ INSTRUCTION_DEF op_get_line(FrameData* cframe)
 			memcpy(fullText + length, p, strlen(p));
 			length += strlen(p);
 			
-			DanaEl* array = api -> makeArray(charArrayGT, length);
-			memcpy(api -> getArrayContent(array), fullText, length);
+			unsigned char *cnt = NULL;
+			DanaEl* array = api -> makeArray(charArrayGT, length, &cnt);
+			memcpy(cnt, fullText, length);
 			api -> returnEl(cframe, array);
 			
 			free(fullText);
 			}
 			else if (length != 0)
 			{
-			DanaEl* array = api -> makeArray(charArrayGT, length);
-			memcpy(api -> getArrayContent(array), fullText, length);
+			unsigned char *cnt = NULL;
+			DanaEl* array = api -> makeArray(charArrayGT, length, &cnt);
+			memcpy(cnt, fullText, length);
 			api -> returnEl(cframe, array);
 			free(fullText);
 			}
