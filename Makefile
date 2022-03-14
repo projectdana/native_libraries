@@ -115,7 +115,7 @@ else
 endif
 
 calendar:
-	$(CC) -Os -s CalendarLib_dni.c $(API_PATH)/vmi_util.c CalendarLib.c -o CalendarLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s CalendarLib_dni.c $(API_PATH)/vmi_util.c CalendarLib.c -o CalendarLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) -lm
 	$(CP_CMD) CalendarLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 cmdln:
