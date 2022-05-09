@@ -1334,11 +1334,21 @@ static void render_thread()
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
-					WindowInstance *myInstance = findWindow(e.window.windowID);
+					WindowInstance *wi = findWindow(e.window.windowID);
 					
-					if (myInstance != NULL)
+					if (wi != NULL)
 						{
-						pushMouseEvent(myInstance, 6, 0, e.window.data1, e.window.data2);
+						//printf("size now %d x %d\n", e.window.data1, e.window.data2);
+						
+						wi -> windowWidth = e.window.data1;
+						wi -> windowHeight = e.window.data2;
+						
+						wi -> windowedWidth = e.window.data1;
+						wi -> windowedHeight = e.window.data2;
+						
+						pushMouseEvent(wi, 6, 0, wi -> windowWidth, wi -> windowHeight);
+						
+						newFrame = true;
 						}
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_MOVED)
