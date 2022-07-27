@@ -9,10 +9,6 @@ INSTALL_PATH=
 CP_CMD=
 CHIP=
 PLATFORM=
-SDL_FLAGS=
-NET_FLAGS=
-MATH_FLAGS=
-SQL_FLAGS=
 ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib audio rwlock
 
 ifeq ($(OS),Windows_NT)
@@ -23,28 +19,33 @@ ifeq ($(OS),Windows_NT)
 	CP_CMD = copy
 	PLATFORM = win7
 	CCFLAGS += -shared
-	NET_FLAGS = -lws2_32
+	NET_LIBS = -lws2_32
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
-	SQL_FLAGS = -lmysql
-	PNG_FLAGS = -I "C:/libs/lpng/" "C:/libs/lpng/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
-	JPG_FLAGS = -I "C:/libs/jpeg-9c" "C:/libs/jpeg-9c/libjpeg.a"
-	ZLIB_FLAGS = -I "C:/libs/zlib" "C:/libs/zlib/libz.a"
-	SSL_FLAGS = -I C:/libs/openssl/include C:/libs/openssl/libssl.a C:/libs/openssl/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
+	MYSQL_LIBS = -lmysql
+	PNG_INCLUDE = -I "C:/libs/lpng/"
+	PNG_LIBS = "C:/libs/lpng/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
+	JPG_INCLUDE = -I "C:/libs/jpeg-9c"
+	JPG_LIBS = "C:/libs/jpeg-9c/libjpeg.a"
+	ZLIB_INCLUDE = -I "C:/libs/zlib"
+	ZLIB_LIBS = "C:/libs/zlib/libz.a"
+	SSL_INCLUDE = -I C:/libs/openssl-1.1.1/include
+	SSL_LIBS = C:/libs/openssl-1.1.1/libssl.a C:/libs/openssl-1.1.1/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
+	AUDIO_INCLUDE = -I "C:/libs/miniaudio"
+	AUDIO_LIBS = -lm -lpthread
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-		SDL_FLAGS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
-		#SDL_FLAGS = -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" C:/libs/SDL/SDL2-2.0.14/build/.libs/libSDL2main.a C:/libs/SDL/SDL2-2.0.14/build/.libs/libSDL2.a -lSDL2_ttf -lsetupapi -lole32 -lwinmm -limm32 -lversion -loleaut32 -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc"
-		AUDIO_FLAGS = -I "C:/libs/miniaudio"
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -I . -I ../../compiler/
+		SDL_LIBS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -lmingw32 -mwindows -static-libgcc"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
         CCFLAGS += -DMACHINE_32
 		CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
 		CHIP = x86
-		SDL_FLAGS = -L"C:/libs/SDL2/build/build/.libs" -L"C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -I "C:/libs/SDL2/include/" -I "C:/libs/SDL2_ttf/" -lmingw32 -mwindows -I . -I ../../compiler/ -static-libgcc
-		AUDIO_FLAGS = -I "C:/libs/miniaudio"
+		SDL_INCLUDE = -I "C:/libs/SDL2/include/" -I "C:/libs/SDL2_ttf/" -I . -I ../../compiler/
+		SDL_LIBS = -L"C:/libs/SDL2/build/build/.libs" -L"C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -lmingw32 -mwindows -static-libgcc
     endif
 else
     UNAME_S := $(shell uname -s)
@@ -52,21 +53,25 @@ else
 	CCFLAGS += -DMACHINE_ENDIAN_LITTLE
 	INSTALL_PATH = ~/dana/
 	CP_CMD = cp
-	PLATFORM = deb
 	CCFLAGS += -shared -fPIC
-	MATH_FLAGS = -lm
-	#MYSQL_INCLUDE = -I/usr/include/mysql `mysql_config --variable=pkglibdir`/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
-	MYSQL_INCLUDE = -I ~/libs/mysql_lib/include ~/libs/mysql_lib/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++
+	MATH_LIBS = -lm
+	SSL_INCLUDE = -I ~/libs/openssl-1.1.1/include
+	SSL_LIBS = ~/libs/openssl-1.1.1/libssl.a ~/libs/openssl-1.1.1/libcrypto.a
+	MYSQL_INCLUDE = -I ~/libs/mysql_lib/include
+	MYSQL_LIBS = ~/libs/mysql_lib/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++ $(SSL_LIBS)
+	AUDIO_INCLUDE = -I ~/libs/miniaudio/
+	AUDIO_LIBS = -lm -lpthread
+	ZLIB_LIBS = ~/libs/zlib_lib/libz.a
+	JPG_INCLUDE = -I ~/libs/jpeg_lib/include
+	JPG_LIBS = ~/libs/jpeg_lib/libjpeg.a
+	PNG_INCLUDE = -I ~/libs/png_lib/include/libpng16
+	PNG_LIBS = ~/libs/png_lib/libpng.a -lz -lm
     ifeq ($(UNAME_S),Linux)
         CCFLAGS += -DLINUX
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
-		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz -lm
-		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
-		ZLIB_FLAGS = "/usr/local/lib/libz.a"
-		CLIPBOARD_FLAGS = -lX11
-		SQL_FLAGS = ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
-		SSL_FLAGS = -I ~/libs/openssl-1.1.1f/include ~/libs/openssl-1.1.1f/libssl.a ~/libs/openssl-1.1.1f/libcrypto.a
-		AUDIO_FLAGS = -I ~/libs/miniaudio/ -lm -lpthread
+		PLATFORM = deb
+		CLIPBOARD_LIBS = -lX11
+		SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype
     endif
     ifeq ($(UNAME_S),Darwin)
         CCFLAGS += -DOSX
@@ -74,32 +79,25 @@ else
         PLATFORM = osx
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"osx\"
         CCFLAGS += -DMACHINE_64
-		SDL_FLAGS = /usr/local/lib/libSDL2.a -liconv -framework Cocoa -framework Carbon -framework IOKit -framework CoreAudio -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework CoreHaptics -framework GameController -framework Metal /usr/local/lib/libSDL2_ttf.a -lfreetype -Wl,-rpath,'@executable_path/resources-ext' -I ~/Desktop/libs/
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
+		SDL_LIBS = /usr/local/lib/libSDL2.a -liconv -framework Cocoa -framework Carbon -framework IOKit -framework CoreAudio -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework CoreHaptics -framework GameController -framework Metal /usr/local/lib/libSDL2_ttf.a -lfreetype -Wl,-rpath,'@executable_path/resources-ext'
+		SDL_INCLUDE = -I ~/libs/
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
-		SQL_FLAGS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
-		PNG_FLAGS = -I "/usr/local/include/libpng16" "/usr/local/lib/libpng16.a" -lz -lm
-		JPG_FLAGS = -I "~/libs/jpegsrc.v9c/jpeg-9c" "/usr/local/lib/libjpeg.a"
-		ZLIB_FLAGS = "/usr/local/lib/libz.a"
-		CLIPBOARD_FLAGS = -framework ApplicationServices -x objective-c -ObjC -std=c99
-		AUDIO_FLAGS = -I ~/Desktop/libs/miniaudio/ -lm -lpthread
-		SSL_FLAGS = -I ~/Desktop/libs/openssl-1.1.1f/include ~/Desktop/libs/openssl-1.1.1f/libssl.a ~/Desktop/libs/openssl-1.1.1f/libcrypto.a
+		MYSQL_LIBS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
+		CLIPBOARD_LIBS = -framework ApplicationServices -x objective-c -ObjC -std=c99
     endif
     ifneq ($(UNAME_S),Darwin)
-
         UNAME_P := $(shell uname -p)
         ifeq ($(UNAME_P),x86_64)
             CCFLAGS += -DMACHINE_64
             CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
             CHIP = x64
-			SDL_FLAGS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype
         endif
         ifneq ($(filter %86,$(UNAME_P)),)
             CCFLAGS += -DMACHINE_32
             CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
             CHIP = x86
-			SDL_FLAGS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype
         endif
         ifneq ($(filter arm%,$(UNAME_P)),)
             CCFLAGS += -DARM
@@ -109,7 +107,7 @@ else
             CCFLAGS += -DMACHINE_32
             CCFLAGS += -DLIB_CHIP_NAME=\"armv6\"
             CHIP = armv6
-			SDL_FLAGS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype -L/opt/vc/lib -lbcm_host
+			SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype -L/opt/vc/lib -lbcm_host
         endif
     endif
 endif
@@ -127,15 +125,15 @@ iofile:
 	$(CP_CMD) FileLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 iotcp:
-	$(CC) -Os -s TCPLib_dni.c $(API_PATH)/vmi_util.c TCPLib.c -o TCPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS)
+	$(CC) -Os -s TCPLib_dni.c $(API_PATH)/vmi_util.c TCPLib.c -o TCPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_LIBS)
 	$(CP_CMD) TCPLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 ioudp:
-	$(CC) -Os -s UDPLib_dni.c $(API_PATH)/vmi_util.c UDPLib.c -o UDPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS)
+	$(CC) -Os -s UDPLib_dni.c $(API_PATH)/vmi_util.c UDPLib.c -o UDPLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_LIBS)
 	$(CP_CMD) UDPLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 dns:
-	$(CC) -Os -s DNSLib_dni.c $(API_PATH)/vmi_util.c DNSLib.c -o DNSLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_FLAGS) -DCHIP_NAME=\"$(CHIP)\"
+	$(CC) -Os -s DNSLib_dni.c $(API_PATH)/vmi_util.c DNSLib.c -o DNSLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(NET_LIBS) -DCHIP_NAME=\"$(CHIP)\"
 	$(CP_CMD) DNSLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 sysinfo:
@@ -147,7 +145,7 @@ timer:
 	$(CP_CMD) Timer[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 uiplane:
-	$(CC) -Os -s UIPlaneLib_dni.c $(API_PATH)/vmi_util.c $(API_PATH)/platform_utils.c UIPlaneLib.c -o UIPlaneLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_FLAGS)
+	$(CC) -Os -s UIPlaneLib_dni.c $(API_PATH)/vmi_util.c $(API_PATH)/platform_utils.c UIPlaneLib.c -o UIPlaneLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SDL_INCLUDE) $(SDL_LIBS)
 	$(CP_CMD) UIPlaneLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 run:
@@ -155,43 +153,43 @@ run:
 	$(CP_CMD) RunLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 math:
-	$(CC) -Os -s MathLib_dni.c $(API_PATH)/vmi_util.c MathLib.c -o MathLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(MATH_FLAGS)
+	$(CC) -Os -s MathLib_dni.c $(API_PATH)/vmi_util.c MathLib.c -o MathLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(MATH_LIBS)
 	$(CP_CMD) MathLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 mysql_lib:
-	$(CC) -Os -s MySQLLib_dni.c $(API_PATH)/vmi_util.c MySQLLib.c -o MySQLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(MYSQL_INCLUDE) $(CCFLAGS) $(SQL_FLAGS)
+	$(CC) -Os -s MySQLLib_dni.c $(API_PATH)/vmi_util.c MySQLLib.c -o MySQLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(MYSQL_INCLUDE) $(CCFLAGS) $(MYSQL_LIBS)
 	$(CP_CMD) MySQLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 png:
-	$(CC) -Os -s PNGLib_dni.c $(API_PATH)/vmi_util.c PNGLib.c -o PNGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(PNG_FLAGS)
+	$(CC) -Os -s PNGLib_dni.c $(API_PATH)/vmi_util.c PNGLib.c -o PNGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(PNG_INCLUDE) $(PNG_LIBS)
 	$(CP_CMD) PNGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 jpg:
-	$(CC) -Os -s JPGLib_dni.c $(API_PATH)/vmi_util.c JPGLib.c -o JPGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(JPG_FLAGS)
+	$(CC) -Os -s JPGLib_dni.c $(API_PATH)/vmi_util.c JPGLib.c -o JPGLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(JPG_INCLUDE) $(JPG_LIBS)
 	$(CP_CMD) JPGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 clipboard:
-	$(CC) -Os -s Clipboard_dni.c $(API_PATH)/vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_FLAGS)
+	$(CC) -Os -s Clipboard_dni.c $(API_PATH)/vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_LIBS)
 	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 zlib:
-	$(CC) -Os -s ZLib_dni.c $(API_PATH)/vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_FLAGS)
+	$(CC) -Os -s ZLib_dni.c $(API_PATH)/vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_LIBS)
 	$(CP_CMD) ZLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 ssl_lib:
-	$(CC) -Os -s SSLLib_dni.c $(API_PATH)/vmi_util.c SSLLib.c -o SSLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CC) -Os -s SSLLib_dni.c $(API_PATH)/vmi_util.c SSLLib.c -o SSLLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(SSL_INCLUDE) $(CCFLAGS) $(SSL_LIBS)
 	$(CP_CMD) SSLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 sha_lib:
-	$(CC) -Os -s SHALib_dni.c $(API_PATH)/vmi_util.c SHALib.c -o SHALib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CC) -Os -s SHALib_dni.c $(API_PATH)/vmi_util.c SHALib.c -o SHALib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(SSL_INCLUDE) $(CCFLAGS) $(SSL_LIBS)
 	$(CP_CMD) SHALib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 cipher_lib:
-	$(CC) -Os -s CipherLib_dni.c $(API_PATH)/vmi_util.c CipherLib.c -o CipherLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(SSL_FLAGS)
+	$(CC) -Os -s CipherLib_dni.c $(API_PATH)/vmi_util.c CipherLib.c -o CipherLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(SSL_INCLUDE) $(CCFLAGS) $(SSL_LIBS)
 	$(CP_CMD) CipherLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 audio:
-	$(CC) -Os -s AudioLib_dni.c $(API_PATH)/vmi_util.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_FLAGS)
+	$(CC) -Os -s AudioLib_dni.c $(API_PATH)/vmi_util.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_INCLUDE) $(AUDIO_LIBS)
 	$(CP_CMD) AudioLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/resources-ext"
 
 rwlock:
