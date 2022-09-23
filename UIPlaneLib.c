@@ -611,9 +611,9 @@ void primeFontDirectories()
 	char *danaFontDir = NULL;
 	if (home != NULL)
 		{
-		danaFontDir = malloc(strlen(home) + strlen("/resources-ext/fonts/") + 1);
+		danaFontDir = malloc(strlen(home) + strlen("/components/resources-ext/fonts/") + 1);
 		strcpy(danaFontDir, home);
-		strcat(danaFontDir, "/resources-ext/fonts/");
+		strcat(danaFontDir, "/components/resources-ext/fonts/");
 		}
 		else
 		{

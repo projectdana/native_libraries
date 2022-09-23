@@ -173,17 +173,17 @@ INSTRUCTION_DEF op_get_system_font(FrameData* cframe)
 
 		if (monospaced)
 			{
-			fontPath = malloc(strlen(home) + strlen("/resources-ext/fonts/LiberationMono.ttf") + 1);
-			memset(fontPath, '\0', strlen(home) + strlen("/resources-ext/fonts/LiberationMono.ttf") + 1);
+			fontPath = malloc(strlen(home) + strlen("/components/resources-ext/fonts/LiberationMono.ttf") + 1);
+			memset(fontPath, '\0', strlen(home) + strlen("/components/resources-ext/fonts/LiberationMono.ttf") + 1);
 			strcpy(fontPath, home);
-			strcat(fontPath, "/resources-ext/fonts/LiberationMono.ttf");
+			strcat(fontPath, "/components/resources-ext/fonts/LiberationMono.ttf");
 			}
 			else
 			{
-			fontPath = malloc(strlen(home) + strlen("/resources-ext/fonts/SourceSansPro.ttf") + 1);
-			memset(fontPath, '\0', strlen(home) + strlen("/resources-ext/fonts/SourceSansPro.ttf") + 1);
+			fontPath = malloc(strlen(home) + strlen("/components/resources-ext/fonts/SourceSansPro.ttf") + 1);
+			memset(fontPath, '\0', strlen(home) + strlen("/components/resources-ext/fonts/SourceSansPro.ttf") + 1);
 			strcpy(fontPath, home);
-			strcat(fontPath, "/resources-ext/fonts/SourceSansPro.ttf");
+			strcat(fontPath, "/components/resources-ext/fonts/SourceSansPro.ttf");
 			}
 
 		struct stat st;

@@ -41,50 +41,49 @@ static const DanaTypeField Object_spec_fields[] = {
 {(DanaType*) &Object_spec[2], ".state", 6},
 };
 static const DanaType Object_def = {TYPE_OBJECT, 0, 0, (DanaTypeField*) Object_spec_fields, 3};
-static const DanaTypeField function_CmdLib_clone_fields[] = {
+static const DanaType void_def = 
+{TYPE_LITERAL, 0, 0, NULL, 0};
+static const DanaType int_def = 
+{TYPE_LITERAL, 0, sizeof(size_t), NULL, 0};
+static const DanaTypeField function_TimerLib_clone_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
-static const DanaTypeField function_CmdLib_equals_fields[] = {
+static const DanaTypeField function_TimerLib_equals_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
-static const DanaTypeField function_CmdLib_toString_fields[] = {
+static const DanaTypeField function_TimerLib_toString_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaTypeField function_CmdLib_getID_fields[] = {
+static const DanaTypeField function_TimerLib_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaTypeField function_CmdLib_getLine_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaTypeField function_CmdLib_getLineSecret_fields[] = {
-{(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaType object_CmdLib_functions_spec[] = {
-{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_CmdLib_clone_fields, 2},
-{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_CmdLib_equals_fields, 2},
-{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_CmdLib_toString_fields, 1},
-{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_CmdLib_getID_fields, 1},
-{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_CmdLib_getLine_fields, 1},
-{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_CmdLib_getLineSecret_fields, 1}};
+static const DanaTypeField function_TimerLib_sleep_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaType object_TimerLib_functions_spec[] = {
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_TimerLib_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_TimerLib_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_TimerLib_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_TimerLib_getID_fields, 1},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_TimerLib_sleep_fields, 2}};
 static const DanaTypeField intf_functions_def[] = {
-{(DanaType*) &object_CmdLib_functions_spec[0], "clone", 5},
-{(DanaType*) &object_CmdLib_functions_spec[1], "equals", 6},
-{(DanaType*) &object_CmdLib_functions_spec[2], "toString", 8},
-{(DanaType*) &object_CmdLib_functions_spec[3], "getID", 5},
-{(DanaType*) &object_CmdLib_functions_spec[4], "getLine", 7},
-{(DanaType*) &object_CmdLib_functions_spec[5], "getLineSecret", 13}};
+{(DanaType*) &object_TimerLib_functions_spec[0], "clone", 5},
+{(DanaType*) &object_TimerLib_functions_spec[1], "equals", 6},
+{(DanaType*) &object_TimerLib_functions_spec[2], "toString", 8},
+{(DanaType*) &object_TimerLib_functions_spec[3], "getID", 5},
+{(DanaType*) &object_TimerLib_functions_spec[4], "sleep", 5}};
 static const DanaTypeField intf_events_def[] = {
 };
-static const DanaType CmdLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 6},
+static const DanaType TimerLib_object_spec[] = {
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 5},
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
-{(DanaType*) &CmdLib_object_spec[0], ".functions", 10},
-{(DanaType*) &CmdLib_object_spec[1], ".events", 7},
-{(DanaType*) &CmdLib_object_spec[2], ".state", 6},
+{(DanaType*) &TimerLib_object_spec[0], ".functions", 10},
+{(DanaType*) &TimerLib_object_spec[1], ".events", 7},
+{(DanaType*) &TimerLib_object_spec[2], ".state", 6},
 };
 static unsigned char op_clone_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_equals_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_toString_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getID_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
-static unsigned char op_getLine_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
-static unsigned char op_getLineSecret_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_sleep_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static SourceHeader header;
 static DanaComponent self;
 static size_t interfaceFunctions[] = {
@@ -92,43 +91,37 @@ static size_t interfaceFunctions[] = {
 (size_t) op_equals_thread_spec,
 (size_t) op_toString_thread_spec,
 (size_t) op_getID_thread_spec,
-(size_t) op_getLine_thread_spec,
-(size_t) op_getLineSecret_thread_spec};
+(size_t) op_sleep_thread_spec};
 static DanaType libType = {TYPE_OBJECT, 0, 0, (DanaTypeField*) intf_def, 3};
-static InterfaceDetails ids[] = {{"CmdLib", 6, &libType}};
+static InterfaceDetails ids[] = {{"TimerLib", 8, &libType}};
 static Interface objectInterfaces[] = {{&ids[0], {&self, NULL, NULL, interfaceFunctions, NULL, NULL}}		};
 static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 0, 0, (size_t) &bool_def, (size_t) &emptyType}};
 Interface* getPublicInterface(){
 ((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_clone_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_CmdLib_functions_spec[0];
+((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_TimerLib_functions_spec[0];
 ((VFrameHeader*) op_clone_thread_spec) -> functionName = "clone";
 ((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_equals_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_equals_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_CmdLib_functions_spec[1];
+((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_TimerLib_functions_spec[1];
 ((VFrameHeader*) op_equals_thread_spec) -> functionName = "equals";
 ((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_toString_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_toString_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_CmdLib_functions_spec[2];
+((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_TimerLib_functions_spec[2];
 ((VFrameHeader*) op_toString_thread_spec) -> functionName = "toString";
 ((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getID_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getID_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_CmdLib_functions_spec[3];
+((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_TimerLib_functions_spec[3];
 ((VFrameHeader*) op_getID_thread_spec) -> functionName = "getID";
-((VFrameHeader*) op_getLine_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
-((VFrameHeader*) op_getLine_thread_spec) -> formalParamsCount = 0;
-((VFrameHeader*) op_getLine_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getLine_thread_spec) -> localsDef = (size_t) &object_CmdLib_functions_spec[4];
-((VFrameHeader*) op_getLine_thread_spec) -> functionName = "getLine";
-((VFrameHeader*) op_getLineSecret_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
-((VFrameHeader*) op_getLineSecret_thread_spec) -> formalParamsCount = 0;
-((VFrameHeader*) op_getLineSecret_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getLineSecret_thread_spec) -> localsDef = (size_t) &object_CmdLib_functions_spec[5];
-((VFrameHeader*) op_getLineSecret_thread_spec) -> functionName = "getLineSecret";
+((VFrameHeader*) op_sleep_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_sleep_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_sleep_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_sleep_thread_spec) -> localsDef = (size_t) &object_TimerLib_functions_spec[4];
+((VFrameHeader*) op_sleep_thread_spec) -> functionName = "sleep";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
 objectInterfaces[0].lbp.spec = &objects[0];
@@ -145,8 +138,7 @@ static Fable interfaceMappings[] = {
 {"equals", (VFrameHeader*) op_equals_thread_spec},
 {"toString", (VFrameHeader*) op_toString_thread_spec},
 {"getID", (VFrameHeader*) op_getID_thread_spec},
-{"getLine", (VFrameHeader*) op_getLine_thread_spec},
-{"getLineSecret", (VFrameHeader*) op_getLineSecret_thread_spec}};
+{"sleep", (VFrameHeader*) op_sleep_thread_spec}};
 void setInterfaceFunction(char *name, void *ptr){
 int i = 0;
 for (i = 0; i < sizeof(interfaceMappings) / sizeof(Fable); i ++){
