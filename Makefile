@@ -13,18 +13,18 @@ ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_l
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
-	CCFLAGS += -DLIB_PLATFORM_NAME=\"win7\"
+	CCFLAGS += -DLIB_PLATFORM_NAME=\"win\"
 	CCFLAGS += -DMACHINE_ENDIAN_LITTLE
 	INSTALL_PATH = "c:\programfiles\dana\"
 	CP_CMD = copy
-	PLATFORM = win7
+	PLATFORM = win
 	CCFLAGS += -shared
 	NET_LIBS = -lws2_32
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
 	MYSQL_LIBS = -lmysql
 	PNG_INCLUDE = -I "C:/libs/lpng/"
-	PNG_LIBS = "C:/libs/lpng/libpng.a" -L"C:/ProgramFiles/Dana/" -lzlib1
+	PNG_LIBS = "C:/libs/lpng/libpng.a" -L"C:/ProgramFiles/Dana/" $(ZLIB_LIBS)
 	JPG_INCLUDE = -I "C:/libs/jpeg-9c"
 	JPG_LIBS = "C:/libs/jpeg-9c/libjpeg.a"
 	ZLIB_INCLUDE = -I "C:/libs/zlib"
@@ -37,15 +37,15 @@ ifeq ($(OS),Windows_NT)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-		SDL_INCLUDE = -I "C:/libs/SDL/SDL2-2.0.8/i686-w64-mingw32/include/SDL2" -I "C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/include/SDL2" -I . -I ../../compiler/
-		SDL_LIBS = -L"C:/libs/SDL/SDL2-2.0.8/x86_64-w64-mingw32/lib" -L"C:/libs/SDL/SDL2_ttf-2.0.14/x86_64-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -lmingw32 -mwindows -static-libgcc"
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1
+		SDL_LIBS = C:/msys64/mingw64/lib/libSDL2main.a C:/msys64/mingw64/lib/libSDL2.a C:/msys64/mingw64/lib/libSDL2_ttf.a -lmingw32 -lImm32 -lVersion -lwinmm -lgdi32 -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -mwindows -static-libgcc"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
         CCFLAGS += -DMACHINE_32
 		CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
 		CHIP = x86
-		SDL_INCLUDE = -I "C:/libs/SDL2/include/" -I "C:/libs/SDL2_ttf/" -I . -I ../../compiler/
-		SDL_LIBS = -L"C:/libs/SDL2/build/build/.libs" -L"C:/libs/SDL/SDL2_ttf-2.0.14/i686-w64-mingw32/lib" -lSDL2main -lSDL2 -lSDL2_ttf -lmingw32 -mwindows -static-libgcc
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1
+		SDL_LIBS = C:/msys32/mingw32/lib/libSDL2main.a C:/msys32/mingw32/lib/libSDL2.a C:/msys32/mingw32/lib/libSDL2_ttf.a -lmingw32 -lImm32 -lVersion -lwinmm -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -lUsp10 -lgdi32 -mwindows -static-libgcc"
     endif
 else
     UNAME_S := $(shell uname -s)
@@ -169,8 +169,8 @@ jpg:
 	$(CP_CMD) JPGLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 clipboard:
-	$(CC) -Os -s Clipboard_dni.c $(API_PATH)/vmi_util.c Clipboard.c -o Clipboard[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_LIBS)
-	$(CP_CMD) Clipboard[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
+	$(CC) -Os -s ClipboardLib_dni.c $(API_PATH)/vmi_util.c Clipboard.c -o ClipboardLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(CLIPBOARD_LIBS)
+	$(CP_CMD) ClipboardLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 zlib:
 	$(CC) -Os -s ZLib_dni.c $(API_PATH)/vmi_util.c ZLib.c -o ZLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(ZLIB_LIBS)

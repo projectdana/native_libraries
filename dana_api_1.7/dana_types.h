@@ -171,6 +171,7 @@ typedef struct intfdet{
 	size_t variantNameLen;
 	char *variantName;
 	size_t *functionBindings;
+	size_t flags;
 	} InterfaceDetails;
 
 #endif

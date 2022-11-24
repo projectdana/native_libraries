@@ -491,9 +491,9 @@ INSTRUCTION_DEF op_tcp_recv(FrameData *cframe)
 		
 		if (amt < 0)
 			{
-			//#ifdef WINDOWS
-			//printf("TCPlib::recv error [%s]\n", getSocketError(WSAGetLastError()));
-			//#endif
+			#ifdef LINUX
+			//api -> throwException(cframe, strerror(errno));
+			#endif
 			break;
 			}
 		

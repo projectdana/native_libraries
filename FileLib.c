@@ -312,7 +312,14 @@ INSTRUCTION_DEF op_file_move(FrameData* cframe)
 bool copyfile(char *from, char *to)
 	{
 	FILE *ifd = fopen(from, "rb");
+	if (ifd == NULL) return false;
 	FILE *ofd = fopen(to, "wb");
+
+	if (ofd == NULL)
+		{
+		fclose(ifd);
+		return false;
+		}
 
 	char buffer[32768];
 	size_t n = 0;
@@ -348,7 +355,12 @@ INSTRUCTION_DEF op_file_copy(FrameData* cframe)
 
 	unsigned char ok = 1;
 
-	copyfile(path, newPath);
+	ok = copyfile(path, newPath);
+
+	if (ok == 0)
+		{
+		api -> throwException(cframe, "failed to copy file");
+		}
 	
 	api -> returnRaw(cframe, &ok, 1);
 	
