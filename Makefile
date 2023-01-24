@@ -37,15 +37,15 @@ ifeq ($(OS),Windows_NT)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1
-		SDL_LIBS = C:/msys64/mingw64/lib/libSDL2main.a C:/msys64/mingw64/lib/libSDL2.a C:/msys64/mingw64/lib/libSDL2_ttf.a -lmingw32 -lImm32 -lVersion -lwinmm -lgdi32 -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -mwindows -static-libgcc"
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1 -I C:/libs/SDL2_gfx
+		SDL_LIBS = C:/msys64/mingw64/lib/libSDL2main.a C:/msys64/mingw64/lib/libSDL2.a C:/msys64/mingw64/lib/libSDL2_ttf.a C:/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lmingw32 -lImm32 -lVersion -lwinmm -lgdi32 -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -mwindows -static-libgcc"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
         CCFLAGS += -DMACHINE_32
 		CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
 		CHIP = x86
-		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1
-		SDL_LIBS = C:/msys32/mingw32/lib/libSDL2main.a C:/msys32/mingw32/lib/libSDL2.a C:/msys32/mingw32/lib/libSDL2_ttf.a -lmingw32 -lImm32 -lVersion -lwinmm -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -lUsp10 -lgdi32 -mwindows -static-libgcc"
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1 -I C:/libs/SDL2_gfx
+		SDL_LIBS = C:/msys32/mingw32/lib/libSDL2main.a C:/msys32/mingw32/lib/libSDL2.a C:/msys32/mingw32/lib/libSDL2_ttf.a C:/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lmingw32 -lImm32 -lVersion -lwinmm -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -lUsp10 -lgdi32 -mwindows -static-libgcc"
     endif
 else
     UNAME_S := $(shell uname -s)
@@ -71,7 +71,8 @@ else
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
 		PLATFORM = deb
 		CLIPBOARD_LIBS = -lX11
-		SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype
+		SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a ~/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lm -lfreetype
+		SDL_INCLUDE = -I ~/libs/SDL2_gfx -I /usr/local/include/SDL2/
     endif
     ifeq ($(UNAME_S),Darwin)
         CCFLAGS += -DOSX
@@ -81,8 +82,8 @@ else
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-		SDL_LIBS = /usr/local/lib/libSDL2.a -liconv -framework Cocoa -framework Carbon -framework IOKit -framework CoreAudio -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework CoreHaptics -framework GameController -framework Metal /usr/local/lib/libSDL2_ttf.a -lfreetype -Wl,-rpath,'@executable_path/resources-ext'
-		SDL_INCLUDE = -I ~/libs/
+		SDL_LIBS = /usr/local/lib/libSDL2.a -liconv -framework Cocoa -framework Carbon -framework IOKit -framework CoreAudio -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework CoreHaptics -framework GameController -framework Metal /usr/local/lib/libSDL2_ttf.a ~/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lfreetype -Wl,-rpath,'@executable_path/resources-ext'
+		SDL_INCLUDE = -I ~/libs/ -I ~/libs/SDL2_gfx -I ~/libs/SDL2/
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
 		MYSQL_LIBS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
 		CLIPBOARD_LIBS = -framework ApplicationServices -x objective-c -ObjC -std=c99
@@ -107,7 +108,7 @@ else
             CCFLAGS += -DMACHINE_32
             CCFLAGS += -DLIB_CHIP_NAME=\"armv6\"
             CHIP = armv6
-			SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a -lm -lfreetype -L/opt/vc/lib -lbcm_host
+			SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a ~/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lm -lfreetype -L/opt/vc/lib -lbcm_host
         endif
     endif
 endif

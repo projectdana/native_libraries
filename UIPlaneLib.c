@@ -61,6 +61,8 @@ We can either link with -L/opt/vc/lib -lbcm_host, or we can use ./configure --di
 #endif
 #endif
 
+#include <SDL2_rotozoom.h>
+
 #include <limits.h>
 
 #include <sys/stat.h>
@@ -1803,25 +1805,15 @@ static void render_thread()
 
 				SDL_Surface *primarySurface = pixelMapToSurface(data -> sourceData);
 				
-				// -- generate the surface with matching pixel data
-				#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-					Uint32 rmask = 0xff000000;
-					Uint32 gmask = 0x00ff0000;
-					Uint32 bmask = 0x0000ff00;
-					Uint32 amask = 0x000000ff;
-				#else
-					Uint32 rmask = 0x000000ff;
-					Uint32 gmask = 0x0000ff00;
-					Uint32 bmask = 0x00ff0000;
-					Uint32 amask = 0xff000000;
-				#endif
 				SDL_Surface *finalSurface = NULL;
 				
 				if (data -> scaledWidth != primarySurface -> w || data -> scaledHeight != primarySurface -> h)
 					{
 					//printf("rescaling %u/%u...\n", data -> scaledWidth, data -> scaledHeight);
-					finalSurface = SDL_CreateRGBSurface(0, data -> scaledWidth, data -> scaledHeight, 32, rmask, gmask, bmask, amask);
-					SDL_BlitScaled(primarySurface, NULL, finalSurface, NULL);
+					float zoomX = (float) data -> scaledWidth / (float) primarySurface -> w;
+					float zoomY = (float) data -> scaledHeight / (float) primarySurface -> h;
+
+					finalSurface = zoomSurface(primarySurface, zoomX, zoomY, SMOOTHING_ON);
 					SDL_FreeSurface(primarySurface);
 					}
 					else
