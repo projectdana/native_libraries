@@ -62,6 +62,7 @@ We can either link with -L/opt/vc/lib -lbcm_host, or we can use ./configure --di
 #endif
 
 #include <SDL2_rotozoom.h>
+#include <SDL2_gfxPrimitives.h>
 
 #include <limits.h>
 
@@ -122,10 +123,11 @@ static DanaType intType = {TYPE_LITERAL, 0, sizeof(size_t)};
 static const DanaTypeField windowDataTypeFields[] = {
 			{&intType, NULL, 0, 0, 0},
 			{&intType, NULL, 0, 0, sizeof(size_t)},
-			{&intType, NULL, 0, 0, sizeof(size_t)*2}
+			{&intType, NULL, 0, 0, sizeof(size_t)*2},
+			{&intType, NULL, 0, 0, sizeof(size_t)*3}
 			};
 
-static DanaType windowDataType = {TYPE_DATA, 0, sizeof(VVarLivePTR), (DanaTypeField*) windowDataTypeFields, 3};
+static DanaType windowDataType = {TYPE_DATA, 0, sizeof(size_t)*4, (DanaTypeField*) windowDataTypeFields, 4};
 
 /*
 //for the _dni ::
@@ -152,16 +154,26 @@ typedef struct _point{
 	int g;
 	int b;
 	int a;
-	struct _point *next;
 	} UIPoint;
 
 typedef struct{
-	UIPoint *points;
-	UIPoint *lastPoint;
+	double *xPoints;
+	double *yPoints;
+	short int *xPoints_si;
+	short int *yPoints_si;
+	int nPoints;
+	int isteps;
+	int thickness;
+	int r;
+	int g;
+	int b;
+	int a;
 	} UIPolygon;
 
 typedef struct{
 	SDL_Rect rect;
+
+	size_t thickness;
 
 	int r;
 	int g;
@@ -170,11 +182,29 @@ typedef struct{
 	} UIRect;
 
 typedef struct{
+	SDL_Rect rect;
+
+	size_t start;
+	size_t end;
+	size_t thickness;
+
+	bool chord;
+	bool antiAlias;
+
+	int r;
+	int g;
+	int b;
+	int a;
+	} UIArc;
+
+typedef struct{
 	unsigned int x1;
 	unsigned int y1;
 
 	unsigned int x2;
 	unsigned int y2;
+
+	unsigned int thickness;
 
 	int r;
 	int g;
@@ -229,14 +259,21 @@ typedef struct{
 	} UISurface;
 
 #define UI_TYPE_POLYGON		1
-#define UI_TYPE_RECT		2
-#define UI_TYPE_TRIANGLE	3
+#define UI_TYPE_POLYGON_OUT	2
+#define UI_TYPE_RECT		3
 #define UI_TYPE_CIRCLE		4
 #define UI_TYPE_TEXT		5
 #define UI_TYPE_LINE		6
 #define UI_TYPE_POINT		7
 #define UI_TYPE_BITMAP		8
 #define UI_TYPE_SURFACE		9
+#define UI_TYPE_ELLIPSE		10
+#define UI_TYPE_ELLIPSE_OUT	11
+#define UI_TYPE_POLYGON_BEZ		12
+#define UI_TYPE_POLYGON_BEZ_OUT	13
+#define UI_TYPE_CURVE_BEZ	14
+#define UI_TYPE_ARC			15
+#define UI_TYPE_PIE			16
 
 typedef struct _uio{
 	unsigned int type;
@@ -296,6 +333,8 @@ typedef struct{
 	SDL_Window *win;
 	SDL_Renderer *renderer;
 
+	SDL_Cursor* currentCursor;
+
 	UIObject *frontBuffer;
 	UIObject *backBuffer;
 	UIObject *backBufferEnd;
@@ -348,6 +387,15 @@ static ListItem *instances = NULL;
 static ListItem *lastInstance = NULL;
 
 static void *systemEventObject = NULL;
+
+typedef struct __wi_cs {
+	unsigned char type;
+	int w;
+	int h;
+	int hotpointX;
+	int hotpointY;
+	DanaEl* customCursor;
+	} SetCursorInstance;
 
 #ifdef STATS
 typedef struct{
@@ -446,7 +494,7 @@ void semaphore_destroy(Semaphore *s)
     #endif
 	}
 
-static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y);
+static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y, size_t exd1);
 static void pushEvent(WindowInstance *w, size_t type);
 static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y);
 
@@ -609,7 +657,7 @@ bool findFont(const char *ttfFileName, char *result, unsigned int resultLen)
 void primeFontDirectories()
 	{
 	//char *home = getenv("DANA_HOME");
-	char *home = api -> getDanaHome();
+	const char *home = api -> getDanaHome();
 	char *danaFontDir = NULL;
 	if (home != NULL)
 		{
@@ -735,21 +783,15 @@ static void cleanupBuffer(UIObject *buf)
 
 		buf = buf -> next;
 
-		if (td -> type == UI_TYPE_POLYGON)
+		if (td -> type == UI_TYPE_POLYGON || td -> type == UI_TYPE_POLYGON_OUT || td -> type == UI_TYPE_CURVE_BEZ || td -> type == UI_TYPE_POLYGON_BEZ || td -> type == UI_TYPE_POLYGON_BEZ_OUT)
 			{
 			UIPolygon *poly = (UIPolygon*) td -> object;
-			UIPoint *p = poly -> points;
-			while (p != NULL)
-				{
-				UIPoint *dp = p;
-				p = p -> next;
 
-				free(dp);
-				}
-			}
-			else if (td -> type == UI_TYPE_RECT || td -> type == UI_TYPE_LINE || td -> type == UI_TYPE_POINT)
-			{
-			//UIRect *poly = (UIRect*) td -> object;
+			free(poly -> xPoints);
+			free(poly -> yPoints);
+
+			if (poly -> xPoints_si != NULL) free(poly -> xPoints_si);
+			if (poly -> yPoints_si != NULL) free(poly -> yPoints_si);
 			}
 			else if (td -> type == UI_TYPE_TEXT)
 			{
@@ -782,53 +824,102 @@ static void cleanupBuffer(UIObject *buf)
 		}
 	}
 
-SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
+void drawObjects(SDL_Renderer* renderer, UIObject* objects)
 	{
-	SDL_Texture *baseTarget = SDL_GetRenderTarget(myRenderer);
+	SDL_Texture *baseTarget = SDL_GetRenderTarget(renderer);
 
-	SDL_Texture *st = SDL_CreateTexture(myRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, s -> width, s -> height);
-	SDL_SetRenderTarget(myRenderer, st);
-	
-	//NOTE: when using transparency, if we blend the background colour here (at alpha zero) against the SAME colour of text (white for white text), we get nice text; if the background colour is opposite (white for black text) we get horrible text rendering
-	// - if we take the alpha channel away, blending is fine in all cases
-	// - see https://discourse.libsdl.org/t/bad-text-quality-on-transparent-texture/23098
-	// - a workaround is to require surfaces to have a solid background colour, and only offer to apply alpha to the whole surface (i.e., to the texture after all contents are rendered)
-	// - we currently push this responsibility to Dana components, which should always render a solid background on a surface before rendering any contents
-	SDL_SetTextureBlendMode(st, SDL_BLENDMODE_BLEND);
-	SDL_SetRenderDrawColor(myRenderer, 255, 255, 255, 0);
-	SDL_RenderClear(myRenderer);
-
-	int xScroll = s -> xScroll;
-	int yScroll = s -> yScroll;
-
-	UIObject *pw = s -> objects;
+	UIObject *pw = objects;
 	while (pw != NULL)
 		{
-		if (pw -> type == UI_TYPE_RECT)
+		if (pw -> type == UI_TYPE_POINT)
 			{
-			UIRect *poly = (UIRect*) pw -> object;
+			UIPoint *poly = (UIPoint*) pw -> object;
 
-			SDL_SetRenderDrawColor(myRenderer, poly -> r, poly -> g, poly -> b, poly -> a);
-
-			SDL_Rect rc = poly -> rect;
-			rc.x = rc.x - xScroll;
-			rc.y = rc.y - yScroll;
-
-			SDL_RenderFillRect(myRenderer, &rc);
+			SDL_SetRenderDrawColor(renderer, poly -> r, poly -> g, poly -> b, poly -> a);
+			SDL_RenderDrawPoint(renderer, poly -> x, poly -> y);
 			}
 			else if (pw -> type == UI_TYPE_LINE)
 			{
 			UILine *poly = (UILine*) pw -> object;
-
-			SDL_SetRenderDrawColor(myRenderer, poly -> r, poly -> g, poly -> b, poly -> a);
-			SDL_RenderDrawLine(myRenderer, poly -> x1 - xScroll, poly -> y1 - yScroll, poly -> x2 - xScroll, poly -> y2 - yScroll);
+			
+			thickLineRGBA(renderer, poly -> x1, poly -> y1, poly -> x2, poly -> y2, poly -> thickness, poly -> r, poly -> g, poly -> b, poly -> a);
 			}
-			else if (pw -> type == UI_TYPE_POINT)
+			else if (pw -> type == UI_TYPE_RECT)
 			{
-			UIPoint *poly = (UIPoint*) pw -> object;
+			UIRect *poly = (UIRect*) pw -> object;
 
-			SDL_SetRenderDrawColor(myRenderer, poly -> r, poly -> g, poly -> b, poly -> a);
-			SDL_RenderDrawPoint(myRenderer, poly -> x - xScroll, poly -> y - yScroll);
+			SDL_SetRenderDrawColor(renderer, poly -> r, poly -> g, poly -> b, poly -> a);
+			SDL_RenderFillRect(renderer, &poly -> rect);
+			}
+			else if (pw -> type == UI_TYPE_ELLIPSE)
+			{
+			UIRect *poly = (UIRect*) pw -> object;
+
+			//filledEllipseRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> r, poly -> g, poly -> b, poly -> a);
+			aaFilledEllipseRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> r, poly -> g, poly -> b, poly -> a);
+			}
+			else if (pw -> type == UI_TYPE_ELLIPSE_OUT)
+			{
+			UIRect *poly = (UIRect*) pw -> object;
+
+			if (poly -> thickness == 1)
+				{
+				aaellipseRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> r, poly -> g, poly -> b, poly -> a);
+				}
+				else
+				{
+				//thickEllipseRGBA(instance -> renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> r, poly -> g, poly -> b, poly -> a, poly -> thickness);
+
+				aaArcRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, 0.0, 360.0, poly -> thickness, poly -> r, poly -> g, poly -> b, poly -> a);
+				}
+			}
+			else if (pw -> type == UI_TYPE_POLYGON)
+			{
+			UIPolygon *poly = (UIPolygon*) pw -> object;
+
+			//filledPolygonRGBA(renderer, poly -> xPoints, poly -> yPoints, poly -> nPoints, poly -> r, poly -> g, poly -> b, poly -> a);
+			aaFilledPolygonRGBA(renderer, poly -> xPoints, poly -> yPoints, poly -> nPoints, poly -> r, poly -> g, poly -> b, poly -> a);
+			}
+			else if (pw -> type == UI_TYPE_POLYGON_OUT)
+			{
+			UIPolygon *poly = (UIPolygon*) pw -> object;
+
+			if (poly -> thickness == 1)
+				{
+				aapolygonRGBA(renderer, poly -> xPoints_si, poly -> yPoints_si, poly -> nPoints, poly -> r, poly -> g, poly -> b, poly -> a);
+				}
+				else
+				{
+				//TODO.
+				}
+			}
+			else if (pw -> type == UI_TYPE_POLYGON_BEZ)
+			{
+			UIPolygon *poly = (UIPolygon*) pw -> object;
+
+			//filledPolyBezierRGBA(renderer, poly -> xPoints, poly -> yPoints, poly -> nPoints, poly -> r, poly -> g, poly -> b, poly -> a);
+			aaFilledPolyBezierRGBA(renderer, poly -> xPoints, poly -> yPoints, poly -> nPoints, poly -> isteps, poly -> r, poly -> g, poly -> b, poly -> a);
+			}
+			else if (pw -> type == UI_TYPE_CURVE_BEZ)
+			{
+			UIPolygon *poly = (UIPolygon*) pw -> object;
+
+			aaBezierRGBA(renderer, poly -> xPoints, poly -> yPoints, poly -> nPoints, poly -> isteps, poly -> thickness, poly -> r, poly -> g, poly -> b, poly -> a);
+			}
+			else if (pw -> type == UI_TYPE_ARC)
+			{
+			UIArc *poly = (UIArc*) pw -> object;
+
+			if (poly -> antiAlias)
+				aaArcRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> start + 270, poly -> end + 270, poly -> thickness, poly -> r, poly -> g, poly -> b, poly -> a);
+				else
+				thickArcRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> start + 270, poly -> end + 270, poly -> r, poly -> g, poly -> b, poly -> a, poly -> thickness);
+			}
+			else if (pw -> type == UI_TYPE_PIE)
+			{
+			UIArc *poly = (UIArc*) pw -> object;
+
+			aaFilledPieRGBA(renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> start + 270, poly -> end + 270, poly -> chord, poly -> r, poly -> g, poly -> b, poly -> a);
 			}
 			else if (pw -> type == UI_TYPE_TEXT)
 			{
@@ -839,11 +930,11 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 			color.g = poly -> g;
 			color.b = poly -> b;
 			color.a = poly -> a;
-			
-			SDL_Texture *image = renderText(poly -> text, poly -> font -> font, color, myRenderer);
+
+			SDL_Texture *image = renderText(poly -> text, poly -> font -> font, color, renderer);
 			if (image != NULL)
 				{
-				renderTextureRZ(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, poly -> rotation);
+				renderTextureRZ(image, renderer, poly -> x, poly -> y, poly -> rotation);
 				SDL_DestroyTexture(image);
 				}
 			}
@@ -851,35 +942,42 @@ SDL_Texture* renderSurface(UISurface *s, SDL_Renderer *myRenderer)
 			{
 			UISurface *poly = (UISurface*) pw -> object;
 
-			SDL_Texture *image = renderSurface(poly, myRenderer);
+			SDL_Texture *st = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, poly -> width, poly -> height);
+			SDL_SetRenderTarget(renderer, st);
+			
+			//NOTE: when using transparency, if we blend the background colour here (at alpha zero) against the SAME colour of text (white for white text), we get nice text; if the background colour is opposite (white for black text) we get horrible text rendering
+			// - if we take the alpha channel away, blending is fine in all cases
+			// - see https://discourse.libsdl.org/t/bad-text-quality-on-transparent-texture/23098
+			// - a workaround is to require surfaces to have a solid background colour, and only offer to apply alpha to the whole surface (i.e., to the texture after all contents are rendered)
+			// - we currently push this responsibility to Dana components, which should always render a solid background on a surface before rendering any contents
+			SDL_SetTextureBlendMode(st, SDL_BLENDMODE_BLEND);
+			SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
+			SDL_RenderClear(renderer);
 
-			SDL_SetRenderTarget(myRenderer, st);
+			drawObjects(renderer, poly -> objects);
 
-			if (image != NULL)
+			SDL_SetTextureAlphaMod(st, poly -> a);
+			
+			SDL_SetRenderTarget(renderer, baseTarget);
+
+			if (st != NULL)
 				{
-				renderTexture(image, myRenderer, poly -> x - xScroll, poly -> y - yScroll, 0);
-				SDL_DestroyTexture(image);
+				renderTexture(st, renderer, poly -> x, poly -> y, 0);
+				SDL_DestroyTexture(st);
 				}
 			}
 			else if (pw -> type == UI_TYPE_BITMAP)
 			{
 			UIBitmap *poly = (UIBitmap*) pw -> object;
 
-			SDL_Texture *texture = SDL_CreateTextureFromSurface(myRenderer, poly -> surface);
+			SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, poly -> surface);
 
-			renderTexture(texture, myRenderer, poly -> x - xScroll, poly -> y - yScroll, poly -> rotation);
-			
+			renderTexture(texture, renderer, poly -> x, poly -> y, poly -> rotation);
 			SDL_DestroyTexture(texture);
 			}
 
 		pw = pw -> next;
 		}
-	
-	SDL_SetTextureAlphaMod(st, s -> a);
-	
-	SDL_SetRenderTarget(myRenderer, baseTarget);
-
-	return st;
 	}
 
 /*
@@ -887,7 +985,7 @@ here we render everything onto a texture (baseTexture) and then render that text
  - there are two reasons for this: (1) it has more consistent behaviour for font rendering across different graphics adaptors; (2) it's faster if you need to repaint the window but nothing actually changed (i.e. no "sceneChanged")
 */
 
-int DrawScene(WindowInstance *instance)
+int DrawScene(WindowInstance* instance)
 	{
 	//background colour
 	SDL_SetRenderDrawColor(instance -> renderer, instance -> backgroundColour.r, instance -> backgroundColour.g, instance -> backgroundColour.b, 255);
@@ -910,77 +1008,7 @@ int DrawScene(WindowInstance *instance)
 		SDL_SetRenderDrawColor(instance -> renderer, instance -> backgroundColour.r, instance -> backgroundColour.g, instance -> backgroundColour.b, 255);
 		SDL_RenderClear(instance -> renderer);
 
-		UIObject *pw = instance -> frontBuffer;
-		while (pw != NULL)
-			{
-			if (pw -> type == UI_TYPE_POLYGON)
-				{
-				//UIPolygon *poly = (UIPolygon*) pw -> object;
-				}
-				else if (pw -> type == UI_TYPE_RECT)
-				{
-				UIRect *poly = (UIRect*) pw -> object;
-
-				SDL_SetRenderDrawColor(instance -> renderer, poly -> r, poly -> g, poly -> b, poly -> a);
-				SDL_RenderFillRect(instance -> renderer, &poly -> rect);
-				}
-				else if (pw -> type == UI_TYPE_LINE)
-				{
-				UILine *poly = (UILine*) pw -> object;
-
-				SDL_SetRenderDrawColor(instance -> renderer, poly -> r, poly -> g, poly -> b, poly -> a);
-				SDL_RenderDrawLine(instance -> renderer, poly -> x1, poly -> y1, poly -> x2, poly -> y2);
-				}
-				else if (pw -> type == UI_TYPE_POINT)
-				{
-				UIPoint *poly = (UIPoint*) pw -> object;
-
-				SDL_SetRenderDrawColor(instance -> renderer, poly -> r, poly -> g, poly -> b, poly -> a);
-				SDL_RenderDrawPoint(instance -> renderer, poly -> x, poly -> y);
-				}
-				else if (pw -> type == UI_TYPE_TEXT)
-				{
-				UIText *poly = (UIText*) pw -> object;
-
-				SDL_Color color;
-				color.r = poly -> r;
-				color.g = poly -> g;
-				color.b = poly -> b;
-				color.a = poly -> a;
-
-				SDL_Texture *image = renderText(poly -> text, poly -> font -> font, color, instance -> renderer);
-				if (image != NULL)
-					{
-					renderTextureRZ(image, instance -> renderer, poly -> x, poly -> y, poly -> rotation);
-					SDL_DestroyTexture(image);
-					}
-				}
-				else if (pw -> type == UI_TYPE_SURFACE)
-				{
-				UISurface *poly = (UISurface*) pw -> object;
-
-				SDL_Texture *image = renderSurface(poly, instance -> renderer);
-				
-				SDL_SetRenderTarget(instance -> renderer, instance -> baseTexture);
-
-				if (image != NULL)
-					{
-					renderTexture(image, instance -> renderer, poly -> x, poly -> y, 0);
-					SDL_DestroyTexture(image);
-					}
-				}
-				else if (pw -> type == UI_TYPE_BITMAP)
-				{
-				UIBitmap *poly = (UIBitmap*) pw -> object;
-
-				SDL_Texture *texture = SDL_CreateTextureFromSurface(instance -> renderer, poly -> surface);
-
-				renderTexture(texture, instance -> renderer, poly -> x, poly -> y, poly -> rotation);
-				SDL_DestroyTexture(texture);
-				}
-
-			pw = pw -> next;
-			}
+		drawObjects(instance -> renderer, instance -> frontBuffer);
 
 		instance -> sceneChanged = false;
 		}
@@ -1182,6 +1210,7 @@ static unsigned int DX_SWAP_BUFFERS_EVENT = 0;
 static unsigned int DX_SET_WINDOW_POSITION = 0;
 static unsigned int DX_SET_WINDOW_TITLE = 0;
 static unsigned int DX_SET_WINDOW_ICON = 0;
+static unsigned int DX_SET_WINDOW_CURSOR = 0;
 static unsigned int DX_MAXIMISE_WINDOW = 0;
 static unsigned int DX_MINIMISE_WINDOW = 0;
 static unsigned int DX_SHOW_WINDOW = 0;
@@ -1348,7 +1377,7 @@ static void render_thread()
 						wi -> windowedWidth = e.window.data1;
 						wi -> windowedHeight = e.window.data2;
 						
-						pushMouseEvent(wi, 6, 0, wi -> windowWidth, wi -> windowHeight);
+						pushMouseEvent(wi, 6, 0, wi -> windowWidth, wi -> windowHeight, 0);
 						
 						newFrame = true;
 						}
@@ -1390,7 +1419,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 2, button, screenX, screenY);
+					pushMouseEvent(myInstance, 2, button, screenX, screenY, 0);
 					}
 				}
 				else if (e.type == SDL_MOUSEBUTTONUP)
@@ -1406,10 +1435,11 @@ static void render_thread()
 					button = 2;
 				
 				WindowInstance *myInstance = findWindow(e.button.windowID);
-				
+
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 1, button, screenX, screenY);
+					//e.button.clicks has the number of clicks stored in it, for multi-click events like a double-click
+					pushMouseEvent(myInstance, 1, button, screenX, screenY, e.button.clicks);
 					}
 				}
 				else if (e.type == SDL_MOUSEMOTION)
@@ -1421,7 +1451,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 3, 0, screenX, screenY);
+					pushMouseEvent(myInstance, 3, 0, screenX, screenY, 0);
 					}
 				}
 				else if (e.type == SDL_KEYDOWN)
@@ -1432,7 +1462,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 4, keyID, 0, 0);
+					pushMouseEvent(myInstance, 4, keyID, 0, 0, 0);
 					}
 				}
 				else if (e.type == SDL_KEYUP)
@@ -1443,7 +1473,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 5, keyID, 0, 0);
+					pushMouseEvent(myInstance, 5, keyID, 0, 0, 0);
 					}
 				}
 				else if (e.type == SDL_DROPFILE)
@@ -1523,6 +1553,84 @@ static void render_thread()
 				SDL_SetWindowIcon(wi -> win, surface);
 				
 				SDL_FreeSurface(surface);
+				}
+				else if (e.type == DX_SET_WINDOW_CURSOR)
+				{
+				WindowInstance *wi = (WindowInstance*) e.user.data1;
+				
+				SetCursorInstance* sci = (SetCursorInstance*) e.user.data2;
+
+				SDL_Cursor* nc = NULL;
+
+				if (sci -> type == 0)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+					}
+					else if (sci -> type == 1)
+					{
+					//a custom-provided image, with an x/y hotpoint
+					DanaEl* pixelMap = api -> getDataFieldEl(sci -> customCursor, 0);
+					SDL_Surface *surface = pixelMapToSurface(pixelMap);
+
+					nc = SDL_CreateColorCursor(surface, api -> getDataFieldInt(sci -> customCursor, 1), api -> getDataFieldInt(sci -> customCursor, 2));
+
+					SDL_FreeSurface(surface);
+
+					api -> decRef(NULL, sci -> customCursor);
+					}
+					else if (sci -> type == 2)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
+					}
+					else if (sci -> type == 3)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+					}
+					else if (sci -> type == 4)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAIT);
+					}
+					else if (sci -> type == 5)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
+					}
+					else if (sci -> type == 6)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
+					}
+					else if (sci -> type == 7)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
+					}
+					else if (sci -> type == 8)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
+					}
+					else if (sci -> type == 9)
+					{
+					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
+					}
+				
+				/*
+				SDL_SYSTEM_CURSOR_CROSSHAIR
+				SDL_SYSTEM_CURSOR_WAITARROW
+				SDL_SYSTEM_CURSOR_NO
+				*/
+				
+				if (nc != NULL)
+					{
+					SDL_SetCursor(nc);
+
+					//if there's a cursor already set (and about to no longer be user), we need to use SDL_FreeCursor on that one
+					if (wi -> currentCursor != NULL)
+						{
+						SDL_FreeCursor(wi -> currentCursor);
+						}
+					
+					wi -> currentCursor = nc;
+					}
+				
+				free(sci);
 				}
 				else if (e.type == DX_MAXIMISE_WINDOW)
 				{
@@ -1928,6 +2036,7 @@ static void render_thread()
 			while (lw != NULL)
 				{
 				WindowInstance *wi = (WindowInstance*) lw -> data;
+
 				DrawScene(wi);
 
 				lw = lw -> next;
@@ -2018,26 +2127,47 @@ INSTRUCTION_DEF op_make_window(FrameData* cframe)
 	return RETURN_OK;
 	}
 
-INSTRUCTION_DEF op_start_poly(FrameData *cframe)
-	{
-	return RETURN_OK;
-	}
-
-INSTRUCTION_DEF op_add_poly_point(FrameData *cframe)
-	{
-	return RETURN_OK;
-	}
-
-INSTRUCTION_DEF op_end_poly(FrameData *cframe)
-	{
-	return RETURN_OK;
-	}
-
 static void addUIObject(WindowInstance *instance, UIObject *o)
 	{
 	if (instance -> surfaceStack != NULL)
 		{
 		UISurface *surface = (UISurface*) instance -> surfaceStack -> object;
+
+		//decide on scroll position
+		//TODO: we could also decide on whether or not the object will render at all (due to e.g. all of its points being out of bounds)
+		if (o -> type == UI_TYPE_RECT || o -> type == UI_TYPE_ARC || o -> type == UI_TYPE_PIE || o -> type == UI_TYPE_ELLIPSE || o -> type == UI_TYPE_ELLIPSE_OUT)
+			{
+			((UIRect*) o -> object) -> rect.x -= surface -> xScroll;
+			((UIRect*) o -> object) -> rect.y -= surface -> yScroll;
+			}
+			else if (o -> type == UI_TYPE_TEXT)
+			{
+			((UIText*) o -> object) -> x -= surface -> xScroll;
+			((UIText*) o -> object) -> y -= surface -> yScroll;
+			}
+			else if (o -> type == UI_TYPE_LINE)
+			{
+			((UILine*) o -> object) -> x1 -= surface -> xScroll;
+			((UILine*) o -> object) -> y1 -= surface -> yScroll;
+
+			((UILine*) o -> object) -> x2 -= surface -> xScroll;
+			((UILine*) o -> object) -> y2 -= surface -> yScroll;
+			}
+			else if (o -> type == UI_TYPE_POINT)
+			{
+			((UIPoint*) o -> object) -> x -= surface -> xScroll;
+			((UIPoint*) o -> object) -> y -= surface -> yScroll;
+			}
+			else if (o -> type == UI_TYPE_SURFACE)
+			{
+			((UISurface*) o -> object) -> x -= surface -> xScroll;
+			((UISurface*) o -> object) -> y -= surface -> yScroll;
+			}
+			else if (o -> type == UI_TYPE_BITMAP)
+			{
+			((UIBitmap*) o -> object) -> x -= surface -> xScroll;
+			((UIBitmap*) o -> object) -> y -= surface -> yScroll;
+			}
 
 		if (surface -> lastObject == NULL)
 			surface -> objects = o;
@@ -2067,19 +2197,12 @@ INSTRUCTION_DEF op_add_rect(FrameData* cframe)
 		WindowInstance *instance = (WindowInstance*) hnd;
 
 		size_t x = api -> getParamInt(cframe, 1);
-
 		size_t y = api -> getParamInt(cframe, 2);
-
 		size_t w = api -> getParamInt(cframe, 3);
-
 		size_t h = api -> getParamInt(cframe, 4);
-
 		unsigned char r = api -> getParamRaw(cframe, 5)[0];
-
 		unsigned char g = api -> getParamRaw(cframe, 6)[0];
-
 		unsigned char b = api -> getParamRaw(cframe, 7)[0];
-
 		unsigned char a = api -> getParamRaw(cframe, 8)[0];
 
 		// -- create the container --
@@ -2087,8 +2210,6 @@ INSTRUCTION_DEF op_add_rect(FrameData* cframe)
 		UIRect *poly = (UIRect*) malloc(sizeof(UIRect));
 		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
 		memset(uio, '\0', sizeof(UIObject));
-		
-		addUIObject(instance, uio);
 
 		uio -> type = UI_TYPE_RECT;
 		uio -> object = poly;
@@ -2098,6 +2219,508 @@ INSTRUCTION_DEF op_add_rect(FrameData* cframe)
 
 		poly -> rect.w = w;
 		poly -> rect.h = h;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+
+		addUIObject(instance, uio);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_ellipse(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		size_t x = api -> getParamInt(cframe, 1);
+		size_t y = api -> getParamInt(cframe, 2);
+		size_t w = api -> getParamInt(cframe, 3);
+		size_t h = api -> getParamInt(cframe, 4);
+		unsigned char r = api -> getParamRaw(cframe, 5)[0];
+		unsigned char g = api -> getParamRaw(cframe, 6)[0];
+		unsigned char b = api -> getParamRaw(cframe, 7)[0];
+		unsigned char a = api -> getParamRaw(cframe, 8)[0];
+
+		// -- create the container --
+
+		UIRect *poly = (UIRect*) malloc(sizeof(UIRect));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+
+		uio -> type = UI_TYPE_ELLIPSE;
+		uio -> object = poly;
+
+		poly -> rect.x = x;
+		poly -> rect.y = y;
+
+		poly -> rect.w = w;
+		poly -> rect.h = h;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+
+		addUIObject(instance, uio);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_ellipse_outline(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		size_t x = api -> getParamInt(cframe, 1);
+		size_t y = api -> getParamInt(cframe, 2);
+		size_t w = api -> getParamInt(cframe, 3);
+		size_t h = api -> getParamInt(cframe, 4);
+		size_t thickness = api -> getParamInt(cframe, 5);
+		unsigned char r = api -> getParamRaw(cframe, 6)[0];
+		unsigned char g = api -> getParamRaw(cframe, 7)[0];
+		unsigned char b = api -> getParamRaw(cframe, 8)[0];
+		unsigned char a = api -> getParamRaw(cframe, 9)[0];
+
+		// -- create the container --
+
+		UIRect *poly = (UIRect*) malloc(sizeof(UIRect));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+
+		uio -> type = UI_TYPE_ELLIPSE_OUT;
+		uio -> object = poly;
+
+		poly -> rect.x = x;
+		poly -> rect.y = y;
+
+		poly -> rect.w = w;
+		poly -> rect.h = h;
+
+		poly -> thickness = thickness;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+
+		addUIObject(instance, uio);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_arc(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		size_t x = api -> getParamInt(cframe, 1);
+		size_t y = api -> getParamInt(cframe, 2);
+		size_t w = api -> getParamInt(cframe, 3);
+		size_t h = api -> getParamInt(cframe, 4);
+		size_t start = api -> getParamInt(cframe, 5);
+		size_t end = api -> getParamInt(cframe, 6);
+		size_t thickness = api -> getParamInt(cframe, 7);
+		unsigned char r = api -> getParamRaw(cframe, 8)[0];
+		unsigned char g = api -> getParamRaw(cframe, 9)[0];
+		unsigned char b = api -> getParamRaw(cframe, 10)[0];
+		unsigned char a = api -> getParamRaw(cframe, 11)[0];
+		unsigned char antiAlias = api -> getParamRaw(cframe, 12)[0];
+
+		// -- create the container --
+
+		UIArc *poly = (UIArc*) malloc(sizeof(UIArc));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+
+		uio -> type = UI_TYPE_ARC;
+		uio -> object = poly;
+
+		poly -> rect.x = x;
+		poly -> rect.y = y;
+
+		poly -> rect.w = w;
+		poly -> rect.h = h;
+
+		poly -> thickness = thickness;
+		poly -> start = start;
+		poly -> end = end;
+
+		poly -> antiAlias = antiAlias;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+
+		addUIObject(instance, uio);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_pie(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		size_t x = api -> getParamInt(cframe, 1);
+		size_t y = api -> getParamInt(cframe, 2);
+		size_t w = api -> getParamInt(cframe, 3);
+		size_t h = api -> getParamInt(cframe, 4);
+		size_t start = api -> getParamInt(cframe, 5);
+		size_t end = api -> getParamInt(cframe, 6);
+		unsigned char chord = api -> getParamRaw(cframe, 7)[0];
+		unsigned char r = api -> getParamRaw(cframe, 8)[0];
+		unsigned char g = api -> getParamRaw(cframe, 9)[0];
+		unsigned char b = api -> getParamRaw(cframe, 10)[0];
+		unsigned char a = api -> getParamRaw(cframe, 11)[0];
+
+		// -- create the container --
+
+		UIArc *poly = (UIArc*) malloc(sizeof(UIArc));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+		
+		uio -> type = UI_TYPE_PIE;
+		uio -> object = poly;
+
+		poly -> rect.x = x;
+		poly -> rect.y = y;
+
+		poly -> rect.w = w;
+		poly -> rect.h = h;
+
+		poly -> start = start;
+		poly -> end = end;
+
+		poly -> chord = chord;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+
+		addUIObject(instance, uio);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_polygon(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		DanaEl* points = api -> getParamEl(cframe, 1);
+
+		unsigned char r = api -> getParamRaw(cframe, 2)[0];
+		unsigned char g = api -> getParamRaw(cframe, 3)[0];
+		unsigned char b = api -> getParamRaw(cframe, 4)[0];
+		unsigned char a = api -> getParamRaw(cframe, 5)[0];
+
+		// -- create the container --
+
+		UIPolygon *poly = (UIPolygon*) malloc(sizeof(UIPolygon));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+		
+		addUIObject(instance, uio);
+
+		uio -> type = UI_TYPE_POLYGON;
+		uio -> object = poly;
+
+		size_t nPoints = api -> getArrayLength(points);
+
+		poly -> xPoints = malloc(sizeof(double) * nPoints);
+		poly -> yPoints = malloc(sizeof(double) * nPoints);
+
+		poly -> xPoints_si = NULL;
+		poly -> yPoints_si = NULL;
+
+		int i = 0;
+		for (i = 0; i < nPoints; i++)
+			{
+			DanaEl* it = api -> getArrayCellEl(points, i);
+
+			poly -> xPoints[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints[i] = api -> getDataFieldInt(it, 1);
+			}
+		
+		poly -> nPoints = nPoints;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_polygon_outline(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		DanaEl* points = api -> getParamEl(cframe, 1);
+		size_t thickness = api -> getParamInt(cframe, 2);
+		unsigned char r = api -> getParamRaw(cframe, 3)[0];
+		unsigned char g = api -> getParamRaw(cframe, 4)[0];
+		unsigned char b = api -> getParamRaw(cframe, 5)[0];
+		unsigned char a = api -> getParamRaw(cframe, 6)[0];
+
+		// -- create the container --
+
+		UIPolygon *poly = (UIPolygon*) malloc(sizeof(UIPolygon));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+		
+		addUIObject(instance, uio);
+
+		uio -> type = UI_TYPE_POLYGON_OUT;
+		uio -> object = poly;
+
+		size_t nPoints = api -> getArrayLength(points);
+
+		poly -> xPoints = malloc(sizeof(double) * nPoints);
+		poly -> yPoints = malloc(sizeof(double) * nPoints);
+
+		poly -> xPoints_si = malloc(sizeof(short int) * nPoints);
+		poly -> yPoints_si = malloc(sizeof(short int) * nPoints);
+
+		int i = 0;
+		for (i = 0; i < nPoints; i++)
+			{
+			DanaEl* it = api -> getArrayCellEl(points, i);
+
+			poly -> xPoints[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints[i] = api -> getDataFieldInt(it, 1);
+
+			poly -> xPoints_si[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints_si[i] = api -> getDataFieldInt(it, 1);
+			}
+		
+		poly -> nPoints = nPoints;
+
+		poly -> thickness = thickness;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_polygon_bezier(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		DanaEl* points = api -> getParamEl(cframe, 1);
+		size_t isteps = api -> getParamInt(cframe, 2);
+		unsigned char r = api -> getParamRaw(cframe, 3)[0];
+		unsigned char g = api -> getParamRaw(cframe, 4)[0];
+		unsigned char b = api -> getParamRaw(cframe, 5)[0];
+		unsigned char a = api -> getParamRaw(cframe, 6)[0];
+
+		// -- create the container --
+
+		UIPolygon *poly = (UIPolygon*) malloc(sizeof(UIPolygon));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+		
+		addUIObject(instance, uio);
+
+		uio -> type = UI_TYPE_POLYGON_BEZ;
+		uio -> object = poly;
+
+		size_t nPoints = api -> getArrayLength(points);
+
+		poly -> xPoints = malloc(sizeof(double) * nPoints);
+		poly -> yPoints = malloc(sizeof(double) * nPoints);
+
+		poly -> xPoints_si = NULL;
+		poly -> yPoints_si = NULL;
+
+		poly -> xPoints_si = malloc(sizeof(short int) * nPoints);
+		poly -> yPoints_si = malloc(sizeof(short int) * nPoints);
+
+		int i = 0;
+		for (i = 0; i < nPoints; i++)
+			{
+			DanaEl* it = api -> getArrayCellEl(points, i);
+
+			poly -> xPoints[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints[i] = api -> getDataFieldInt(it, 1);
+
+			poly -> xPoints_si[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints_si[i] = api -> getDataFieldInt(it, 1);
+			}
+		
+		poly -> nPoints = nPoints;
+
+		poly -> isteps = isteps;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_polygon_bezier_outline(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		DanaEl* points = api -> getParamEl(cframe, 1);
+		size_t isteps = api -> getParamInt(cframe, 2);
+		size_t thickness = api -> getParamInt(cframe, 3);
+		unsigned char r = api -> getParamRaw(cframe, 4)[0];
+		unsigned char g = api -> getParamRaw(cframe, 5)[0];
+		unsigned char b = api -> getParamRaw(cframe, 6)[0];
+		unsigned char a = api -> getParamRaw(cframe, 7)[0];
+
+		// -- create the container --
+
+		UIPolygon *poly = (UIPolygon*) malloc(sizeof(UIPolygon));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+		
+		addUIObject(instance, uio);
+
+		uio -> type = UI_TYPE_POLYGON_BEZ_OUT;
+		uio -> object = poly;
+
+		size_t nPoints = api -> getArrayLength(points);
+
+		poly -> xPoints = malloc(sizeof(double) * nPoints);
+		poly -> yPoints = malloc(sizeof(double) * nPoints);
+
+		poly -> xPoints_si = malloc(sizeof(short int) * nPoints);
+		poly -> yPoints_si = malloc(sizeof(short int) * nPoints);
+
+		int i = 0;
+		for (i = 0; i < nPoints; i++)
+			{
+			DanaEl* it = api -> getArrayCellEl(points, i);
+
+			poly -> xPoints[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints[i] = api -> getDataFieldInt(it, 1);
+
+			poly -> xPoints_si[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints_si[i] = api -> getDataFieldInt(it, 1);
+			}
+		
+		poly -> nPoints = nPoints;
+
+		poly -> isteps = isteps;
+
+		poly -> thickness = thickness;
+
+		poly -> r = r;
+		poly -> g = g;
+		poly -> b = b;
+		poly -> a = a;
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_curve(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		DanaEl* points = api -> getParamEl(cframe, 1);
+		size_t isteps = api -> getParamInt(cframe, 2);
+		size_t thickness = api -> getParamInt(cframe, 3);
+		unsigned char r = api -> getParamRaw(cframe, 4)[0];
+		unsigned char g = api -> getParamRaw(cframe, 5)[0];
+		unsigned char b = api -> getParamRaw(cframe, 6)[0];
+		unsigned char a = api -> getParamRaw(cframe, 7)[0];
+
+		// -- create the container --
+
+		UIPolygon *poly = (UIPolygon*) malloc(sizeof(UIPolygon));
+		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
+		memset(uio, '\0', sizeof(UIObject));
+		
+		addUIObject(instance, uio);
+
+		uio -> type = UI_TYPE_CURVE_BEZ;
+		uio -> object = poly;
+
+		size_t nPoints = api -> getArrayLength(points);
+
+		poly -> xPoints = malloc(sizeof(double) * nPoints);
+		poly -> yPoints = malloc(sizeof(double) * nPoints);
+
+		poly -> xPoints_si = malloc(sizeof(short int) * nPoints);
+		poly -> yPoints_si = malloc(sizeof(short int) * nPoints);
+
+		int i = 0;
+		for (i = 0; i < nPoints; i++)
+			{
+			DanaEl* it = api -> getArrayCellEl(points, i);
+
+			poly -> xPoints[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints[i] = api -> getDataFieldInt(it, 1);
+
+			poly -> xPoints_si[i] = api -> getDataFieldInt(it, 0);
+			poly -> yPoints_si[i] = api -> getDataFieldInt(it, 1);
+			}
+		
+		poly -> nPoints = nPoints;
+
+		poly -> isteps = isteps;
+		poly -> thickness = thickness;
 
 		poly -> r = r;
 		poly -> g = g;
@@ -2118,28 +2741,21 @@ INSTRUCTION_DEF op_add_line(FrameData* cframe)
 		WindowInstance *instance = (WindowInstance*) hnd;
 
 		size_t sx = api -> getParamInt(cframe, 1);
-
 		size_t sy = api -> getParamInt(cframe, 2);
-
 		size_t ex = api -> getParamInt(cframe, 3);
-
 		size_t ey = api -> getParamInt(cframe, 4);
-
-		size_t r = api -> getParamRaw(cframe, 5)[0];
-
-		size_t g = api -> getParamRaw(cframe, 6)[0];
-
-		size_t b = api -> getParamRaw(cframe, 7)[0];
-
-		size_t a = api -> getParamRaw(cframe, 8)[0];
+		size_t thick = api -> getParamInt(cframe, 5);
+		size_t r = api -> getParamRaw(cframe, 6)[0];
+		size_t g = api -> getParamRaw(cframe, 7)[0];
+		size_t b = api -> getParamRaw(cframe, 8)[0];
+		size_t a = api -> getParamRaw(cframe, 9)[0];
+		//size_t aa = api -> getParamRaw(cframe, 10)[0];
 
 		// -- create the container --
 
 		UILine *poly = (UILine*) malloc(sizeof(UILine));
 		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
 		memset(uio, '\0', sizeof(UIObject));
-
-		addUIObject(instance, uio);
 
 		uio -> type = UI_TYPE_LINE;
 		uio -> object = poly;
@@ -2149,11 +2765,14 @@ INSTRUCTION_DEF op_add_line(FrameData* cframe)
 
 		poly -> x2 = ex;
 		poly -> y2 = ey;
+		poly -> thickness = thick;
 
 		poly -> r = r;
 		poly -> g = g;
 		poly -> b = b;
 		poly -> a = a;
+
+		addUIObject(instance, uio);
 		}
 
 	return RETURN_OK;
@@ -2186,8 +2805,6 @@ INSTRUCTION_DEF op_add_point(FrameData* cframe)
 		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
 		memset(uio, '\0', sizeof(UIObject));
 
-		addUIObject(instance, uio);
-
 		uio -> type = UI_TYPE_POINT;
 		uio -> object = poly;
 
@@ -2198,6 +2815,8 @@ INSTRUCTION_DEF op_add_point(FrameData* cframe)
 		poly -> g = g;
 		poly -> b = b;
 		poly -> a = a;
+
+		addUIObject(instance, uio);
 		}
 
 	return RETURN_OK;
@@ -2245,14 +2864,14 @@ INSTRUCTION_DEF op_add_bitmap(FrameData* cframe)
 		UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
 		memset(uio, '\0', sizeof(UIObject));
 
-		addUIObject(instance, uio);
-
 		uio -> type = UI_TYPE_BITMAP;
 		uio -> object = poly;
 
 		poly -> x = x;
 		poly -> y = y;
 		poly -> rotation = rotation;
+
+		addUIObject(instance, uio);
 
 		GenerateBitmapSurfaceData *gb = malloc(sizeof(GenerateBitmapSurfaceData));
 		memset(gb, '\0', sizeof(GenerateBitmapSurfaceData));
@@ -2328,19 +2947,12 @@ INSTRUCTION_DEF op_add_text_with(FrameData* cframe)
 		lockedInc(&fHold -> refCount);
 
 		size_t x = api -> getParamInt(cframe, 2);
-
 		size_t y = api -> getParamInt(cframe, 3);
-		
 		size_t rotation = api -> getParamInt(cframe, 4);
-		
 		DanaEl* array = api -> getParamEl(cframe, 5);
-
 		size_t r = api -> getParamRaw(cframe, 6)[0];
-
 		size_t g = api -> getParamRaw(cframe, 7)[0];
-
 		size_t b = api -> getParamRaw(cframe, 8)[0];
-
 		size_t a = api -> getParamRaw(cframe, 9)[0];
 
 		size_t tlen = api -> getArrayLength(array);
@@ -2353,8 +2965,6 @@ INSTRUCTION_DEF op_add_text_with(FrameData* cframe)
 			UIObject *uio = (UIObject*) malloc(sizeof(UIObject));
 			memset(uio, '\0', sizeof(UIObject));
 			
-			addUIObject(instance, uio);
-
 			uio -> type = UI_TYPE_TEXT;
 			uio -> object = poly;
 
@@ -2374,6 +2984,8 @@ INSTRUCTION_DEF op_add_text_with(FrameData* cframe)
 			poly -> a = a;
 			
 			poly -> rotation = rotation;
+
+			addUIObject(instance, uio);
 			}
 		}
 
@@ -2478,25 +3090,14 @@ INSTRUCTION_DEF op_push_surface(FrameData* cframe)
 
 		newObject -> object = newSurface;
 		newStackObject -> object = newSurface;
-		
-		addUIObject(instance, newObject);
-
-		newStackObject -> next = instance -> surfaceStack;
-		instance -> surfaceStack = newStackObject;
 
 		// --
 		size_t x = api -> getParamInt(cframe, 1);
-
 		size_t y = api -> getParamInt(cframe, 2);
-
 		size_t w = api -> getParamInt(cframe, 3);
-
 		size_t h = api -> getParamInt(cframe, 4);
-
 		size_t xs = api -> getParamInt(cframe, 5);
-
 		size_t ys = api -> getParamInt(cframe, 6);
-		
 		size_t a = api -> getParamRaw(cframe, 7)[0];
 		// --
 
@@ -2511,6 +3112,11 @@ INSTRUCTION_DEF op_push_surface(FrameData* cframe)
 
 		newSurface -> xScroll = xs;
 		newSurface -> yScroll = ys;
+
+		addUIObject(instance, newObject);
+
+		newStackObject -> next = instance -> surfaceStack;
+		instance -> surfaceStack = newStackObject;
 		}
 
 	return RETURN_OK;
@@ -2721,13 +3327,14 @@ INSTRUCTION_DEF op_commit_buffer(FrameData* cframe)
 	return RETURN_OK;
 	}
 
-static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y)
+static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y, size_t ext1)
 	{
 	DanaEl *nd = api -> makeData(windowDataGT);
 	
 	api -> setDataFieldInt(nd, 0, button_id);
 	api -> setDataFieldInt(nd, 1, x);
 	api -> setDataFieldInt(nd, 2, y);
+	api -> setDataFieldInt(nd, 3, ext1);
 	
 	api -> pushEvent(w -> eqObject, 0, type, nd);
 	}
@@ -3017,6 +3624,40 @@ INSTRUCTION_DEF op_set_icon(FrameData* cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_set_cursor(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+
+		unsigned char cursorType = api -> getParamRaw(cframe, 1)[0];
+		DanaEl* cursorData = api -> getParamEl(cframe, 2);
+
+		SetCursorInstance* sci = malloc(sizeof(SetCursorInstance));
+
+		sci -> type = cursorType;
+
+		SDL_Event newEvent;
+		SDL_zero(newEvent);
+		newEvent.type = DX_SET_WINDOW_CURSOR;
+		newEvent.user.data1 = instance;
+		newEvent.user.data2 = sci;
+
+		if (cursorData != NULL)
+			{
+			api -> incRef(cframe, cursorData);
+			sci -> customCursor = cursorData;
+			}
+
+		SDL_PushEvent(&newEvent);
+		}
+	
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_maximise_window(FrameData* cframe)
 	{
 	size_t hnd = 0;
@@ -3068,8 +3709,6 @@ INSTRUCTION_DEF op_get_maximised_screen_rect(FrameData* cframe)
 		
 		DanaEl* rdata = api -> getParamEl(cframe, 1);
 		
-		size_t *xs = (size_t*) api -> getDataContent(rdata);
-
 		#ifdef WINDOWS
 		//NOTE: below only works for primary monitor - see GetMonitorInfo for other monitors (not sure how we know which monitor a window is considered to be "on")
 		RECT r;
@@ -3349,6 +3988,7 @@ INSTRUCTION_DEF op_init_media_layer(FrameData* cframe)
 	DX_SET_WINDOW_POSITION = SDL_RegisterEvents(1);
 	DX_SET_WINDOW_TITLE = SDL_RegisterEvents(1);
 	DX_SET_WINDOW_ICON = SDL_RegisterEvents(1);
+	DX_SET_WINDOW_CURSOR = SDL_RegisterEvents(1);
 	DX_MAXIMISE_WINDOW = SDL_RegisterEvents(1);
 	DX_MINIMISE_WINDOW = SDL_RegisterEvents(1);
 	DX_SHOW_WINDOW = SDL_RegisterEvents(1);
@@ -3430,11 +4070,17 @@ Interface* load(CoreAPI *capi)
 	dropDataGT = api -> resolveGlobalTypeMapping(getTypeDefinition("DropEventData"));
 	
 	setInterfaceFunction("makeWindow", op_make_window);
-	setInterfaceFunction("startPoly", op_start_poly);
-	setInterfaceFunction("addPolyPoint", op_add_poly_point);
-	setInterfaceFunction("endPoly", op_end_poly);
 	setInterfaceFunction("addRect", op_add_rect);
+	setInterfaceFunction("addEllipse", op_add_ellipse);
+	setInterfaceFunction("addEllipseOutline", op_add_ellipse_outline);
+	setInterfaceFunction("addArc", op_add_arc);
+	setInterfaceFunction("addPie", op_add_pie);
+	setInterfaceFunction("addPolygon", op_add_polygon);
+	setInterfaceFunction("addPolygonOutline", op_add_polygon_outline);
+	setInterfaceFunction("addPolygonBezier", op_add_polygon_bezier);
+	setInterfaceFunction("addPolygonBezierOutline", op_add_polygon_bezier_outline);
 	setInterfaceFunction("addLine", op_add_line);
+	setInterfaceFunction("addCurve", op_add_curve);
 	setInterfaceFunction("addPoint", op_add_point);
 	setInterfaceFunction("addBitmap", op_add_bitmap);
 	setInterfaceFunction("addTextWith", op_add_text_with);
@@ -3448,6 +4094,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("getResolution", op_get_resolution);
 	setInterfaceFunction("setTitle", op_set_title);
 	setInterfaceFunction("setIcon", op_set_icon);
+	setInterfaceFunction("setCursor", op_set_cursor);
 	setInterfaceFunction("commitBuffer", op_commit_buffer);
 	setInterfaceFunction("setBackgroundColor", op_set_background_colour);
 	setInterfaceFunction("maximiseWindow", op_maximise_window);
@@ -3472,6 +4119,10 @@ Interface* load(CoreAPI *capi)
 	
 	SDL_VERSION(&compiled);
 	SDL_GetVersion(&linked);
+
+	//ask SDL to send us mouse clicks which also activate the window (this is pretty standard behaviour on desktop apps)
+	// - if we don't set this hint, a window-activating mouse click won't then e.g. click a button which is under the mouse at that location
+	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
 	
 	if (linked.major == 2 && linked.minor == 0 && linked.patch < 8)
 		{

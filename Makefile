@@ -37,7 +37,7 @@ ifeq ($(OS),Windows_NT)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1 -I C:/libs/SDL2_gfx
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1 -I C:/libs/SDL2_gfx -I C:/msys64/mingw64/include
 		SDL_LIBS = C:/msys64/mingw64/lib/libSDL2main.a C:/msys64/mingw64/lib/libSDL2.a C:/msys64/mingw64/lib/libSDL2_ttf.a C:/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lmingw32 -lImm32 -lVersion -lwinmm -lgdi32 -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -mwindows -static-libgcc"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
