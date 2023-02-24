@@ -344,6 +344,8 @@ typedef struct{
 	SDL_Texture *baseTexture;
 	bool sceneChanged;
 
+	bool visible;
+
 #ifdef WINDOWS
 	HANDLE renderLock;
 #endif
@@ -1003,7 +1005,7 @@ int DrawScene(WindowInstance* instance)
 		SDL_SetRenderTarget(instance -> renderer, instance -> baseTexture);
 
 		SDL_SetTextureBlendMode(instance -> baseTexture, SDL_BLENDMODE_BLEND);
-		
+
 		//SDL_SetRenderDrawColor(instance -> renderer, 0, 0, 0, 0);
 		SDL_SetRenderDrawColor(instance -> renderer, instance -> backgroundColour.r, instance -> backgroundColour.g, instance -> backgroundColour.b, 255);
 		SDL_RenderClear(instance -> renderer);
@@ -1648,6 +1650,8 @@ static void render_thread()
 				SDL_ShowWindow(wi -> win);
 
 				newFrame = true;
+
+				wi -> visible = true;
 				
 				//re-build the texture for the now-visible window
 				wi -> sceneChanged = true;
@@ -1667,6 +1671,8 @@ static void render_thread()
 				{
 				WindowInstance *wi = (WindowInstance*) e.user.data1;
 				SDL_HideWindow(wi -> win);
+
+				wi -> visible = false;
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(wi -> stateSem, 1, NULL);
@@ -1712,10 +1718,30 @@ static void render_thread()
 				
 				wi -> windowWidth = DM.w;
 				wi -> windowHeight = DM.h;
+
+				#ifdef LINUX
+				//TODO: for some reason this hide/show needed on Linux to allow rendering into the now-fullscreen window area
+				//TODO: try removing this workaround in newer SDL releases, and retest visual/FullScreen.o to see if it works any better
+				if (wi -> visible)
+					{
+					SDL_HideWindow(wi -> win);
+					}
+				#endif
+
+				SDL_SetWindowFullscreen(wi -> win, SDL_WINDOW_FULLSCREEN_DESKTOP);
 				
-				SDL_SetWindowFullscreen(wi -> win, SDL_WINDOW_FULLSCREEN_DESKTOP );
+				#ifdef LINUX
+				if (wi -> visible)
+					{
+					SDL_ShowWindow(wi -> win);
+					}
+				#endif
 				
 				wi -> fullScreen = true;
+
+				//re-build the texture for the now-visible window
+				newFrame = true;
+				wi -> sceneChanged = true;
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(wi -> stateSem, 1, NULL);
@@ -1738,6 +1764,10 @@ static void render_thread()
 				SDL_SetWindowFullscreen(wi -> win, 0);
 				
 				wi -> fullScreen = false;
+
+				//re-build the texture for the now-visible window
+				newFrame = true;
+				wi -> sceneChanged = true;
 				
 				#ifdef WINDOWS
 				ReleaseSemaphore(wi -> stateSem, 1, NULL);
@@ -1756,7 +1786,6 @@ static void render_thread()
 				
 				SDL_DisplayMode DM;
 				SDL_GetCurrentDisplayMode(0, &DM);
-				//SDL_GetDesktopDisplayMode(0, &DM);
 				
 				DanaEl* data = (DanaEl*) e.user.data2;
 				api -> setDataFieldInt(data, 0, DM.w);
