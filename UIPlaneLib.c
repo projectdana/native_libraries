@@ -124,10 +124,11 @@ static const DanaTypeField windowDataTypeFields[] = {
 			{&intType, NULL, 0, 0, 0},
 			{&intType, NULL, 0, 0, sizeof(size_t)},
 			{&intType, NULL, 0, 0, sizeof(size_t)*2},
-			{&intType, NULL, 0, 0, sizeof(size_t)*3}
+			{&intType, NULL, 0, 0, sizeof(size_t)*3},
+			{&intType, NULL, 0, 0, sizeof(size_t)*4}
 			};
 
-static DanaType windowDataType = {TYPE_DATA, 0, sizeof(size_t)*4, (DanaTypeField*) windowDataTypeFields, 4};
+static DanaType windowDataType = {TYPE_DATA, 0, sizeof(size_t)*5, (DanaTypeField*) windowDataTypeFields, 5};
 
 /*
 //for the _dni ::
@@ -496,7 +497,7 @@ void semaphore_destroy(Semaphore *s)
     #endif
 	}
 
-static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y, size_t exd1);
+static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y, size_t exd1, size_t exd2);
 static void pushEvent(WindowInstance *w, size_t type);
 static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y);
 
@@ -1323,7 +1324,7 @@ static void render_thread()
 			if (e.type == SDL_QUIT)
 				{
 				//notify any event listeners that the system has received a shutdown request
-				api -> pushEvent(systemEventObject, 0, 9, NULL);
+				api -> pushEvent(systemEventObject, 0, 10, NULL);
 				}
 				else if (e.type == DX_SYSTEM_SHUTDOWN)
 				{
@@ -1363,7 +1364,7 @@ static void render_thread()
 					else if (e.window.event == SDL_WINDOWEVENT_CLOSE)
 					{
 					WindowInstance *myInstance = findWindow(e.window.windowID);
-					pushEvent(myInstance, 8);
+					pushEvent(myInstance, 9);
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
@@ -1379,7 +1380,7 @@ static void render_thread()
 						wi -> windowedWidth = e.window.data1;
 						wi -> windowedHeight = e.window.data2;
 						
-						pushMouseEvent(wi, 6, 0, wi -> windowWidth, wi -> windowHeight, 0);
+						pushMouseEvent(wi, 7, 0, wi -> windowWidth, wi -> windowHeight, 0, 0);
 						
 						newFrame = true;
 						}
@@ -1421,7 +1422,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 2, button, screenX, screenY, 0);
+					pushMouseEvent(myInstance, 2, button, screenX, screenY, 0, 0);
 					}
 				}
 				else if (e.type == SDL_MOUSEBUTTONUP)
@@ -1441,7 +1442,7 @@ static void render_thread()
 				if (myInstance != NULL)
 					{
 					//e.button.clicks has the number of clicks stored in it, for multi-click events like a double-click
-					pushMouseEvent(myInstance, 1, button, screenX, screenY, e.button.clicks);
+					pushMouseEvent(myInstance, 1, button, screenX, screenY, e.button.clicks, 0);
 					}
 				}
 				else if (e.type == SDL_MOUSEMOTION)
@@ -1453,7 +1454,34 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 3, 0, screenX, screenY, 0);
+					pushMouseEvent(myInstance, 3, 0, screenX, screenY, 0, 0);
+					}
+				}
+				else if (e.type == SDL_MOUSEWHEEL)
+				{
+				int deltaX = e.wheel.x;
+				int deltaY = e.wheel.y;
+
+				WindowInstance *myInstance = findWindow(e.wheel.windowID);
+
+				size_t xAdd = 0;
+				size_t xSub = 0;
+				size_t yAdd = 0;
+				size_t ySub = 0;
+
+				if (deltaX < 0)
+					xSub = deltaX * -1;
+					else
+					xAdd = deltaX;
+				
+				if (deltaY < 0)
+					ySub = deltaY * -1;
+					else
+					yAdd = deltaY;
+				
+				if (myInstance != NULL)
+					{
+					pushMouseEvent(myInstance, 4, 0, xAdd, yAdd, xSub, ySub);
 					}
 				}
 				else if (e.type == SDL_KEYDOWN)
@@ -1464,7 +1492,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 4, keyID, 0, 0, 0);
+					pushMouseEvent(myInstance, 5, keyID, 0, 0, 0, 0);
 					}
 				}
 				else if (e.type == SDL_KEYUP)
@@ -1475,7 +1503,7 @@ static void render_thread()
 				
 				if (myInstance != NULL)
 					{
-					pushMouseEvent(myInstance, 5, keyID, 0, 0, 0);
+					pushMouseEvent(myInstance, 6, keyID, 0, 0, 0, 0);
 					}
 				}
 				else if (e.type == SDL_DROPFILE)
@@ -1570,6 +1598,10 @@ static void render_thread()
 					}
 					else if (sci -> type == 1)
 					{
+					SDL_ShowCursor(SDL_DISABLE);
+					}
+					else if (sci -> type == 2)
+					{
 					//a custom-provided image, with an x/y hotpoint
 					DanaEl* pixelMap = api -> getDataFieldEl(sci -> customCursor, 0);
 					SDL_Surface *surface = pixelMapToSurface(pixelMap);
@@ -1580,37 +1612,42 @@ static void render_thread()
 
 					api -> decRef(NULL, sci -> customCursor);
 					}
-					else if (sci -> type == 2)
+					else if (sci -> type == 3)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
 					}
-					else if (sci -> type == 3)
+					else if (sci -> type == 4)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
 					}
-					else if (sci -> type == 4)
+					else if (sci -> type == 5)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAIT);
 					}
-					else if (sci -> type == 5)
+					else if (sci -> type == 6)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
 					}
-					else if (sci -> type == 6)
+					else if (sci -> type == 7)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
 					}
-					else if (sci -> type == 7)
+					else if (sci -> type == 8)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
 					}
-					else if (sci -> type == 8)
+					else if (sci -> type == 9)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
 					}
-					else if (sci -> type == 9)
+					else if (sci -> type == 10)
 					{
 					nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
+					}
+				
+				if (sci -> type != 1)
+					{
+					SDL_ShowCursor(SDL_ENABLE);
 					}
 				
 				/*
@@ -1985,6 +2022,9 @@ static void render_thread()
 					}
 				
 				free(lfd -> fontPath);
+
+				//note: we could support font styles, like:
+				//TTF_SetFontStyle(font, TTF_STYLE_BOLD);
 				
 				FontHolder *fhold = malloc(sizeof(FontHolder));
 				fhold -> refCount = 1;
@@ -3356,7 +3396,7 @@ INSTRUCTION_DEF op_commit_buffer(FrameData* cframe)
 	return RETURN_OK;
 	}
 
-static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y, size_t ext1)
+static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, size_t x, size_t y, size_t ext1, size_t ext2)
 	{
 	DanaEl *nd = api -> makeData(windowDataGT);
 	
@@ -3364,6 +3404,7 @@ static void pushMouseEvent(WindowInstance *w, size_t type, size_t button_id, siz
 	api -> setDataFieldInt(nd, 1, x);
 	api -> setDataFieldInt(nd, 2, y);
 	api -> setDataFieldInt(nd, 3, ext1);
+	api -> setDataFieldInt(nd, 4, ext2);
 	
 	api -> pushEvent(w -> eqObject, 0, type, nd);
 	}
@@ -3389,7 +3430,7 @@ static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
 	
 	api -> setDataFieldEl(nd, 2, na);
 	
-	api -> pushEvent(w -> eqObject, 0, 7, nd);
+	api -> pushEvent(w -> eqObject, 0, 8, nd);
 	}
 
 static void pushEvent(WindowInstance *w, size_t type)

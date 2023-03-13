@@ -331,9 +331,10 @@ static const DanaTypeField WindowEventData_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0},
 {(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)},
 {(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)+sizeof(size_t)},
-{(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)+sizeof(size_t)+sizeof(size_t)}};
+{(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)+sizeof(size_t)+sizeof(size_t)},
+{(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)+sizeof(size_t)+sizeof(size_t)+sizeof(size_t)}};
 static const DanaType WindowEventData_def = 
-{TYPE_DATA, 0, 32, (DanaTypeField*) WindowEventData_fields, 4};
+{TYPE_DATA, 0, 40, (DanaTypeField*) WindowEventData_fields, 5};
 static const DanaTypeField DropEventData_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0},
 {(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)},
@@ -347,6 +348,8 @@ static const DanaTypeField event_UIPlaneLib_mouseUp_fields[] = {
 static const DanaTypeField event_UIPlaneLib_mouseDown_fields[] = {
 {(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
 static const DanaTypeField event_UIPlaneLib_mouseMove_fields[] = {
+{(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
+static const DanaTypeField event_UIPlaneLib_mouseWheel_fields[] = {
 {(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
 static const DanaTypeField event_UIPlaneLib_keyDown_fields[] = {
 {(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
@@ -459,6 +462,7 @@ static const DanaType object_UIPlaneLib_events_spec[] = {
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_mouseUp_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_mouseDown_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_mouseMove_fields, 1},
+{TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_mouseWheel_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_keyDown_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_keyUp_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_resize_fields, 1},
@@ -470,15 +474,16 @@ static const DanaTypeField intf_events_def[] = {
 {(DanaType*) &object_UIPlaneLib_events_spec[1], "mouseUp", 7},
 {(DanaType*) &object_UIPlaneLib_events_spec[2], "mouseDown", 9},
 {(DanaType*) &object_UIPlaneLib_events_spec[3], "mouseMove", 9},
-{(DanaType*) &object_UIPlaneLib_events_spec[4], "keyDown", 7},
-{(DanaType*) &object_UIPlaneLib_events_spec[5], "keyUp", 5},
-{(DanaType*) &object_UIPlaneLib_events_spec[6], "resize", 6},
-{(DanaType*) &object_UIPlaneLib_events_spec[7], "drop", 4},
-{(DanaType*) &object_UIPlaneLib_events_spec[8], "close", 5},
-{(DanaType*) &object_UIPlaneLib_events_spec[9], "post_shutdown", 13}};
+{(DanaType*) &object_UIPlaneLib_events_spec[4], "mouseWheel", 10},
+{(DanaType*) &object_UIPlaneLib_events_spec[5], "keyDown", 7},
+{(DanaType*) &object_UIPlaneLib_events_spec[6], "keyUp", 5},
+{(DanaType*) &object_UIPlaneLib_events_spec[7], "resize", 6},
+{(DanaType*) &object_UIPlaneLib_events_spec[8], "drop", 4},
+{(DanaType*) &object_UIPlaneLib_events_spec[9], "close", 5},
+{(DanaType*) &object_UIPlaneLib_events_spec[10], "post_shutdown", 13}};
 static const DanaType UIPlaneLib_object_spec[] = {
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 46},
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 10},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 11},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
