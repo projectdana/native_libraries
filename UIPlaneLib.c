@@ -116,6 +116,29 @@ We can either link with -L/opt/vc/lib -lbcm_host, or we can use ./configure --di
 #define lockedDec(X) __sync_sub_and_fetch(X, 1)
 #endif
 
+#ifdef WINDOWS
+#define startCriticalSection(X) EnterCriticalSection(X)
+#endif
+#ifdef LINUX
+#define startCriticalSection(X) pthread_mutex_lock(X)
+#endif
+
+#ifdef WINDOWS
+#define stopCriticalSection(X) LeaveCriticalSection(X)
+#endif
+#ifdef LINUX
+#define stopCriticalSection(X) pthread_mutex_unlock(X)
+#endif
+
+#ifdef WINDOWS
+static CRITICAL_SECTION measureTextLock;
+#endif
+#ifdef LINUX
+//create mutex attribute variable
+static pthread_mutexattr_t mAttr;
+static pthread_mutex_t measureTextLock;
+#endif
+
 static CoreAPI *api;
 
 static DanaType intType = {TYPE_LITERAL, 0, sizeof(size_t)};
@@ -1229,7 +1252,6 @@ static unsigned int DX_GENERATE_TEXT_BITMAP = 0;
 static unsigned int DX_GENERATE_BITMAP_SURFACE = 0;
 static unsigned int DX_LOAD_FONT = 0;
 static unsigned int DX_UNLOAD_FONT = 0;
-static unsigned int DX_GET_TEXT_WIDTH = 0;
 static unsigned int DX_SYSTEM_SHUTDOWN = 0;
 
 static bool resizeAvailable = true;
@@ -2068,29 +2090,6 @@ static void render_thread()
 				#endif
 				#endif
 				}
-				else if (e.type == DX_GET_TEXT_WIDTH)
-				{
-				GetTextWidthInfo *gwi = (GetTextWidthInfo*) e.user.data1;
-				FrameData* frame = gwi -> vframe;
-
-				size_t width = 0;
-				int sdl_width = 0;
-				TTF_SizeUTF8(gwi -> font, gwi -> text, &sdl_width, NULL);
-				width = sdl_width;
-				
-				api -> returnInt(frame, width);
-				
-				#ifdef WINDOWS
-				ReleaseSemaphore(gwi -> sem, 1, NULL);
-				#endif
-				#ifdef OSX
-				dispatch_semaphore_signal(gwi -> sem);
-				#else
-				#ifdef LINUX
-				sem_post(&gwi -> sem);
-				#endif
-				#endif
-				}
 			} while(SDL_PollEvent(&e)); //go through all other events to clear the queue
 		}
 		else
@@ -2106,7 +2105,9 @@ static void render_thread()
 				{
 				WindowInstance *wi = (WindowInstance*) lw -> data;
 
+				startCriticalSection(&measureTextLock);
 				DrawScene(wi);
+				stopCriticalSection(&measureTextLock);
 
 				lw = lw -> next;
 				}
@@ -3076,60 +3077,20 @@ INSTRUCTION_DEF op_get_text_width_with(FrameData* cframe)
 
 	if (tlen > 0)
 		{
+		//note: we could avoid this malloc if we wrote an extra SDL_ttf function which took the (UTF-8) string length as a parameter...
 		char *text = (char*) malloc(tlen + 1);
 		memset(text, '\0', tlen + 1);
 		memcpy(text, api -> getArrayContent(array), tlen);
 
-		GetTextWidthInfo *gwi = malloc(sizeof(GetTextWidthInfo));
-		memset(gwi, '\0', sizeof(GetTextWidthInfo));
+		int count = 0;
+		int pixels = 0;
+		startCriticalSection(&measureTextLock);
+		TTF_MeasureUTF8(font, text, INT_MAX, &pixels, &count);
+		stopCriticalSection(&measureTextLock);
 
-		gwi -> text = text;
-		gwi -> font = font;
-		gwi -> vframe = cframe;
-		
-		#ifdef WINDOWS
-		gwi -> sem = CreateSemaphore(NULL, 0, 1, NULL);
-		#endif
-		#ifdef OSX
-		dispatch_semaphore_t *sem;
-		sem = &gwi -> sem;
-		*sem = dispatch_semaphore_create(0);
-		#else
-		#ifdef LINUX
-		sem_init(&gwi -> sem, 0, 0);
-		#endif
-		#endif
+		api -> returnInt(cframe, pixels);
 
-		SDL_Event newEvent;
-		SDL_zero(newEvent);
-		newEvent.type = DX_GET_TEXT_WIDTH;
-		newEvent.user.data1 = gwi;
-
-		SDL_PushEvent(&newEvent);
-		
-		#ifdef WINDOWS
-		WaitForSingleObject(gwi -> sem, INFINITE);
-		#endif
-		#ifdef OSX
-		dispatch_semaphore_wait(gwi -> sem, DISPATCH_TIME_FOREVER);
-		#else
-		#ifdef LINUX
-		sem_wait(&gwi -> sem);
-		#endif
-		#endif
-
-		#ifdef WINDOWS
-		CloseHandle(gwi -> sem);
-		#endif
-		#ifdef OSX
-		dispatch_release(gwi -> sem);
-		#else
-		#ifdef LINUX
-		sem_destroy(&gwi -> sem);
-		#endif
-		#endif
-		
-		free(gwi);
+		free(text);
 
 		return RETURN_OK;
 		}
@@ -4074,7 +4035,6 @@ INSTRUCTION_DEF op_init_media_layer(FrameData* cframe)
 	DX_GENERATE_BITMAP_SURFACE = SDL_RegisterEvents(1);
 	DX_LOAD_FONT = SDL_RegisterEvents(1);
 	DX_UNLOAD_FONT = SDL_RegisterEvents(1);
-	DX_GET_TEXT_WIDTH = SDL_RegisterEvents(1);
 	DX_SYSTEM_SHUTDOWN = SDL_RegisterEvents(1);
 	
 	systemEventObject = api -> getInstanceObject(cframe);
@@ -4184,6 +4144,20 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("getTextBitmapWith", op_get_text_bitmap_with);
 	setInterfaceFunction("unloadFont", op_unload_font);
 	
+	#ifdef WINDOWS
+	InitializeCriticalSection(&measureTextLock);
+	#endif
+	
+	#ifdef LINUX
+	pthread_mutexattr_init(&mAttr);
+	#ifdef OSX
+	pthread_mutexattr_settype(&mAttr, PTHREAD_MUTEX_RECURSIVE);
+	#else
+	pthread_mutexattr_settype(&mAttr, PTHREAD_MUTEX_RECURSIVE_NP);
+	#endif
+	pthread_mutex_init(&measureTextLock, &mAttr);
+	#endif
+
 	SDL_version compiled;
 	SDL_version linked;
 	
