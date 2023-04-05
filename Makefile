@@ -9,7 +9,7 @@ INSTALL_PATH=
 CP_CMD=
 CHIP=
 PLATFORM=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib audio rwlock
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib audio rwlock semaphore
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -37,14 +37,14 @@ ifeq ($(OS),Windows_NT)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
-		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1 -I C:/libs/SDL2_gfx -I C:/msys64/mingw64/include
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.26.4/include" -I C:/libs/SDL/SDL2_ttf-2.20.2 -I C:/libs/SDL2_gfx -I C:/msys64/mingw64/include
 		SDL_LIBS = C:/msys64/mingw64/lib/libSDL2main.a C:/msys64/mingw64/lib/libSDL2.a C:/msys64/mingw64/lib/libSDL2_ttf.a C:/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lmingw32 -lImm32 -lVersion -lwinmm -lgdi32 -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -mwindows -static-libgcc"
     endif
     ifeq ($(PROCESSOR_ARCHITECTURE),x86)
         CCFLAGS += -DMACHINE_32
 		CCFLAGS += -DLIB_CHIP_NAME=\"x86\"
 		CHIP = x86
-		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.24.1/include" -I C:/libs/SDL/SDL2_ttf-2.20.1 -I C:/libs/SDL2_gfx
+		SDL_INCLUDE = -I "C:/libs/SDL/SDL-release-2.26.4/include" -I C:/libs/SDL/SDL2_ttf-2.20.2 -I C:/libs/SDL2_gfx
 		SDL_LIBS = C:/msys32/mingw32/lib/libSDL2main.a C:/msys32/mingw32/lib/libSDL2.a C:/msys32/mingw32/lib/libSDL2_ttf.a C:/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lmingw32 -lImm32 -lVersion -lwinmm -lADVAPI32 -luser32 -lole32 -loleaut32 -lshell32 -lsetupapi -lrpcrt4 -lUsp10 -lgdi32 -mwindows -static-libgcc"
     endif
 else
@@ -83,7 +83,7 @@ else
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
 		CHIP = x64
 		SDL_LIBS = /usr/local/lib/libSDL2.a -liconv -framework Cocoa -framework Carbon -framework IOKit -framework CoreAudio -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework CoreHaptics -framework GameController -framework Metal /usr/local/lib/libSDL2_ttf.a ~/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lfreetype -Wl,-rpath,'@executable_path/resources-ext'
-		SDL_INCLUDE = -I ~/libs/ -I ~/libs/SDL2_gfx -I ~/libs/SDL2/
+		SDL_INCLUDE = -I ~/libs/ -I ~/libs/SDL2_gfx -I ~/libs/SDL2/ -I ~/libs/SDL2/include
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
 		MYSQL_LIBS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
 		CLIPBOARD_LIBS = -framework ApplicationServices -x objective-c -ObjC -std=c99
@@ -196,5 +196,9 @@ audio:
 rwlock:
 	$(CC) -Os -s RWLockLib_dni.c $(API_PATH)/vmi_util.c RWLockLib.c -o RWLockLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) RWLockLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
+
+semaphore:
+	$(CC) -Os -s SemaphoreLib_dni.c $(API_PATH)/vmi_util.c SemaphoreLib.c -o SemaphoreLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CP_CMD) SemaphoreLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 all: $(ALL_RULES)
