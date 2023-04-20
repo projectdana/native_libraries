@@ -523,10 +523,24 @@ INSTRUCTION_DEF op_tcp_send(FrameData* cframe)
 	
 	DanaEl* array = api -> getParamEl(cframe, 1);
 	
-	size_t totalAmt = 0;
+	int totalAmt = 0;
 	
 	if (array != NULL)
+		{
 		totalAmt = send(socket, (char*) api -> getArrayContent(array), api -> getArrayLength(array), 0);
+
+		if (totalAmt < 0)
+			{
+			#ifdef WINDOWS
+			api -> throwException(cframe, getSocketError(WSAGetLastError()));
+			#endif
+			#ifdef LINUX
+			api -> throwException(cframe, strerror(errno));
+			#endif
+
+			totalAmt = 0;
+			}
+		}
 	
 	api -> returnInt(cframe, totalAmt);
 	

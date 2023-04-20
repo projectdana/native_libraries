@@ -722,7 +722,7 @@ SDL_Texture* renderText(char *msg, TTF_Font *font, SDL_Color color, SDL_Renderer
 	SDL_Surface *surf = TTF_RenderUTF8_Blended(font, msg, color); //looks bad with complex fonts at "small" sizes (<= 12pt)
 	if (surf == NULL)
 		{
-		printf("SDL surface error from RT for '%s': %s\n", msg, SDL_GetError());
+		printf("UTF-8 text rendering error for '%s': %s\n", msg, SDL_GetError());
 		return NULL;
 		}
 
@@ -1469,9 +1469,12 @@ static void render_thread()
 				}
 				else if (e.type == SDL_MOUSEMOTION)
 				{
+				if (e.motion.x < 0) e.motion.x = 0;
+				if (e.motion.y < 0) e.motion.y = 0;
+
 				size_t screenX = e.motion.x;
 				size_t screenY = e.motion.y;
-				
+
 				WindowInstance *myInstance = findWindow(e.motion.windowID);
 				
 				if (myInstance != NULL)
