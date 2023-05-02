@@ -305,7 +305,7 @@ INSTRUCTION_DEF op_save_image(FrameData* cframe)
 	height = api -> getDataFieldInt(ict, 1);
 	
 	//...and the pixel map
-	DanaEl* array = api -> getDataFieldEl(ct, 2);
+	DanaEl* array = api -> getDataFieldEl(ct, 1);
 	
 	png_bytep *row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
 	int y = 0;

@@ -338,7 +338,7 @@ INSTRUCTION_DEF op_save_image(FrameData *cframe)
 	height = api -> getDataFieldInt(ict, 1);
 	
 	//...and the pixel map
-	DanaEl* array = api -> getDataFieldEl(ct, 2);
+	DanaEl* array = api -> getDataFieldEl(ct, 1);
 	
 	size_t size = 0;
 	unsigned char *buf = write_jpg_file(api -> getArrayContent(array), width, height, &size);

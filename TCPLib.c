@@ -119,6 +119,8 @@ char* getSocketError(unsigned int miErrorCode)
 //maximum pending incomings for accept()
 #define MAX_PENDING 100
 
+#define LINGER_SECONDS 5
+
 static CoreAPI *api;
 
 static GlobalTypeLink *charArrayGT = NULL;
@@ -315,6 +317,7 @@ INSTRUCTION_DEF op_tcp_unbind(FrameData* cframe)
 INSTRUCTION_DEF op_tcp_connect(FrameData* cframe)
 	{
 	char *addr = x_getParam_char_array(api, cframe, 0);
+	char* qAddr = addr;
 	
 	size_t port = api -> getParamInt(cframe, 1);
 	
@@ -339,10 +342,18 @@ INSTRUCTION_DEF op_tcp_connect(FrameData* cframe)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	
+	#ifdef WINDOWS
+	//Windows does not seem to like IPv6-wrapped IPv4 addresses
+	if (strncmp(qAddr, "::ffff:", 7) == 0)
+		{
+		qAddr += 7;
+		}
+	#endif
+	
 	int newSocket = 0;
 	bool connected = false;
 	
-	if (getaddrinfo(addr, portstr, &hints, &adr_result) != 0)
+	if (getaddrinfo(qAddr, portstr, &hints, &adr_result) != 0)
 		{
 		#ifdef WINDOWS
 		//printf(" - TCPlib::connect::Address construction error on %s:%s [%s]\n", addr, portstr, getSocketError(WSAGetLastError()));
@@ -364,6 +375,15 @@ INSTRUCTION_DEF op_tcp_connect(FrameData* cframe)
 			else
 			{		
 			connected = true;
+
+			#ifdef LINUX
+			/*
+			struct linger so_linger;
+			so_linger.l_onoff = 1;
+			so_linger.l_linger = LINGER_SECONDS;
+			setsockopt(newSocket, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger));
+			*/
+			#endif
 			
 			if (connect(newSocket, adr_result->ai_addr, (int) adr_result->ai_addrlen) < 0)
 				{
@@ -452,6 +472,17 @@ INSTRUCTION_DEF op_tcp_accept(FrameData* cframe)
 		
 		socket = 0;
 		}
+		else
+		{
+		#ifdef LINUX
+		/*
+		struct linger so_linger;
+		so_linger.l_onoff = 1;
+		so_linger.l_linger = LINGER_SECONDS;
+		setsockopt(socket, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger));
+		*/
+		#endif
+		}
 	
 	xs = socket;
 	
@@ -473,7 +504,7 @@ INSTRUCTION_DEF op_tcp_recv(FrameData *cframe)
 	
 	unsigned char* content = NULL;
 	DanaEl* array = api -> makeArray(charArrayGT, len, &content);
-	
+
 	if (array == NULL)
 		{
 		len = 0;
@@ -485,21 +516,31 @@ INSTRUCTION_DEF op_tcp_recv(FrameData *cframe)
 	size_t totalAmt = 0;
 	
 	//iterate through param 2's contents
-	while ((len > 0) && (amt != 0))
+	while (len > 0)
 		{
 		amt = recv(socket, (char*) (content + totalAmt), len, 0);
 		
 		if (amt < 0)
 			{
-			#ifdef LINUX
-			//api -> throwException(cframe, strerror(errno));
-			#endif
+			//this is an error (e.g. the socket is closed)
+			break;
+			}
+			else if (amt == 0)
+			{
+			//this means the remote side has closed the socket, and no more data will be available to receive
 			break;
 			}
 		
 		totalAmt += amt;
 		len -= amt;
 		}
+	
+	/*
+	if (len > 0)
+		{
+		printf("TCPLib::warning: %lu bytes remain to be received; amt is %d; totalAmt is %lu\n", len, amt, totalAmt);
+		}
+	*/
 	
 	if (totalAmt > 0)
 		{
@@ -508,6 +549,16 @@ INSTRUCTION_DEF op_tcp_recv(FrameData *cframe)
 		}
 		else
 		{
+		if (len > 0 && amt < 0)
+			{
+			#ifdef WINDOWS
+			api -> throwException(cframe, getSocketError(WSAGetLastError()));
+			#endif
+			#ifdef LINUX
+			api -> throwException(cframe, strerror(errno));
+			#endif
+			}
+		
 		api -> destroyArray(array);
 		}
 	
