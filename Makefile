@@ -9,7 +9,7 @@ INSTALL_PATH=
 CP_CMD=
 CHIP=
 PLATFORM=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib audio rwlock semaphore
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib audio rwlock semaphore clockhd
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -141,6 +141,10 @@ sysinfo:
 	$(CC) -Os -s SystemLib_dni.c $(API_PATH)/vmi_util.c SystemLib.c -o SystemLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) -DCHIP_NAME=\"$(CHIP)\"
 	$(CP_CMD) SystemLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
+cyclestats:
+	$(CC) -Os -s CycleStatsLib_dni.c $(API_PATH)/vmi_util.c CycleStatsLib.c -o CycleStatsLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) -DCHIP_NAME=\"$(CHIP)\"
+	$(CP_CMD) CycleStatsLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
+
 timer:
 	$(CC) -Os -s TimerLib_dni.c $(API_PATH)/vmi_util.c Timer.c -o TimerLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) TimerLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext"
@@ -200,5 +204,9 @@ rwlock:
 semaphore:
 	$(CC) -Os -s SemaphoreLib_dni.c $(API_PATH)/vmi_util.c SemaphoreLib.c -o SemaphoreLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) SemaphoreLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
+
+clockhd:
+	$(CC) -Os -s ClockHDLib_dni.c $(API_PATH)/vmi_util.c ClockHDLib.c -o ClockHDLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
+	$(CP_CMD) ClockHDLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 all: $(ALL_RULES)

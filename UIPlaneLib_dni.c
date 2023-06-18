@@ -280,6 +280,8 @@ static const DanaTypeField function_UIPlaneLib_setCursor_fields[] = {
 {(DanaType*) &Cursor_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_UIPlaneLib_commitBuffer_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_getPixels_fields[] = {
+{(DanaType*) &PixelMap_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_UIPlaneLib_getResolution_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
 {(DanaType*) &WH_def, NULL, 0, 0, 8}};
@@ -394,6 +396,7 @@ static const DanaType object_UIPlaneLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_setIcon_fields, 3},
 {TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_UIPlaneLib_setCursor_fields, 4},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_commitBuffer_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_getPixels_fields, 2},
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_getResolution_fields, 3},
 {TYPE_FUNCTION, 0, 12, (DanaTypeField*) &function_UIPlaneLib_setBackgroundColor_fields, 6},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_maximiseWindow_fields, 2},
@@ -441,22 +444,23 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_UIPlaneLib_functions_spec[27], "setIcon", 7},
 {(DanaType*) &object_UIPlaneLib_functions_spec[28], "setCursor", 9},
 {(DanaType*) &object_UIPlaneLib_functions_spec[29], "commitBuffer", 12},
-{(DanaType*) &object_UIPlaneLib_functions_spec[30], "getResolution", 13},
-{(DanaType*) &object_UIPlaneLib_functions_spec[31], "setBackgroundColor", 18},
-{(DanaType*) &object_UIPlaneLib_functions_spec[32], "maximiseWindow", 14},
-{(DanaType*) &object_UIPlaneLib_functions_spec[33], "minimiseWindow", 14},
-{(DanaType*) &object_UIPlaneLib_functions_spec[34], "getMaximisedScreenRect", 22},
-{(DanaType*) &object_UIPlaneLib_functions_spec[35], "closeWindow", 11},
-{(DanaType*) &object_UIPlaneLib_functions_spec[36], "initMediaLayer", 14},
-{(DanaType*) &object_UIPlaneLib_functions_spec[37], "runSystemLoop", 13},
-{(DanaType*) &object_UIPlaneLib_functions_spec[38], "shutdown", 8},
-{(DanaType*) &object_UIPlaneLib_functions_spec[39], "loadFont", 8},
-{(DanaType*) &object_UIPlaneLib_functions_spec[40], "getTextWidth", 12},
-{(DanaType*) &object_UIPlaneLib_functions_spec[41], "getFontMetrics", 14},
-{(DanaType*) &object_UIPlaneLib_functions_spec[42], "getFontName", 11},
-{(DanaType*) &object_UIPlaneLib_functions_spec[43], "isFontFixedWidth", 16},
-{(DanaType*) &object_UIPlaneLib_functions_spec[44], "getTextBitmapWith", 17},
-{(DanaType*) &object_UIPlaneLib_functions_spec[45], "unloadFont", 10}};
+{(DanaType*) &object_UIPlaneLib_functions_spec[30], "getPixels", 9},
+{(DanaType*) &object_UIPlaneLib_functions_spec[31], "getResolution", 13},
+{(DanaType*) &object_UIPlaneLib_functions_spec[32], "setBackgroundColor", 18},
+{(DanaType*) &object_UIPlaneLib_functions_spec[33], "maximiseWindow", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[34], "minimiseWindow", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[35], "getMaximisedScreenRect", 22},
+{(DanaType*) &object_UIPlaneLib_functions_spec[36], "closeWindow", 11},
+{(DanaType*) &object_UIPlaneLib_functions_spec[37], "initMediaLayer", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[38], "runSystemLoop", 13},
+{(DanaType*) &object_UIPlaneLib_functions_spec[39], "shutdown", 8},
+{(DanaType*) &object_UIPlaneLib_functions_spec[40], "loadFont", 8},
+{(DanaType*) &object_UIPlaneLib_functions_spec[41], "getTextWidth", 12},
+{(DanaType*) &object_UIPlaneLib_functions_spec[42], "getFontMetrics", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[43], "getFontName", 11},
+{(DanaType*) &object_UIPlaneLib_functions_spec[44], "isFontFixedWidth", 16},
+{(DanaType*) &object_UIPlaneLib_functions_spec[45], "getTextBitmapWith", 17},
+{(DanaType*) &object_UIPlaneLib_functions_spec[46], "unloadFont", 10}};
 static const DanaType object_UIPlaneLib_events_spec[] = {
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_ready_fields, 0},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_mouseUp_fields, 1},
@@ -482,7 +486,7 @@ static const DanaTypeField intf_events_def[] = {
 {(DanaType*) &object_UIPlaneLib_events_spec[9], "close", 5},
 {(DanaType*) &object_UIPlaneLib_events_spec[10], "post_shutdown", 13}};
 static const DanaType UIPlaneLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 46},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 47},
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 11},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
@@ -521,6 +525,7 @@ static unsigned char op_setTitle_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)
 static unsigned char op_setIcon_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_setCursor_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_commitBuffer_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_getPixels_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getResolution_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_setBackgroundColor_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_maximiseWindow_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
@@ -570,6 +575,7 @@ static size_t interfaceFunctions[] = {
 (size_t) op_setIcon_thread_spec,
 (size_t) op_setCursor_thread_spec,
 (size_t) op_commitBuffer_thread_spec,
+(size_t) op_getPixels_thread_spec,
 (size_t) op_getResolution_thread_spec,
 (size_t) op_setBackgroundColor_thread_spec,
 (size_t) op_maximiseWindow_thread_spec,
@@ -741,85 +747,90 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_commitBuffer_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_commitBuffer_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[29];
 ((VFrameHeader*) op_commitBuffer_thread_spec) -> functionName = "commitBuffer";
+((VFrameHeader*) op_getPixels_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_getPixels_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_getPixels_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_getPixels_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[30];
+((VFrameHeader*) op_getPixels_thread_spec) -> functionName = "getPixels";
 ((VFrameHeader*) op_getResolution_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_getResolution_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_getResolution_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getResolution_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[30];
+((VFrameHeader*) op_getResolution_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[31];
 ((VFrameHeader*) op_getResolution_thread_spec) -> functionName = "getResolution";
 ((VFrameHeader*) op_setBackgroundColor_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 12;
 ((VFrameHeader*) op_setBackgroundColor_thread_spec) -> formalParamsCount = 5;
 ((VFrameHeader*) op_setBackgroundColor_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_setBackgroundColor_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[31];
+((VFrameHeader*) op_setBackgroundColor_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[32];
 ((VFrameHeader*) op_setBackgroundColor_thread_spec) -> functionName = "setBackgroundColor";
 ((VFrameHeader*) op_maximiseWindow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_maximiseWindow_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_maximiseWindow_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_maximiseWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[32];
+((VFrameHeader*) op_maximiseWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[33];
 ((VFrameHeader*) op_maximiseWindow_thread_spec) -> functionName = "maximiseWindow";
 ((VFrameHeader*) op_minimiseWindow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_minimiseWindow_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_minimiseWindow_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_minimiseWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[33];
+((VFrameHeader*) op_minimiseWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[34];
 ((VFrameHeader*) op_minimiseWindow_thread_spec) -> functionName = "minimiseWindow";
 ((VFrameHeader*) op_getMaximisedScreenRect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_getMaximisedScreenRect_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_getMaximisedScreenRect_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getMaximisedScreenRect_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[34];
+((VFrameHeader*) op_getMaximisedScreenRect_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[35];
 ((VFrameHeader*) op_getMaximisedScreenRect_thread_spec) -> functionName = "getMaximisedScreenRect";
 ((VFrameHeader*) op_closeWindow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_closeWindow_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_closeWindow_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_closeWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[35];
+((VFrameHeader*) op_closeWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[36];
 ((VFrameHeader*) op_closeWindow_thread_spec) -> functionName = "closeWindow";
 ((VFrameHeader*) op_initMediaLayer_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 1;
 ((VFrameHeader*) op_initMediaLayer_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_initMediaLayer_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_initMediaLayer_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[36];
+((VFrameHeader*) op_initMediaLayer_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[37];
 ((VFrameHeader*) op_initMediaLayer_thread_spec) -> functionName = "initMediaLayer";
 ((VFrameHeader*) op_runSystemLoop_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 0;
 ((VFrameHeader*) op_runSystemLoop_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_runSystemLoop_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_runSystemLoop_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[37];
+((VFrameHeader*) op_runSystemLoop_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[38];
 ((VFrameHeader*) op_runSystemLoop_thread_spec) -> functionName = "runSystemLoop";
 ((VFrameHeader*) op_shutdown_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 0;
 ((VFrameHeader*) op_shutdown_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_shutdown_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_shutdown_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[38];
+((VFrameHeader*) op_shutdown_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[39];
 ((VFrameHeader*) op_shutdown_thread_spec) -> functionName = "shutdown";
 ((VFrameHeader*) op_loadFont_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_loadFont_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_loadFont_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_loadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[39];
+((VFrameHeader*) op_loadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[40];
 ((VFrameHeader*) op_loadFont_thread_spec) -> functionName = "loadFont";
 ((VFrameHeader*) op_getTextWidth_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_getTextWidth_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_getTextWidth_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getTextWidth_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[40];
+((VFrameHeader*) op_getTextWidth_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[41];
 ((VFrameHeader*) op_getTextWidth_thread_spec) -> functionName = "getTextWidth";
 ((VFrameHeader*) op_getFontMetrics_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_getFontMetrics_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_getFontMetrics_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getFontMetrics_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[41];
+((VFrameHeader*) op_getFontMetrics_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[42];
 ((VFrameHeader*) op_getFontMetrics_thread_spec) -> functionName = "getFontMetrics";
 ((VFrameHeader*) op_getFontName_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_getFontName_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_getFontName_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getFontName_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[42];
+((VFrameHeader*) op_getFontName_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[43];
 ((VFrameHeader*) op_getFontName_thread_spec) -> functionName = "getFontName";
 ((VFrameHeader*) op_isFontFixedWidth_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
 ((VFrameHeader*) op_isFontFixedWidth_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_isFontFixedWidth_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_isFontFixedWidth_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[43];
+((VFrameHeader*) op_isFontFixedWidth_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[44];
 ((VFrameHeader*) op_isFontFixedWidth_thread_spec) -> functionName = "isFontFixedWidth";
 ((VFrameHeader*) op_getTextBitmapWith_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 44;
 ((VFrameHeader*) op_getTextBitmapWith_thread_spec) -> formalParamsCount = 7;
 ((VFrameHeader*) op_getTextBitmapWith_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getTextBitmapWith_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[44];
+((VFrameHeader*) op_getTextBitmapWith_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[45];
 ((VFrameHeader*) op_getTextBitmapWith_thread_spec) -> functionName = "getTextBitmapWith";
 ((VFrameHeader*) op_unloadFont_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_unloadFont_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_unloadFont_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_unloadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[45];
+((VFrameHeader*) op_unloadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[46];
 ((VFrameHeader*) op_unloadFont_thread_spec) -> functionName = "unloadFont";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
@@ -863,6 +874,7 @@ static Fable interfaceMappings[] = {
 {"setIcon", (VFrameHeader*) op_setIcon_thread_spec},
 {"setCursor", (VFrameHeader*) op_setCursor_thread_spec},
 {"commitBuffer", (VFrameHeader*) op_commitBuffer_thread_spec},
+{"getPixels", (VFrameHeader*) op_getPixels_thread_spec},
 {"getResolution", (VFrameHeader*) op_getResolution_thread_spec},
 {"setBackgroundColor", (VFrameHeader*) op_setBackgroundColor_thread_spec},
 {"maximiseWindow", (VFrameHeader*) op_maximiseWindow_thread_spec},

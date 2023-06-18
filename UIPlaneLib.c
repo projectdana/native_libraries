@@ -1,4 +1,4 @@
-//Written by Barry Porter, 2016, last updated 2021
+//Written by Barry Porter, 2016, last updated 2023
 
 //This is a graphics library using SDL2 for its rendering.
 
@@ -139,6 +139,8 @@ static pthread_mutexattr_t mAttr;
 static pthread_mutex_t measureTextLock;
 #endif
 
+static bool initComplete = false;
+
 static CoreAPI *api;
 
 static DanaType intType = {TYPE_LITERAL, 0, sizeof(size_t)};
@@ -165,6 +167,8 @@ static const DanaType DropEventData_def =
 */
 
 static GlobalTypeLink *charArrayGT = NULL;
+static GlobalTypeLink *pixelMapGT = NULL;
+static GlobalTypeLink *whGT = NULL;
 static GlobalTypeLink *integerGT = NULL;
 static GlobalTypeLink *windowDataGT = NULL;
 static GlobalTypeLink *dropDataGT = NULL;
@@ -397,6 +401,8 @@ typedef struct{
 	EventItem *eventQueueEnd;
 	
 	void *eqObject;
+
+	bool capturePixels;
 	
 	unsigned int ID;
 
@@ -1011,8 +1017,10 @@ here we render everything onto a texture (baseTexture) and then render that text
  - there are two reasons for this: (1) it has more consistent behaviour for font rendering across different graphics adaptors; (2) it's faster if you need to repaint the window but nothing actually changed (i.e. no "sceneChanged")
 */
 
-int DrawScene(WindowInstance* instance)
+static unsigned char* DrawScene(WindowInstance* instance)
 	{
+	unsigned char* pixelBuf = NULL;
+
 	//background colour
 	SDL_SetRenderDrawColor(instance -> renderer, instance -> backgroundColour.r, instance -> backgroundColour.g, instance -> backgroundColour.b, 255);
 	
@@ -1043,9 +1051,30 @@ int DrawScene(WindowInstance* instance)
 
 	renderTexture(instance -> baseTexture, instance -> renderer, 0, 0, 0);
 
+	if (instance -> capturePixels)
+		{
+		int w, h;
+		SDL_QueryTexture(instance -> baseTexture, NULL, NULL, &w, &h);
+
+		SDL_Rect dst;
+		dst.x = 0;
+		dst.y = 0;
+		dst.w = w;
+		dst.h = h;
+
+		unsigned char* buf = malloc(w * h * 4);
+
+		SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+		SDL_RenderReadPixels(instance -> renderer, &dst, SDL_PIXELFORMAT_ABGR8888, surface -> pixels, surface -> pitch);
+		memcpy(buf, surface -> pixels, w * h * 4);
+		SDL_FreeSurface(surface);
+
+		pixelBuf = buf;
+		}
+
 	SDL_RenderPresent(instance -> renderer);
 
-	return true; // Everything Went OK
+	return pixelBuf;
 	}
 
 static WindowInstance* findWindow(unsigned int ID)
@@ -1180,6 +1209,27 @@ typedef struct{
 #endif
 	} GenerateTextBitmapData;
 
+typedef struct _gpinfo{
+#ifdef WINDOWS
+	HANDLE sem;
+#endif
+#ifdef OSX
+	dispatch_semaphore_t sem;
+#else
+#ifdef LINUX
+	sem_t sem;
+#endif
+#endif
+
+	unsigned char* pixels;
+	size_t width;
+	size_t height;
+
+	WindowInstance *wi;
+
+	struct _gpinfo* next;
+	} GetPixelsInfo;
+
 typedef struct{
 	UIBitmap *bitmapData;
 	FrameData* vframe;
@@ -1247,6 +1297,7 @@ static unsigned int DX_FIXED_SIZE_WINDOW = 0;
 static unsigned int DX_FULLSCREEN_WINDOW = 0;
 static unsigned int DX_WINDOWED_WINDOW = 0;
 static unsigned int DX_GET_RESOLUTION = 0;
+static unsigned int DX_GET_PIXELS = 0;
 static unsigned int DX_CLOSE_WINDOW = 0;
 static unsigned int DX_GENERATE_TEXT_BITMAP = 0;
 static unsigned int DX_GENERATE_BITMAP_SURFACE = 0;
@@ -1331,12 +1382,16 @@ static void render_thread()
 	
 	//notify any event listeners that the renderer is now ready to go...
 	api -> pushEvent(systemEventObject, 0, 0, NULL);
+
+	initComplete = true;
 	
 	while (!quit)
 		{
 		//Read user input & handle it
 		
 		//printf("wait-event\n");
+
+		GetPixelsInfo* pixelGetList = NULL;
 		
 		if (SDL_WaitEvent(&e)) //does this make things more jittery?
 		{
@@ -1864,6 +1919,18 @@ static void render_thread()
 				#endif
 				#endif
 				}
+				else if (e.type == DX_GET_PIXELS)
+				{
+				GetPixelsInfo *cwi = (GetPixelsInfo*) e.user.data1;
+
+				cwi -> wi -> capturePixels = true;
+
+				cwi -> next = pixelGetList;
+
+				pixelGetList = cwi;
+
+				newFrame = true;
+				}
 				else if (e.type == DX_CLOSE_WINDOW)
 				{
 				CloseWindowInfo *cwi = (CloseWindowInfo*) e.user.data1;
@@ -2109,14 +2176,65 @@ static void render_thread()
 				WindowInstance *wi = (WindowInstance*) lw -> data;
 
 				startCriticalSection(&measureTextLock);
-				DrawScene(wi);
+				unsigned char* buf = DrawScene(wi);
 				stopCriticalSection(&measureTextLock);
+
+				if (buf != NULL)
+					{
+					//make a copy for each requester
+					bool used = false;
+
+					GetPixelsInfo *pw = pixelGetList;
+					while (pw != NULL)
+						{
+						if (pw -> wi == wi)
+							{
+							pw -> width = wi -> windowWidth;
+							pw -> height = wi -> windowHeight;
+							
+							if (!used)
+								{
+								pw -> pixels = buf;
+								}
+								else
+								{
+								unsigned char* cpy = malloc(pw -> width * pw -> height * 4);
+								memcpy(cpy, buf, pw -> width * pw -> height * 4);
+								pw -> pixels = buf;
+								}
+
+							used = true;
+							}
+
+						pw = pw -> next;
+						}
+					}
 
 				lw = lw -> next;
 				}
 			}
 
 		newFrame = false;
+
+		//finish pixel capture, if requested
+		GetPixelsInfo *pw = pixelGetList;
+		while (pw != NULL)
+			{
+			//we get the current item and move the pointer on before signalling the current item, in case the current item gets cleaned up right after signalling it (at which point pw -> next would then fail)
+			GetPixelsInfo *dw = pw;
+			pw = pw -> next;
+
+			#ifdef WINDOWS
+			ReleaseSemaphore(dw -> sem, 1, NULL);
+			#endif
+			#ifdef OSX
+			dispatch_semaphore_signal(dw -> sem);
+			#else
+			#ifdef LINUX
+			sem_post(&dw -> sem);
+			#endif
+			#endif
+			}
 		}
 	
 	//destroy all remaining windows...
@@ -2142,6 +2260,12 @@ static void render_thread()
 
 INSTRUCTION_DEF op_make_window(FrameData* cframe)
 	{
+	if (!initComplete)
+		{
+		api -> throwException(cframe, "rendering framework has not been initialised");
+		return RETURN_OK;
+		}
+	
 	MakeWindowInfo *mwInfo = malloc(sizeof(MakeWindowInfo));
 	memset(mwInfo, '\0', sizeof(MakeWindowInfo));
 	
@@ -3758,6 +3882,90 @@ INSTRUCTION_DEF op_get_maximised_screen_rect(FrameData* cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_get_pixels(FrameData* cframe)
+	{
+	size_t hnd = 0;
+	memcpy(&hnd, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	if (hnd != 0)
+		{
+		WindowInstance *instance = (WindowInstance*) hnd;
+		
+		GetPixelsInfo *mwInfo = malloc(sizeof(GetPixelsInfo));
+		memset(mwInfo, '\0', sizeof(GetPixelsInfo));
+
+		#ifdef WINDOWS
+		mwInfo -> sem = CreateSemaphore(NULL, 0, 1, NULL);
+		#endif
+		#ifdef OSX
+		dispatch_semaphore_t *sem;
+		sem = &mwInfo -> sem;
+		*sem = dispatch_semaphore_create(0);
+		#else
+		#ifdef LINUX
+		sem_init(&mwInfo -> sem, 0, 0);
+		#endif
+		#endif
+		
+		mwInfo -> wi = instance;
+
+		SDL_Event newEvent;
+		SDL_zero(newEvent);
+		newEvent.type = DX_GET_PIXELS;
+		newEvent.user.data1 = mwInfo;
+		newEvent.user.data2 = cframe;
+
+		SDL_PushEvent(&newEvent);
+		
+		#ifdef WINDOWS
+		WaitForSingleObject(mwInfo -> sem, INFINITE);
+		#endif
+		#ifdef OSX
+		dispatch_semaphore_wait(mwInfo -> sem, DISPATCH_TIME_FOREVER);
+		#else
+		#ifdef LINUX
+		sem_wait(&mwInfo -> sem);
+		#endif
+		#endif
+		
+		//semaphore_destroy();
+
+		#ifdef WINDOWS
+		CloseHandle(mwInfo -> sem);
+		#endif
+		#ifdef OSX
+		dispatch_release(mwInfo -> sem);
+		#else
+		#ifdef LINUX
+		sem_destroy(&mwInfo -> sem);
+		#endif
+		#endif
+
+		//TODO: create the return value (a byte array)
+		DanaEl* el = api -> makeData(pixelMapGT);
+		DanaEl* elWH = api -> makeData(whGT);
+
+		unsigned char* content = NULL;
+		DanaEl* array = api -> makeArray(charArrayGT, mwInfo -> width * mwInfo -> height * 4, &content);
+		memcpy(content, mwInfo -> pixels, mwInfo -> width * mwInfo -> height * 4);
+
+		api -> setDataFieldInt(elWH, 0, mwInfo -> width);
+		api -> setDataFieldInt(elWH, 1, mwInfo -> height);
+
+		api -> setDataFieldEl(el, 0, elWH);
+		api -> setDataFieldEl(el, 1, array);
+
+		free(mwInfo -> pixels);
+		free(mwInfo);
+
+		api -> returnEl(cframe, el);
+		
+		return RETURN_OK;
+		}
+
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_close_window(FrameData* cframe)
 	{
 	size_t hnd = 0;
@@ -3852,6 +4060,12 @@ INSTRUCTION_DEF op_set_background_colour(FrameData* cframe)
 
 INSTRUCTION_DEF op_load_font(FrameData* cframe)
 	{
+	if (!initComplete)
+		{
+		api -> throwException(cframe, "rendering framework has not been initialised");
+		return RETURN_OK;
+		}
+	
 	DanaEl* array = api -> getParamEl(cframe, 0);
 	
 	if (array == NULL)
@@ -4033,6 +4247,7 @@ INSTRUCTION_DEF op_init_media_layer(FrameData* cframe)
 	DX_FULLSCREEN_WINDOW = SDL_RegisterEvents(1);
 	DX_WINDOWED_WINDOW = SDL_RegisterEvents(1);
 	DX_GET_RESOLUTION = SDL_RegisterEvents(1);
+	DX_GET_PIXELS = SDL_RegisterEvents(1);
 	DX_CLOSE_WINDOW = SDL_RegisterEvents(1);
 	DX_GENERATE_TEXT_BITMAP = SDL_RegisterEvents(1);
 	DX_GENERATE_BITMAP_SURFACE = SDL_RegisterEvents(1);
@@ -4070,6 +4285,12 @@ INSTRUCTION_DEF op_run_system_loop(FrameData* cframe)
 
 INSTRUCTION_DEF op_shutdown(FrameData* cframe)
 	{
+	if (!initComplete)
+		{
+		api -> throwException(cframe, "rendering framework has not been initialised");
+		return RETURN_OK;
+		}
+	
 	SDL_Event newEvent;
 	newEvent.type = DX_SYSTEM_SHUTDOWN;
 
@@ -4101,6 +4322,8 @@ Interface* load(CoreAPI *capi)
 	
 	windowDataGT = api -> resolveGlobalTypeMapping(&windowDataType);
 	dropDataGT = api -> resolveGlobalTypeMapping(getTypeDefinition("DropEventData"));
+	pixelMapGT = api -> resolveGlobalTypeMapping(getTypeDefinition("PixelMap"));
+	whGT = api -> resolveGlobalTypeMapping(getTypeDefinition("WH"));
 	
 	setInterfaceFunction("makeWindow", op_make_window);
 	setInterfaceFunction("addRect", op_add_rect);
@@ -4133,6 +4356,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("maximiseWindow", op_maximise_window);
 	setInterfaceFunction("minimiseWindow", op_minimise_window);
 	setInterfaceFunction("getMaximisedScreenRect", op_get_maximised_screen_rect);
+	setInterfaceFunction("getPixels", op_get_pixels);
 	setInterfaceFunction("closeWindow", op_close_window);
 	
 	setInterfaceFunction("initMediaLayer", op_init_media_layer);

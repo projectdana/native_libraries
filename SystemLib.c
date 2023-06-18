@@ -247,15 +247,7 @@ INSTRUCTION_DEF op_get_memory_size(FrameData* cframe)
 
 	#ifdef LINUX
 	#ifndef OSX
-	struct sysinfo sInfo;
-
-	if (sysinfo(&sInfo) == -1)
-		{
-		api -> throwException(cframe, strerror(errno));
-		return RETURN_OK;
-		}
-
-	res = (sInfo.totalram / 1024) / 1024;
+	res = (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGESIZE)) / 1024 / 1024;
 	#endif
 	#ifdef OSX
 	int mib[] = {CTL_HW, HW_MEMSIZE};
