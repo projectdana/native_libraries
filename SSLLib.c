@@ -185,6 +185,9 @@ INSTRUCTION_DEF op_create_context(FrameData *cframe)
 		exit(EXIT_FAILURE);
 		}
 	
+	//enable "success" for a partial write, to match how our default TCP socket API works
+	SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
+	
 	/*
 	if (serverMode)
 		{
@@ -241,9 +244,10 @@ INSTRUCTION_DEF op_set_certificate(FrameData *cframe)
 
 	BIO_free(biomem);
 
-	RSA* rsa = EVP_PKEY_get1_RSA(pkey);
+	//RSA* rsa = EVP_PKEY_get1_RSA(pkey);
 	
-	if (SSL_CTX_use_RSAPrivateKey(ctx, rsa) <= 0)
+	//if (SSL_CTX_use_RSAPrivateKey(ctx, rsa) <= 0)
+	if (SSL_CTX_use_PrivateKey(ctx, pkey) <= 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		return RETURN_OK;
@@ -255,7 +259,7 @@ INSTRUCTION_DEF op_set_certificate(FrameData *cframe)
 		return RETURN_OK;
 		}
 	
-	RSA_free(rsa);
+	//RSA_free(rsa);
 	
 	unsigned char res = 1;
 	
@@ -351,70 +355,6 @@ INSTRUCTION_DEF op_make_ssl(FrameData *cframe)
 		}
 	
 	api -> returnRaw(cframe, (unsigned char*) &ssl, sizeof(size_t));
-	
-	return RETURN_OK;
-	}
-
-INSTRUCTION_DEF op_accept(FrameData *cframe)
-	{
-	SSL *ssl;
-	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	
-	size_t xs = 0;
-	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
-	
-	int socket = xs;
-	
-	SSL_set_fd(ssl, socket);
-	
-	unsigned char res = 0;
-	
-	if (SSL_accept(ssl) <= 0) {
-		int errC = ERR_get_error();
-		
-		if (errC != 0)
-			{
-			api -> throwException(cframe, ERR_error_string(errC, NULL));
-			}
-		
-		return RETURN_OK;
-		}
-		else
-		{
-		res = 1;
-		}
-	
-	//return boolean
-	api -> returnRaw(cframe, &res, 1);
-	
-	return RETURN_OK;
-	}
-
-INSTRUCTION_DEF op_connect(FrameData *cframe)
-	{
-	SSL *ssl;
-	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	
-	size_t xs = 0;
-	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
-	
-	int socket = xs;
-	
-	SSL_set_fd(ssl, socket);
-	
-	unsigned char res = 0;
-	
-	if (SSL_connect(ssl) <= 0) {
-		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
-		return RETURN_OK;
-		}
-		else
-		{
-		res = 1;
-		}
-	
-	//return boolean
-	api -> returnRaw(cframe, &res, 1);
 	
 	return RETURN_OK;
 	}
@@ -622,12 +562,162 @@ INSTRUCTION_DEF op_verify_certificate(FrameData *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_accept(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	size_t xs = 0;
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	
+	int socket = xs;
+
+	SSL_set_fd(ssl, socket);
+	
+	unsigned char res = 0;
+	
+	if (SSL_accept(ssl) <= 0) {
+		int errC = ERR_get_error();
+		
+		if (errC != 0)
+			{
+			api -> throwException(cframe, ERR_error_string(errC, NULL));
+			}
+		
+		return RETURN_OK;
+		}
+		else
+		{
+		res = 1;
+		}
+	
+	//return boolean
+	api -> returnRaw(cframe, &res, 1);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_accept_nb(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	size_t xs = 0;
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	
+	int socket = xs;
+
+	SSL_set_fd(ssl, socket);
+	
+	unsigned char res = 0;
+	
+	int sslRes = 0;
+	if ((sslRes = SSL_accept(ssl)) <= 0) {
+		int errC = SSL_get_error(ssl, sslRes);
+		
+		if (errC == SSL_ERROR_WANT_READ)
+			{
+			res = 2;
+			}
+			else if (errC == SSL_ERROR_WANT_WRITE)
+			{
+			res = 3;
+			}
+		
+		api -> returnInt(cframe, res);
+		
+		return RETURN_OK;
+		}
+		else
+		{
+		res = 1;
+		}
+	
+	//return int status
+	api -> returnInt(cframe, res);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_connect(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	size_t xs = 0;
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	
+	int socket = xs;
+
+	SSL_set_fd(ssl, socket);
+	
+	unsigned char res = 0;
+	
+	if (SSL_connect(ssl) <= 0) {
+		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+		return RETURN_OK;
+		}
+		else
+		{
+		res = 1;
+		}
+	
+	//return boolean
+	api -> returnRaw(cframe, &res, 1);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_connect_nb(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	size_t xs = 0;
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	
+	int socket = xs;
+
+	SSL_set_fd(ssl, socket);
+	
+	unsigned char res = 0;
+	
+	int sslRes = 0;
+	if ((sslRes = SSL_connect(ssl)) <= 0) {
+		int errC = SSL_get_error(ssl, sslRes);
+		
+		if (errC == SSL_ERROR_WANT_READ)
+			{
+			res = 2;
+			}
+			else if (errC == SSL_ERROR_WANT_WRITE)
+			{
+			res = 3;
+			}
+		
+		api -> returnInt(cframe, res);
+		
+		return RETURN_OK;
+		}
+		else
+		{
+		res = 1;
+		}
+	
+	//return boolean
+	api -> returnInt(cframe, res);
+	
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_write(FrameData *cframe)
 	{
 	SSL *ssl;
 	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	DanaEl* array = api -> getParamEl(cframe, 1);
+
+	//bool nonBlocking = api -> getParamRaw(cframe, 2)[0];
 	
 	int sz = 0;
 	
@@ -646,12 +736,60 @@ INSTRUCTION_DEF op_write(FrameData *cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_write_nb(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	DanaEl* array = api -> getParamEl(cframe, 1);
+
+	DanaEl* status = api -> getParamEl(cframe, 2);
+	
+	int sz = 0;
+	
+	if (array != NULL)
+		{
+		sz = SSL_write(ssl, (char*) api -> getArrayContent(array), api -> getArrayLength(array));
+
+		if (sz < 0)
+			{
+			int errC = SSL_get_error(ssl, sz);
+
+			api -> setDataFieldInt(status, 0, 0);
+
+			if (errC == SSL_ERROR_WANT_READ)
+				{
+				api -> setDataFieldInt(status, 0, 2);
+				}
+				else if (errC == SSL_ERROR_WANT_WRITE)
+				{
+				api -> setDataFieldInt(status, 0, 3);
+				}
+			
+			return RETURN_OK;
+			}
+		}
+	
+	//return # bytes written
+	
+	if (sz > 0)
+		{
+		api -> returnInt(cframe, sz);
+		}
+	
+	return RETURN_OK;
+	}
+
 INSTRUCTION_DEF op_read(FrameData *cframe)
 	{
 	SSL *ssl;
 	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	size_t len = api -> getParamInt(cframe, 1);
+
+	//bool nonBlocking = api -> getParamRaw(cframe, 2)[0];
+
+	//DanaEl* info = api -> getParamEl(cframe, 3); //SocketStatus
 	
 	//read data
 	
@@ -679,8 +817,77 @@ INSTRUCTION_DEF op_read(FrameData *cframe)
 				api -> throwException(cframe, ERR_error_string(errC, NULL));
 				}
 			
-			api -> destroyArray(array);
-			return RETURN_OK;
+			//api -> destroyArray(array);
+			//return RETURN_OK;
+			break;
+			}
+		
+		totalAmt += amt;
+		len -= amt;
+		}
+	
+	if (totalAmt > 0)
+		{
+		api -> setArrayLength(array, totalAmt);
+		api -> returnEl(cframe, array);
+		}
+		else
+		{
+		api -> destroyArray(array);
+		}
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_read_nb(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	size_t len = api -> getParamInt(cframe, 1);
+
+	DanaEl* status = api -> getParamEl(cframe, 2);
+
+	//read data
+	
+	unsigned char* cnt = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, len, &cnt);
+	
+	if (array == NULL)
+		{
+		len = 0;
+		return RETURN_OK;
+		}
+	
+	int amt = 1;
+	size_t totalAmt = 0;
+
+	//size_t pend = SSL_pending(ssl);
+	//printf("pendinf bytes: %u\n", pend);
+	
+	while ((len > 0) && (amt != 0))
+		{
+		size_t acAmt = 0;
+		amt = SSL_read(ssl, (char*) (cnt + totalAmt), len);
+		
+		if (amt < 0)
+			{
+			int errC = SSL_get_error(ssl, amt);
+
+			api -> setDataFieldInt(status, 0, 0);
+
+			if (errC == SSL_ERROR_WANT_READ)
+				{
+				api -> setDataFieldInt(status, 0, 2);
+				}
+				else if (errC == SSL_ERROR_WANT_WRITE)
+				{
+				api -> setDataFieldInt(status, 0, 3);
+				}
+			
+			//api -> destroyArray(array);
+			//return RETURN_OK;
+			break;
 			}
 		
 		totalAmt += amt;
@@ -704,8 +911,36 @@ INSTRUCTION_DEF op_close_ssl(FrameData *cframe)
 	{
 	SSL *ssl;
 	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	
+
 	SSL_shutdown(ssl);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_close_ssl_nb(FrameData *cframe)
+	{
+	SSL *ssl;
+	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	int sslRes = SSL_shutdown(ssl);
+
+	if (sslRes < 0)
+		{
+		int errC = SSL_get_error(ssl, sslRes);
+		
+		if (errC == SSL_ERROR_WANT_READ)
+			{
+			api -> returnInt(cframe, 2);
+			}
+			else if (errC == SSL_ERROR_WANT_WRITE)
+			{
+			api -> returnInt(cframe, 3);
+			}
+		
+		return RETURN_OK;
+		}
+	
+	api -> returnInt(cframe, 1);
 	
 	return RETURN_OK;
 	}
@@ -755,13 +990,18 @@ Interface* load(CoreAPI *capi)
 	
 	setInterfaceFunction("makeSSL", op_make_ssl);
 	setInterfaceFunction("accept", op_accept);
+	setInterfaceFunction("accept_nb", op_accept_nb);
 	setInterfaceFunction("connect", op_connect);
+	setInterfaceFunction("connect_nb", op_connect_nb);
 	setInterfaceFunction("getPeerCertificate", op_get_peer_cert);
 	setInterfaceFunction("getPeerCertChain", op_get_peer_cert_chain);
 	setInterfaceFunction("verifyCertificate", op_verify_certificate);
 	setInterfaceFunction("write", op_write);
+	setInterfaceFunction("write_nb", op_write_nb);
 	setInterfaceFunction("read", op_read);
+	setInterfaceFunction("read_nb", op_read_nb);
 	setInterfaceFunction("closeSSL", op_close_ssl);
+	setInterfaceFunction("closeSSL_nb", op_close_ssl_nb);
 	setInterfaceFunction("freeSSL", op_free_ssl);
 	
 	return getPublicInterface();

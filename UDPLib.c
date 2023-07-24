@@ -24,6 +24,8 @@
 #include <Ws2tcpip.h>
 #include <winsock2.h>
 
+#include "wepoll/wepoll.h"
+
 #ifdef WINDOWS
 #ifndef IPV6_V6ONLY
 #define IPV6_V6ONLY            27  //sigh: IPV6_V6ONLY is missing in mingw32
@@ -98,6 +100,9 @@ char* getSocketError(unsigned int miErrorCode)
 #include <unistd.h>
 #include <signal.h>
 #include <netdb.h>
+
+#include <sys/epoll.h>
+#include <fcntl.h>
 #endif
 
 #include <pthread.h>
@@ -165,7 +170,6 @@ INSTRUCTION_DEF op_udp_bind(FrameData* cframe)
 	
 	int master = 0;
 	
-	bool connected = false;
 	bool addressOK = true;
 	
 	if (getaddrinfo(addr, portstr, &hints, &adr_result) != 0)
@@ -205,8 +209,6 @@ INSTRUCTION_DEF op_udp_bind(FrameData* cframe)
 			any_all = false;
 			}
 		
-		connected = true;
-		
 		if (any_all)
 			{
 			int no = 0;     
@@ -234,8 +236,6 @@ INSTRUCTION_DEF op_udp_bind(FrameData* cframe)
 			#endif
 			
 			master = 0;
-			
-			connected = false;
 			}
 		
 		freeaddrinfo(adr_result);
@@ -264,6 +264,35 @@ INSTRUCTION_DEF op_udp_unbind(FrameData* cframe)
 	close(master);
 	#endif
 	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_set_blocking(FrameData* cframe)
+	{
+	size_t xs;
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	
+	#ifdef WINDOWS
+	#endif
+	#ifdef LINUX
+	int socket = xs;
+
+	int flags, s;
+
+	flags = fcntl (socket, F_GETFL, 0);
+	if (flags == -1)
+		{
+		//TODO: error
+		}
+
+	flags |= O_NONBLOCK;
+	s = fcntl (socket, F_SETFL, flags);
+	if (s == -1)
+		{
+		//TODO: error
+		}
+	#endif
+    
 	return RETURN_OK;
 	}
 
@@ -430,6 +459,266 @@ INSTRUCTION_DEF op_udp_send(FrameData* cframe)
 	return RETURN_OK;
 	}
 
+INSTRUCTION_DEF op_create_select(FrameData* cframe)
+	{
+	#ifdef WINDOWS
+	HANDLE fd = epoll_create1(0);
+	api -> returnRaw(cframe, (unsigned char*) &fd, sizeof(HANDLE));
+	#endif
+	#ifdef LINUX
+	int fd = epoll_create1(0);
+	api -> returnRaw(cframe, (unsigned char*) &fd, sizeof(int));
+	#endif
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_add_socket(FrameData* cframe)
+	{
+	unsigned char ok = 0;
+
+	#ifdef WINDOWS
+	size_t xs = 0;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	HANDLE selectFD = (HANDLE) xs;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	int socketFD = xs;
+
+	DanaEl* optDataRef = api -> getParamEl(cframe, 2);
+
+	struct epoll_event event;
+	event.data.ptr = optDataRef;
+	event.events = EPOLLIN;
+	int s = epoll_ctl(selectFD, EPOLL_CTL_ADD, socketFD, &event);
+	if (s == -1)
+		{
+		//TODO: error
+		}
+	
+	ok = 1;
+	#endif
+	#ifdef LINUX
+	size_t xs = 0;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	int selectFD = xs;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	int socketFD = xs;
+
+	DanaEl* optDataRef = api -> getParamEl(cframe, 2);
+
+	struct epoll_event event;
+	event.data.ptr = optDataRef;
+	event.events = EPOLLIN;
+	int s = epoll_ctl(selectFD, EPOLL_CTL_ADD, socketFD, &event);
+	if (s == -1)
+		{
+		//TODO: error
+		}
+	
+	ok = 1;
+	#endif
+
+	api -> returnRaw(cframe, &ok, 1);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_rem_socket(FrameData* cframe)
+	{
+	#ifdef WINDOWS
+	size_t xs = 0;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	HANDLE selectFD = (HANDLE) xs;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	int socketFD = xs;
+
+	struct epoll_event event; //this parameter is unused, but old versions on Linux may crash if the parameter is NULL
+	int s = epoll_ctl(selectFD, EPOLL_CTL_DEL, socketFD, &event);
+	if (s == -1)
+		{
+		//TODO: error
+		}
+	#endif
+	#ifdef LINUX
+	size_t xs = 0;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	int selectFD = xs;
+
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	int socketFD = xs;
+
+	struct epoll_event event; //this parameter is unused, but old versions on Linux may crash if the parameter is NULL
+	int s = epoll_ctl(selectFD, EPOLL_CTL_DEL, socketFD, &event);
+	if (s == -1)
+		{
+		//TODO: error
+		}
+	#endif
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_wait(FrameData* cframe)
+	{
+	size_t xs = 0;
+
+	DanaEl* array = api -> getParamEl(cframe, 1);
+	
+	#ifdef WINDOWS
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	HANDLE selectFD = (HANDLE) xs;
+	
+	size_t length = api -> getArrayLength(array);
+	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
+	int n;
+	n = epoll_wait(selectFD, events, length, -1);
+
+	for (int i = 0; i < n; i++)
+		{
+		DanaEl* mdata = events[i].data.ptr;
+		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
+		api -> setArrayCellEl(array, i, mevent);
+
+		unsigned char code = 0;
+		api -> setDataFieldRaw(mevent, 2, &code, 1);
+		code = 1;
+		if (events[i].events & EPOLLIN)
+			{
+			api -> setDataFieldRaw(mevent, 2, &code, 1);
+			}
+		}
+
+	free(events);
+
+	api -> returnInt(cframe, n);
+	#endif
+	#ifdef LINUX
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	int selectFD = xs;
+	
+	size_t length = api -> getArrayLength(array);
+	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
+	int n;
+	n = epoll_wait(selectFD, events, length, -1);
+
+	for (int i = 0; i < n; i++)
+		{
+		DanaEl* mdata = events[i].data.ptr;
+		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
+		api -> setArrayCellEl(array, i, mevent);
+
+		unsigned char code = 0;
+		api -> setDataFieldRaw(mevent, 2, &code, 1);
+		code = 1;
+		if (events[i].events & EPOLLIN)
+			{
+			api -> setDataFieldRaw(mevent, 2, &code, 1);
+			}
+		}
+
+	free(events);
+
+	api -> returnInt(cframe, n);
+	#endif
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_wait_time(FrameData* cframe)
+	{
+	size_t xs = 0;
+
+	DanaEl* array = api -> getParamEl(cframe, 1);
+
+	memcpy(&xs, api -> getParamRaw(cframe, 2), sizeof(size_t));
+	
+	#ifdef WINDOWS
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	HANDLE selectFD = (HANDLE) xs;
+	
+	size_t length = api -> getArrayLength(array);
+	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
+	int n;
+	n = epoll_wait(selectFD, events, length, xs);
+
+	for (int i = 0; i < n; i++)
+		{
+		DanaEl* mdata = events[i].data.ptr;
+		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
+		api -> setArrayCellEl(array, i, mevent);
+
+		unsigned char code = 0;
+		api -> setDataFieldRaw(mevent, 2, &code, 1);
+		code = 1;
+		if (events[i].events & EPOLLIN)
+			{
+			api -> setDataFieldRaw(mevent, 2, &code, 1);
+			}
+		}
+
+	free(events);
+
+	api -> returnInt(cframe, n);
+	#endif
+	#ifdef LINUX
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	int selectFD = xs;
+	
+	size_t length = api -> getArrayLength(array);
+	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
+	int n;
+	n = epoll_wait(selectFD, events, length, xs);
+
+	for (int i = 0; i < n; i++)
+		{
+		DanaEl* mdata = events[i].data.ptr;
+		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
+		api -> setArrayCellEl(array, i, mevent);
+
+		unsigned char code = 0;
+		api -> setDataFieldRaw(mevent, 2, &code, 1);
+		code = 1;
+		if (events[i].events & EPOLLIN)
+			{
+			api -> setDataFieldRaw(mevent, 2, &code, 1);
+			}
+		}
+
+	free(events);
+
+	api -> returnInt(cframe, n);
+	#endif
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_destroy_select(FrameData* cframe)
+	{
+	size_t xs = 0;
+
+	#ifdef WINDOWS
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	HANDLE selectFD = (HANDLE) xs;
+	
+	epoll_close(selectFD);
+	#endif
+	#ifdef LINUX
+	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
+	int selectFD = xs;
+	
+	close(selectFD);
+	#endif
+
+	return RETURN_OK;
+	}
+
 Interface* load(CoreAPI *capi)
 	{
 	#ifdef WINDOWS
@@ -455,6 +744,14 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("recv", op_udp_recv);
 	setInterfaceFunction("bind", op_udp_bind);
 	setInterfaceFunction("unbind", op_udp_unbind);
+	setInterfaceFunction("setBlocking", op_set_blocking);
+
+	setInterfaceFunction("createSelect", op_create_select);
+	setInterfaceFunction("addSocket", op_add_socket);
+	setInterfaceFunction("remSocket", op_rem_socket);
+	setInterfaceFunction("wait", op_wait);
+	setInterfaceFunction("waitTime", op_wait_time);
+	setInterfaceFunction("destroySelect", op_destroy_select);
 	
 	return getPublicInterface();
 	}

@@ -32,6 +32,9 @@ handy things: https://sourceforge.net/p/mingw-w64/wiki2/BuildingOpenSSL/
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
 
+#include <openssl/encoder.h>
+#include <openssl/decoder.h>
+
 #ifdef WINDOWS
 #include <Windows.h>
 #endif
@@ -1175,23 +1178,20 @@ INSTRUCTION_DEF op_rsa_generate_key(FrameData *cframe)
 	
 	int rc;
 	
-	RSA *rsa = RSA_new();
 	BIGNUM *bn = BN_new();
 	
 	rc = BN_set_word(bn, RSA_F4);
-	
-	//poke the random number generator
-	RAND_poll();
-	
-	if (RSA_generate_key_ex(rsa, keyLength, bn, NULL) != 1)
+
+	if (rc == 0)
 		{
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		return RETURN_OK;
 		}
 	
-	//convert to pkey
-	EVP_PKEY *pkey = EVP_PKEY_new();
-	EVP_PKEY_set1_RSA(pkey, rsa);
+	//poke the random number generator
+	RAND_poll();
+
+	EVP_PKEY* pkey = EVP_RSA_gen(keyLength);
 	
 	unsigned char *pp;
 	size_t mlen;
@@ -1225,7 +1225,6 @@ INSTRUCTION_DEF op_rsa_generate_key(FrameData *cframe)
 	
 	BN_free(bn);
 	EVP_PKEY_free(pkey);
-	RSA_free(rsa);
 	
 	unsigned char ok = 1;
 	api -> returnRaw(cframe, &ok, 1);
@@ -1235,7 +1234,6 @@ INSTRUCTION_DEF op_rsa_generate_key(FrameData *cframe)
 
 INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 	{
-	RSA *rsa = NULL;
 	EVP_PKEY *pkey = EVP_PKEY_new();
 	
 	DanaEl *pubKeyIn = api -> getParamEl(cframe, 0);
@@ -1273,78 +1271,86 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 			return RETURN_OK;
 			}
-		
-		//populate RSA key
-		rsa = EVP_PKEY_get1_RSA(pkey);
 		}
 		else if (inputType == 2)
 		{
+		OSSL_DECODER_CTX* dctx;
+
 		//RSA
-		rsa = RSA_new();
-		
 		BIO *biomem = BIO_new(BIO_s_mem());
 		BIO_write(biomem, api -> getArrayContent(pubKeyIn), api -> getArrayLength(pubKeyIn));
-		if (PEM_read_bio_RSAPublicKey(biomem, &rsa, 0, 0) == NULL) fail = true;
+		dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL, "RSA", OSSL_KEYMGMT_SELECT_PUBLIC_KEY, NULL, NULL);
+		if (!OSSL_DECODER_from_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_DECODER_CTX_free(dctx);
 		BIO_free(biomem);
 		
 		if (fail)
 			{
 			EVP_PKEY_free(pkey);
-			RSA_free(rsa);
 			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 			return RETURN_OK;
 			}
 		
 		biomem = BIO_new(BIO_s_mem());
 		BIO_write(biomem, api -> getArrayContent(priKeyIn), api -> getArrayLength(priKeyIn));
-		if (PEM_read_bio_RSAPrivateKey(biomem, &rsa, 0, 0) == NULL) fail = true;
+		dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "PEM", NULL, "RSA", OSSL_KEYMGMT_SELECT_PRIVATE_KEY, NULL, NULL);
+		if (!OSSL_DECODER_from_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_DECODER_CTX_free(dctx);
 		BIO_free(biomem);
 		
 		if (fail)
 			{
 			EVP_PKEY_free(pkey);
-			RSA_free(rsa);
 			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 			return RETURN_OK;
 			}
-		
-		//populate PKEY
-		EVP_PKEY_set1_RSA(pkey, rsa);
 		}
 		else if (inputType == 4)
 		{
+		OSSL_DECODER_CTX* dctx;
+
 		//ASN.1/DER
-		rsa = RSA_new();
 		
-		//i2d_RSAPublicKey_bio i is internal, d is "der"
+		//i2d_RSAPublicKey_bio: i is internal, d is "der"
 		BIO *biomem = BIO_new(BIO_s_mem());
 		BIO_write(biomem, api -> getArrayContent(pubKeyIn), api -> getArrayLength(pubKeyIn));
-		if (d2i_RSAPublicKey_bio(biomem, &rsa) == NULL) fail = true;
+		dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "DER", "type-specific", NULL, EVP_PKEY_PUBLIC_KEY, NULL, NULL);
+		if (!OSSL_DECODER_from_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_DECODER_CTX_free(dctx);
 		BIO_free(biomem);
 		
 		if (fail)
 			{
 			EVP_PKEY_free(pkey);
-			RSA_free(rsa);
 			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 			return RETURN_OK;
 			}
 		
 		biomem = BIO_new(BIO_s_mem());
 		BIO_write(biomem, api -> getArrayContent(priKeyIn), api -> getArrayLength(priKeyIn));
-		if (d2i_RSAPrivateKey_bio(biomem, &rsa) == NULL) fail = true;
+		dctx = OSSL_DECODER_CTX_new_for_pkey(&pkey, "DER", "type-specific", NULL, OSSL_KEYMGMT_SELECT_PRIVATE_KEY, NULL, NULL);
+		if (!OSSL_DECODER_from_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_DECODER_CTX_free(dctx);
 		BIO_free(biomem);
 		
 		if (fail)
 			{
 			EVP_PKEY_free(pkey);
-			RSA_free(rsa);
 			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 			return RETURN_OK;
 			}
-		
-		//populate PKEY
-		EVP_PKEY_set1_RSA(pkey, rsa);
 		}
 	
 	//write out the keys
@@ -1364,6 +1370,12 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		{
 		BIO *biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PUBKEY(biomem, pkey);
+		if (rc == 0)
+			{
+			EVP_PKEY_free(pkey);
+			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+			return RETURN_OK;
+			}
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
 		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
@@ -1371,6 +1383,12 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		
 		biomem = BIO_new(BIO_s_mem());
 		rc = PEM_write_bio_PKCS8PrivateKey(biomem, pkey, NULL, NULL, 0, NULL, NULL);
+		if (rc == 0)
+			{
+			EVP_PKEY_free(pkey);
+			api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
+			return RETURN_OK;
+			}
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
 		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
@@ -1378,15 +1396,27 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		}
 		else if (outputType == 2)
 		{
+		OSSL_ENCODER_CTX* dctx;
+
 		BIO *biomem = BIO_new(BIO_s_mem());
-		rc = PEM_write_bio_RSAPublicKey(biomem, rsa);
+		dctx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_PUBLIC_KEY, "PEM", "RSA", NULL);
+		if (!OSSL_ENCODER_to_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_ENCODER_CTX_free(dctx);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
 		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
-		rc = PEM_write_bio_RSAPrivateKey(biomem, rsa, NULL, NULL, 0, NULL, NULL);
+		dctx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_PRIVATE_KEY, "PEM", "RSA", NULL);
+		if (!OSSL_ENCODER_to_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_ENCODER_CTX_free(dctx);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
 		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
@@ -1394,15 +1424,27 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		}
 		else if (outputType == 4)
 		{
+		OSSL_ENCODER_CTX* dctx;
+
 		BIO *biomem = BIO_new(BIO_s_mem());
-		rc = i2d_RSAPublicKey_bio(biomem, rsa);
+		dctx = OSSL_ENCODER_CTX_new_for_pkey(pkey, EVP_PKEY_PUBLIC_KEY, "DER", "type-specific", NULL);
+		if (!OSSL_ENCODER_to_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_ENCODER_CTX_free(dctx);
 		pubKeyOutLen = BIO_get_mem_data(biomem, &pp);
 		arrayPub = api -> makeArray(charArrayGT, pubKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPub), pubKeyOutLen);
 		BIO_free(biomem);
 		
 		biomem = BIO_new(BIO_s_mem());
-		rc = i2d_RSAPrivateKey_bio(biomem, rsa);
+		dctx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_PRIVATE_KEY, "DER", "type-specific", NULL);
+		if (!OSSL_ENCODER_to_bio(dctx, biomem))
+			{
+			fail = true;
+			}
+		OSSL_ENCODER_CTX_free(dctx);
 		priKeyOutLen = BIO_get_mem_data(biomem, &pp);
 		arrayPri = api -> makeArray(charArrayGT, priKeyOutLen, NULL);
 		BIO_read(biomem, api -> getArrayContent(arrayPri), priKeyOutLen);
@@ -1410,7 +1452,6 @@ INSTRUCTION_DEF op_rsa_convert_key(FrameData* cframe)
 		}
 	
 	EVP_PKEY_free(pkey);
-	RSA_free(rsa);
 	
 	/* -- */
 	DanaEl* rdata = api -> getParamEl(cframe, 3);

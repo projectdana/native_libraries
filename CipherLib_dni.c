@@ -4,14 +4,14 @@ DanaType emptyType = {TYPE_PATTERN, 0, 0, NULL, 0};
 #define ADDRESS_ALIGN true
 #define ADDRESS_WIDTH sizeof(size_t)
 static const DanaType bool_def = 
-{TYPE_LITERAL, 0, 1, NULL, 0};
+{TYPE_LITERAL, 0x1, 1, NULL, 0};
 static const DanaType Object_def;
 static const DanaTypeField function_Object_clone_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
 static const DanaTypeField function_Object_equals_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
 static const DanaType char_def = 
-{TYPE_LITERAL, 0, 1, NULL, 0};
+{TYPE_LITERAL, 0x2, 1, NULL, 0};
 static const DanaTypeField char_array_fields[] = {
 {(DanaType*) &char_def, NULL, 0, 0, 0}};
 static const DanaType char_array_def = 
@@ -226,8 +226,6 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_CipherLib_functions_spec[32], "rsa_pss_cleanup", 15},
 {(DanaType*) &object_CipherLib_functions_spec[33], "rsa_generate_key", 16},
 {(DanaType*) &object_CipherLib_functions_spec[34], "rsa_convert_key", 15}};
-static const DanaType object_CipherLib_events_spec[] = {
-};
 static const DanaTypeField intf_events_def[] = {
 };
 static const DanaType CipherLib_object_spec[] = {

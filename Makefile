@@ -9,7 +9,7 @@ INSTALL_PATH=
 CP_CMD=
 CHIP=
 PLATFORM=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib audio rwlock semaphore clockhd
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib x509_lib audio rwlock semaphore clockhd
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -19,7 +19,7 @@ ifeq ($(OS),Windows_NT)
 	CP_CMD = copy
 	PLATFORM = win
 	CCFLAGS += -shared
-	NET_LIBS = -lws2_32
+	NET_LIBS = wepoll/wepoll.c -lws2_32
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
 	MYSQL_LIBS = -lmysql
@@ -29,8 +29,8 @@ ifeq ($(OS),Windows_NT)
 	JPG_LIBS = "C:/libs/jpeg-9c/libjpeg.a"
 	ZLIB_INCLUDE = -I "C:/libs/zlib"
 	ZLIB_LIBS = "C:/libs/zlib/libz.a"
-	SSL_INCLUDE = -I C:/libs/openssl-1.1.1/include
-	SSL_LIBS = C:/libs/openssl-1.1.1/libssl.a C:/libs/openssl-1.1.1/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
+	SSL_INCLUDE = -I C:/libs/openssl-3.1.1/include
+	SSL_LIBS = C:/libs/openssl-3.1.1/libssl.a C:/libs/openssl-3.1.1/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
 	AUDIO_INCLUDE = -I "C:/libs/miniaudio"
 	AUDIO_LIBS = -lm -lpthread
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
@@ -55,8 +55,8 @@ else
 	CP_CMD = cp
 	CCFLAGS += -shared -fPIC
 	MATH_LIBS = -lm
-	SSL_INCLUDE = -I ~/libs/openssl-1.1.1/include
-	SSL_LIBS = ~/libs/openssl-1.1.1/libssl.a ~/libs/openssl-1.1.1/libcrypto.a
+	SSL_INCLUDE = -I ~/libs/openssl-3.1.1/include
+	SSL_LIBS = ~/libs/openssl-3.1.1/libssl.a ~/libs/openssl-3.1.1/libcrypto.a
 	MYSQL_INCLUDE = -I ~/libs/mysql_lib/include
 	MYSQL_LIBS = ~/libs/mysql_lib/libmysqlclient.a -lpthread -lz -lm -lrt -ldl -lstdc++ $(SSL_LIBS)
 	AUDIO_INCLUDE = -I ~/libs/miniaudio/
@@ -192,6 +192,10 @@ sha_lib:
 cipher_lib:
 	$(CC) -Os -s CipherLib_dni.c $(API_PATH)/vmi_util.c CipherLib.c -o CipherLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(SSL_INCLUDE) $(CCFLAGS) $(SSL_LIBS)
 	$(CP_CMD) CipherLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
+
+x509_lib:
+	$(CC) -Os -s X509Lib_dni.c $(API_PATH)/vmi_util.c X509Lib.c -o X509Lib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(SSL_INCLUDE) $(CCFLAGS) $(SSL_LIBS)
+	$(CP_CMD) X509Lib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 audio:
 	$(CC) -Os -s AudioLib_dni.c $(API_PATH)/vmi_util.c AudioLib.c -o AudioLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS) $(AUDIO_INCLUDE) $(AUDIO_LIBS)
