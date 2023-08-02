@@ -113,7 +113,10 @@ static const DanaTypeField function_TCPLib_getRemoteAddress_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
 {(DanaType*) &NetworkEndpoint_def, NULL, 0, 0, 8}};
 static const DanaTypeField function_TCPLib_createSelect_fields[] = {
-{(DanaType*) &int_def, NULL, 0, 0, 0}};
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_TCPLib_setEventArrayLength_fields[] = {
+{(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
+{(DanaType*) &int_def, NULL, 0, 0, 9}};
 static const DanaTypeField function_TCPLib_addSocket_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
 {(DanaType*) &int_def, NULL, 0, 0, 9},
@@ -151,7 +154,8 @@ static const DanaType object_TCPLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_TCPLib_unbind_fields, 2},
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_TCPLib_getLocalAddress_fields, 3},
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_TCPLib_getRemoteAddress_fields, 3},
-{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_TCPLib_createSelect_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_TCPLib_createSelect_fields, 2},
+{TYPE_FUNCTION, 0, 17, (DanaTypeField*) &function_TCPLib_setEventArrayLength_fields, 3},
 {TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_TCPLib_addSocket_fields, 4},
 {TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_TCPLib_armSendNotify_fields, 4},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_TCPLib_remSocket_fields, 3},
@@ -176,16 +180,17 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_TCPLib_functions_spec[14], "getLocalAddress", 15},
 {(DanaType*) &object_TCPLib_functions_spec[15], "getRemoteAddress", 16},
 {(DanaType*) &object_TCPLib_functions_spec[16], "createSelect", 12},
-{(DanaType*) &object_TCPLib_functions_spec[17], "addSocket", 9},
-{(DanaType*) &object_TCPLib_functions_spec[18], "armSendNotify", 13},
-{(DanaType*) &object_TCPLib_functions_spec[19], "remSocket", 9},
-{(DanaType*) &object_TCPLib_functions_spec[20], "wait", 4},
-{(DanaType*) &object_TCPLib_functions_spec[21], "waitTime", 8},
-{(DanaType*) &object_TCPLib_functions_spec[22], "destroySelect", 13}};
+{(DanaType*) &object_TCPLib_functions_spec[17], "setEventArrayLength", 19},
+{(DanaType*) &object_TCPLib_functions_spec[18], "addSocket", 9},
+{(DanaType*) &object_TCPLib_functions_spec[19], "armSendNotify", 13},
+{(DanaType*) &object_TCPLib_functions_spec[20], "remSocket", 9},
+{(DanaType*) &object_TCPLib_functions_spec[21], "wait", 4},
+{(DanaType*) &object_TCPLib_functions_spec[22], "waitTime", 8},
+{(DanaType*) &object_TCPLib_functions_spec[23], "destroySelect", 13}};
 static const DanaTypeField intf_events_def[] = {
 };
 static const DanaType TCPLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 23},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 24},
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
@@ -211,6 +216,7 @@ static unsigned char op_unbind_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getLocalAddress_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getRemoteAddress_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_createSelect_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_setEventArrayLength_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_addSocket_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_armSendNotify_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_remSocket_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
@@ -237,6 +243,7 @@ static size_t interfaceFunctions[] = {
 (size_t) op_getLocalAddress_thread_spec,
 (size_t) op_getRemoteAddress_thread_spec,
 (size_t) op_createSelect_thread_spec,
+(size_t) op_setEventArrayLength_thread_spec,
 (size_t) op_addSocket_thread_spec,
 (size_t) op_armSendNotify_thread_spec,
 (size_t) op_remSocket_thread_spec,
@@ -328,40 +335,45 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_getRemoteAddress_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getRemoteAddress_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[15];
 ((VFrameHeader*) op_getRemoteAddress_thread_spec) -> functionName = "getRemoteAddress";
-((VFrameHeader*) op_createSelect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
-((VFrameHeader*) op_createSelect_thread_spec) -> formalParamsCount = 0;
+((VFrameHeader*) op_createSelect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
+((VFrameHeader*) op_createSelect_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_createSelect_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_createSelect_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[16];
 ((VFrameHeader*) op_createSelect_thread_spec) -> functionName = "createSelect";
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 17;
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[17];
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> functionName = "setEventArrayLength";
 ((VFrameHeader*) op_addSocket_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_addSocket_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_addSocket_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_addSocket_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[17];
+((VFrameHeader*) op_addSocket_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[18];
 ((VFrameHeader*) op_addSocket_thread_spec) -> functionName = "addSocket";
 ((VFrameHeader*) op_armSendNotify_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_armSendNotify_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_armSendNotify_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_armSendNotify_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[18];
+((VFrameHeader*) op_armSendNotify_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[19];
 ((VFrameHeader*) op_armSendNotify_thread_spec) -> functionName = "armSendNotify";
 ((VFrameHeader*) op_remSocket_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_remSocket_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_remSocket_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_remSocket_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[19];
+((VFrameHeader*) op_remSocket_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[20];
 ((VFrameHeader*) op_remSocket_thread_spec) -> functionName = "remSocket";
 ((VFrameHeader*) op_wait_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_wait_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_wait_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_wait_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[20];
+((VFrameHeader*) op_wait_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[21];
 ((VFrameHeader*) op_wait_thread_spec) -> functionName = "wait";
 ((VFrameHeader*) op_waitTime_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_waitTime_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_waitTime_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_waitTime_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[21];
+((VFrameHeader*) op_waitTime_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[22];
 ((VFrameHeader*) op_waitTime_thread_spec) -> functionName = "waitTime";
 ((VFrameHeader*) op_destroySelect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_destroySelect_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_destroySelect_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_destroySelect_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[22];
+((VFrameHeader*) op_destroySelect_thread_spec) -> localsDef = (size_t) &object_TCPLib_functions_spec[23];
 ((VFrameHeader*) op_destroySelect_thread_spec) -> functionName = "destroySelect";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
@@ -392,6 +404,7 @@ static Fable interfaceMappings[] = {
 {"getLocalAddress", (VFrameHeader*) op_getLocalAddress_thread_spec},
 {"getRemoteAddress", (VFrameHeader*) op_getRemoteAddress_thread_spec},
 {"createSelect", (VFrameHeader*) op_createSelect_thread_spec},
+{"setEventArrayLength", (VFrameHeader*) op_setEventArrayLength_thread_spec},
 {"addSocket", (VFrameHeader*) op_addSocket_thread_spec},
 {"armSendNotify", (VFrameHeader*) op_armSendNotify_thread_spec},
 {"remSocket", (VFrameHeader*) op_remSocket_thread_spec},

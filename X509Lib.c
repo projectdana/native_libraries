@@ -64,6 +64,7 @@ static CoreAPI *api;
 
 static GlobalTypeLink *charArrayGT = NULL;
 static GlobalTypeLink *x509CertificateGT = NULL;
+static GlobalTypeLink *dateTimeGT = NULL;
 
 static DanaEl* nameToDanaString(X509_NAME* name)
 	{
@@ -80,6 +81,71 @@ static DanaEl* nameToDanaString(X509_NAME* name)
 	BIO_free(tmpbio);
 
 	return field;
+	}
+
+static DanaEl* hexString(char* str, size_t len)
+	{
+	unsigned char* val = NULL;
+	DanaEl* field = api -> makeArray(charArrayGT, len*2, &val);
+
+	int j = 0;
+	int i = 0;
+	for (i = 0; i < len; i++)
+		{
+		char upperChar = (str[i] & 0xF0) >> 4;
+		char lowerChar = str[i] & 0x0F;
+
+		//ascii offsets
+		if(upperChar < 10)
+			upperChar += 48;
+		else
+			upperChar += 87;
+
+		//ascii offsets
+		if(lowerChar < 10)
+			lowerChar += 48;
+		else
+			lowerChar += 87;
+		
+		val[j] = upperChar;
+		val[j+1] = lowerChar;
+		j+=2;
+		}
+
+	return field;
+	}
+
+static DanaEl* parseDate(const ASN1_TIME* time)
+	{
+	DanaEl* date = api -> makeData(dateTimeGT);
+
+	struct tm timeVal;
+	ASN1_TIME_to_tm(time, &timeVal);
+
+	unsigned char* raw = api -> getDataContent(date);
+	
+	uint16 *year = (uint16*) &raw[0];
+	unsigned char *month = &raw[2];
+	unsigned char *day = &raw[3];
+	unsigned char *hour = &raw[4];
+	unsigned char *minute = &raw[5];
+	unsigned char *second = &raw[6];
+
+	timeVal.tm_year += 1900;
+	timeVal.tm_mon += 1;
+
+	size_t cYear = 0;
+	copyToDanaInteger((unsigned char*) &cYear, (unsigned char*) &timeVal.tm_year, sizeof(timeVal.tm_year));
+	
+	*year = ((uint16*) &cYear)[(sizeof(cYear)/2)-1];
+	*month = timeVal.tm_mon;
+	*day = timeVal.tm_mday;
+	
+	*hour = timeVal.tm_hour;
+	*minute = timeVal.tm_min;
+	*second = timeVal.tm_sec;
+
+	return date;
 	}
 
 INSTRUCTION_DEF op_parse(FrameData *cframe)
@@ -130,56 +196,50 @@ INSTRUCTION_DEF op_parse(FrameData *cframe)
 	BIO_read(biomem, val, mlen);
 	BIO_free(biomem);
 	api -> setDataFieldEl(result, 4, field);
-	field = api -> makeArray(charArrayGT, strlen("RSA"), &val);
-	memcpy(val, "RSA", strlen("RSA"));
-	api -> setDataFieldEl(result, 3, field);
+
+	ASN1_OBJECT *objK = NULL;
+	const unsigned char* pkd;
+	X509_PUBKEY* xpk = X509_get_X509_PUBKEY(cert);
+	int pklen;
+	X509_ALGOR* keyAlgo = NULL;
+	X509_PUBKEY_get0_param(&objK, &pkd, &pklen, &keyAlgo, xpk);
+	char abuf[512];
+	int res = OBJ_obj2txt(abuf, sizeof abuf, keyAlgo->algorithm, 0);
+	if (res > 0)
+		{
+		field = api -> makeArray(charArrayGT, strlen(abuf), &val);
+		memcpy(val, abuf, strlen(abuf));
+		api -> setDataFieldEl(result, 3, field);
+		}
 
 	const ASN1_BIT_STRING* sigBits = NULL;
 	const X509_ALGOR* sigAlgo = NULL;
 	X509_get0_signature(&sigBits, &sigAlgo, cert);
 	char tbuf[512];
-	int res = OBJ_obj2txt(tbuf, sizeof tbuf, sigAlgo->algorithm, 0);
+	res = OBJ_obj2txt(tbuf, sizeof tbuf, sigAlgo->algorithm, 0);
 	if (res > 0)
 		{
 		field = api -> makeArray(charArrayGT, strlen(tbuf), &val);
 		memcpy(val, tbuf, strlen(tbuf));
 		api -> setDataFieldEl(result, 7, field);
 		}
-	const ASN1_OBJECT *obj = NULL;
-	int type;
-	const void* value;
-	X509_ALGOR_get0(&obj, &type, &value, sigAlgo);
-	biomem = BIO_new(BIO_s_mem());
-	//i2d_X509_SIG(biomem, cert);
-	//X509_signature_print(biomem, sigAlgo, sigBits);
-	ASN1_STRING_print_ex(biomem, sigBits, ASN1_STRFLGS_RFC2253);
-	mlen = BIO_get_mem_data(biomem, &pp);
-	field = api -> makeArray(charArrayGT, mlen, &val);
-	BIO_read(biomem, val, mlen);
-	BIO_free(biomem);
+	size_t len = ASN1_STRING_length(sigBits);
+	const unsigned char* strData = ASN1_STRING_get0_data(sigBits);
+	field = hexString((char*) strData, len);
 	api -> setDataFieldEl(result, 8, field);
 
+	//OpenSSL time format as a string is "Dec 19 00:00:00 2022 GMT"
 	const ASN1_TIME* notBefore = X509_get0_notBefore(cert);
 	if (notBefore != NULL)
 		{
-		biomem = BIO_new(BIO_s_mem());
-		ASN1_TIME_print(biomem, notBefore);
-		mlen = BIO_get_mem_data(biomem, &pp);
-		field = api -> makeArray(charArrayGT, mlen, &val);
-		BIO_read(biomem, val, mlen);
-		BIO_free(biomem);
+		field = parseDate(notBefore);
 		api -> setDataFieldEl(result, 5, field);
 		}
 
 	const ASN1_TIME* notAfter = X509_get0_notAfter(cert);
 	if (notAfter != NULL)
 		{
-		biomem = BIO_new(BIO_s_mem());
-		ASN1_TIME_print(biomem, notAfter);
-		mlen = BIO_get_mem_data(biomem, &pp);
-		field = api -> makeArray(charArrayGT, mlen, &val);
-		BIO_read(biomem, val, mlen);
-		BIO_free(biomem);
+		field = parseDate(notAfter);
 		api -> setDataFieldEl(result, 6, field);
 		}
 
@@ -217,6 +277,7 @@ Interface* load(CoreAPI *capi)
 	// grab global type mappings for anything that we generate here
 	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	x509CertificateGT = api -> resolveGlobalTypeMapping(getTypeDefinition("X509Certificate"));
+	dateTimeGT = api -> resolveGlobalTypeMapping(getTypeDefinition("DateTime"));
 	
 	setInterfaceFunction("parse", op_parse);
 	setInterfaceFunction("write", op_write);

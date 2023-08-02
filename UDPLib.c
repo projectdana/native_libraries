@@ -101,11 +101,34 @@ char* getSocketError(unsigned int miErrorCode)
 #include <signal.h>
 #include <netdb.h>
 
+#ifndef OSX
 #include <sys/epoll.h>
 #include <fcntl.h>
 #endif
+#endif
+
+#ifdef OSX
+#include <dispatch/dispatch.h>
+#include <sys/event.h>
+#endif
 
 #include <pthread.h>
+
+typedef struct {
+	#ifdef WINDOWS
+	HANDLE fd;
+	#endif
+	#ifdef LINUX
+	int fd;
+	#endif
+	#ifndef OSX
+	struct epoll_event *events;
+	#endif
+	#ifdef OSX
+	struct kevent *events;
+	#endif
+	size_t eventLength;
+} SelectState;
 
 static CoreAPI *api;
 
@@ -461,66 +484,77 @@ INSTRUCTION_DEF op_udp_send(FrameData* cframe)
 
 INSTRUCTION_DEF op_create_select(FrameData* cframe)
 	{
-	#ifdef WINDOWS
-	HANDLE fd = epoll_create1(0);
-	api -> returnRaw(cframe, (unsigned char*) &fd, sizeof(HANDLE));
+	size_t evlen = api -> getParamInt(cframe, 0);
+	SelectState *state = malloc(sizeof(SelectState));
+
+	#ifndef OSX
+	state -> fd = epoll_create1(0);
+	state -> events = malloc(sizeof(struct epoll_event) * evlen);
+	state -> eventLength = evlen;
 	#endif
-	#ifdef LINUX
-	int fd = epoll_create1(0);
-	api -> returnRaw(cframe, (unsigned char*) &fd, sizeof(int));
+	#ifdef OSX
+	state -> fd = kqueue();
+	state -> events = malloc(sizeof(struct kevent) * evlen);
+	state -> eventLength = evlen;
 	#endif
+
+	api -> returnRaw(cframe, (unsigned char*) &state, sizeof(size_t));
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_set_event_array_length(FrameData* cframe)
+	{
+	SelectState *state;
+	memcpy(&state, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	size_t evlen = api -> getParamInt(cframe, 1);
+
+	#ifndef OSX
+	state -> events = realloc(state -> events, sizeof(struct epoll_event) * evlen);
+	#endif
+	#ifdef OSX
+	state -> events = realloc(state -> events, sizeof(struct kevent) * evlen);
+	#endif
+	state -> eventLength = evlen;
 
 	return RETURN_OK;
 	}
 
 INSTRUCTION_DEF op_add_socket(FrameData* cframe)
 	{
+	size_t xs = 0;
+	SelectState *state;
+	memcpy(&state, api -> getParamRaw(cframe, 0), sizeof(size_t));
+
+	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
+	int socketFD = xs;
+
+	DanaEl* optDataRef = api -> getParamEl(cframe, 2);
+
 	unsigned char ok = 0;
 
-	#ifdef WINDOWS
-	size_t xs = 0;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	HANDLE selectFD = (HANDLE) xs;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
-	int socketFD = xs;
-
-	DanaEl* optDataRef = api -> getParamEl(cframe, 2);
-
+	#ifndef OSX
 	struct epoll_event event;
 	event.data.ptr = optDataRef;
 	event.events = EPOLLIN;
-	int s = epoll_ctl(selectFD, EPOLL_CTL_ADD, socketFD, &event);
+	int s = epoll_ctl(state -> fd, EPOLL_CTL_ADD, socketFD, &event);
 	if (s == -1)
 		{
 		//TODO: error
 		}
-	
-	ok = 1;
 	#endif
-	#ifdef LINUX
-	size_t xs = 0;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	int selectFD = xs;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
-	int socketFD = xs;
-
-	DanaEl* optDataRef = api -> getParamEl(cframe, 2);
-
-	struct epoll_event event;
-	event.data.ptr = optDataRef;
-	event.events = EPOLLIN;
-	int s = epoll_ctl(selectFD, EPOLL_CTL_ADD, socketFD, &event);
-	if (s == -1)
+	#ifdef OSX
+	struct kevent eventUpdate;
+	EV_SET(&eventUpdate, socketFD, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+	eventUpdate.udata = optDataRef;
+	if (kevent(state -> fd, &eventUpdate, 1, NULL, 0, NULL) == -1)
 		{
 		//TODO: error
 		}
+	#endif
 	
 	ok = 1;
-	#endif
 
 	api -> returnRaw(cframe, &ok, 1);
 
@@ -529,34 +563,25 @@ INSTRUCTION_DEF op_add_socket(FrameData* cframe)
 
 INSTRUCTION_DEF op_rem_socket(FrameData* cframe)
 	{
-	#ifdef WINDOWS
 	size_t xs = 0;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	HANDLE selectFD = (HANDLE) xs;
+	SelectState *state;
+	memcpy(&state, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
 	int socketFD = xs;
 
+	#ifndef OSX
 	struct epoll_event event; //this parameter is unused, but old versions on Linux may crash if the parameter is NULL
-	int s = epoll_ctl(selectFD, EPOLL_CTL_DEL, socketFD, &event);
+	int s = epoll_ctl(state -> fd, EPOLL_CTL_DEL, socketFD, &event);
 	if (s == -1)
 		{
 		//TODO: error
 		}
 	#endif
-	#ifdef LINUX
-	size_t xs = 0;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	int selectFD = xs;
-
-	memcpy(&xs, api -> getParamRaw(cframe, 1), sizeof(size_t));
-	int socketFD = xs;
-
-	struct epoll_event event; //this parameter is unused, but old versions on Linux may crash if the parameter is NULL
-	int s = epoll_ctl(selectFD, EPOLL_CTL_DEL, socketFD, &event);
-	if (s == -1)
+	#ifdef OSX
+	struct kevent eventUpdate;
+	EV_SET(&eventUpdate, socketFD, 0, EV_DELETE, 0, 0, 0);
+	if (kevent(state -> fd, &eventUpdate, 1, NULL, 0, NULL) == -1)
 		{
 		//TODO: error
 		}
@@ -567,154 +592,112 @@ INSTRUCTION_DEF op_rem_socket(FrameData* cframe)
 
 INSTRUCTION_DEF op_wait(FrameData* cframe)
 	{
-	size_t xs = 0;
+	SelectState *state;
+	memcpy(&state, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	DanaEl* array = api -> getParamEl(cframe, 1);
 	
-	#ifdef WINDOWS
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	HANDLE selectFD = (HANDLE) xs;
-	
-	size_t length = api -> getArrayLength(array);
-	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
-	int n;
-	n = epoll_wait(selectFD, events, length, -1);
+	#ifndef OSX
+	int n = epoll_wait(state -> fd, state -> events, state -> eventLength, -1);
+	#endif
+	#ifdef OSX
+	int n = kevent(state -> fd, NULL, 0, state -> events, state -> eventLength, NULL);
+	#endif
 
-	for (int i = 0; i < n; i++)
+	int i = 0;
+	for (i = 0; i < n; i++)
 		{
-		DanaEl* mdata = events[i].data.ptr;
+		#ifndef OSX
+		DanaEl* mdata = state -> events[i].data.ptr;
+		#endif
+		#ifdef OSX
+		DanaEl* mdata = state -> events[i].udata;
+		#endif
 		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
 		api -> setArrayCellEl(array, i, mevent);
 
 		unsigned char code = 0;
 		api -> setDataFieldRaw(mevent, 2, &code, 1);
 		code = 1;
-		if (events[i].events & EPOLLIN)
+		#ifndef OSX
+		if (state -> events[i].events & EPOLLIN)
+		#endif
+		#ifdef OSX
+		if (state -> events[i].filter & EVFILT_READ)
+		#endif
 			{
 			api -> setDataFieldRaw(mevent, 2, &code, 1);
 			}
 		}
 
-	free(events);
-
 	api -> returnInt(cframe, n);
-	#endif
-	#ifdef LINUX
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	int selectFD = xs;
-	
-	size_t length = api -> getArrayLength(array);
-	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
-	int n;
-	n = epoll_wait(selectFD, events, length, -1);
-
-	for (int i = 0; i < n; i++)
-		{
-		DanaEl* mdata = events[i].data.ptr;
-		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
-		api -> setArrayCellEl(array, i, mevent);
-
-		unsigned char code = 0;
-		api -> setDataFieldRaw(mevent, 2, &code, 1);
-		code = 1;
-		if (events[i].events & EPOLLIN)
-			{
-			api -> setDataFieldRaw(mevent, 2, &code, 1);
-			}
-		}
-
-	free(events);
-
-	api -> returnInt(cframe, n);
-	#endif
 
 	return RETURN_OK;
 	}
 
 INSTRUCTION_DEF op_wait_time(FrameData* cframe)
 	{
-	size_t xs = 0;
+	SelectState *state;
+	memcpy(&state, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	DanaEl* array = api -> getParamEl(cframe, 1);
 
-	memcpy(&xs, api -> getParamRaw(cframe, 2), sizeof(size_t));
-	
-	#ifdef WINDOWS
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	HANDLE selectFD = (HANDLE) xs;
-	
-	size_t length = api -> getArrayLength(array);
-	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
-	int n;
-	n = epoll_wait(selectFD, events, length, xs);
+	size_t xs = api -> getParamInt(cframe, 2);
 
-	for (int i = 0; i < n; i++)
+	#ifndef OSX
+	int n = epoll_wait(state -> fd, state -> events, state -> eventLength, xs);
+	#endif
+	#ifdef OSX
+	struct timespec timeout;
+	memset(&timeout, 0, sizeof(timeout));
+	timeout.tv_nsec = xs * 1000 * 1000;
+	int n = kevent(state -> fd, NULL, 0, state -> events, state -> eventLength, &timeout);
+	#endif
+
+	int i = 0
+	for (i = 0; i < n; i++)
 		{
-		DanaEl* mdata = events[i].data.ptr;
+		#ifndef OSX
+		DanaEl* mdata = state -> events[i].data.ptr;
+		#endif
+		#ifdef OSX
+		DanaEl* mdata = state -> events[i].udata;
+		#endif
 		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
 		api -> setArrayCellEl(array, i, mevent);
 
 		unsigned char code = 0;
 		api -> setDataFieldRaw(mevent, 2, &code, 1);
 		code = 1;
-		if (events[i].events & EPOLLIN)
+		#ifndef OSX
+		if (state -> events[i].events & EPOLLIN)
+		#endif
+		#ifdef OSX
+		if (state -> events[i].filter & EVFILT_READ)
+		#endif
 			{
 			api -> setDataFieldRaw(mevent, 2, &code, 1);
 			}
 		}
-
-	free(events);
-
-	api -> returnInt(cframe, n);
-	#endif
-	#ifdef LINUX
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	int selectFD = xs;
 	
-	size_t length = api -> getArrayLength(array);
-	struct epoll_event *events = malloc(sizeof(struct epoll_event) * length);
-	int n;
-	n = epoll_wait(selectFD, events, length, xs);
-
-	for (int i = 0; i < n; i++)
-		{
-		DanaEl* mdata = events[i].data.ptr;
-		DanaEl* mevent = api -> getDataFieldEl(mdata, 1);
-		api -> setArrayCellEl(array, i, mevent);
-
-		unsigned char code = 0;
-		api -> setDataFieldRaw(mevent, 2, &code, 1);
-		code = 1;
-		if (events[i].events & EPOLLIN)
-			{
-			api -> setDataFieldRaw(mevent, 2, &code, 1);
-			}
-		}
-
-	free(events);
-
 	api -> returnInt(cframe, n);
-	#endif
 
 	return RETURN_OK;
 	}
 
 INSTRUCTION_DEF op_destroy_select(FrameData* cframe)
 	{
-	size_t xs = 0;
+	SelectState *state;
+	memcpy(&state, api -> getParamRaw(cframe, 0), sizeof(size_t));
 
 	#ifdef WINDOWS
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	HANDLE selectFD = (HANDLE) xs;
-	
-	epoll_close(selectFD);
+	epoll_close(state -> fd);
 	#endif
 	#ifdef LINUX
-	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
-	int selectFD = xs;
-	
-	close(selectFD);
+	close(state -> fd);
 	#endif
+	free(state -> events);
+	free(state);
 
 	return RETURN_OK;
 	}
@@ -747,6 +730,7 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("setBlocking", op_set_blocking);
 
 	setInterfaceFunction("createSelect", op_create_select);
+	setInterfaceFunction("setEventArrayLength", op_set_event_array_length);
 	setInterfaceFunction("addSocket", op_add_socket);
 	setInterfaceFunction("remSocket", op_rem_socket);
 	setInterfaceFunction("wait", op_wait);

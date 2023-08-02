@@ -41,14 +41,28 @@ static const DanaTypeField Object_spec_fields[] = {
 {(DanaType*) &Object_spec[2], ".state", 6},
 };
 static const DanaType Object_def = {TYPE_OBJECT, 0, 0, (DanaTypeField*) Object_spec_fields, 3};
+static const DanaType int2_def = 
+{TYPE_LITERAL, 0, 2, NULL, 0};
+static const DanaType byte_def = 
+{TYPE_LITERAL, 0, 1, NULL, 0};
+static const DanaTypeField DateTime_fields[] = {
+{(DanaType*) &int2_def, NULL, 0, 0, 0},
+{(DanaType*) &byte_def, NULL, 0, 0, 0+2},
+{(DanaType*) &byte_def, NULL, 0, 0, 0+2+1},
+{(DanaType*) &byte_def, NULL, 0, 0, 0+2+1+1},
+{(DanaType*) &byte_def, NULL, 0, 0, 0+2+1+1+1},
+{(DanaType*) &byte_def, NULL, 0, 0, 0+2+1+1+1+1},
+{(DanaType*) &int2_def, NULL, 0, 0, 0+2+1+1+1+1+1}};
+static const DanaType DateTime_def = 
+{TYPE_DATA, 0, 9, (DanaTypeField*) DateTime_fields, 7};
 static const DanaTypeField X509Certificate_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0},
 {(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)},
 {(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
 {(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
 {(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
-{(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
-{(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
+{(DanaType*) &DateTime_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
+{(DanaType*) &DateTime_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
 {(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)},
 {(DanaType*) &char_array_def, NULL, 0, 0, 0+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)+(sizeof(size_t)*2)}};
 static const DanaType X509Certificate_def = 
@@ -177,6 +191,8 @@ const DanaType *dataType;
 } Ex;
 
 static Ex dataMappings[] = {
+{"DateTime", &DateTime_def
+},
 {"X509Certificate", &X509Certificate_def
 },
 {"char[]", &char_array_def

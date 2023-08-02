@@ -89,7 +89,10 @@ static const DanaTypeField function_UDPLib_setBlocking_fields[] = {
 static const DanaTypeField function_UDPLib_unbind_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_UDPLib_createSelect_fields[] = {
-{(DanaType*) &int_def, NULL, 0, 0, 0}};
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UDPLib_setEventArrayLength_fields[] = {
+{(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
+{(DanaType*) &int_def, NULL, 0, 0, 9}};
 static const DanaTypeField function_UDPLib_addSocket_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
 {(DanaType*) &int_def, NULL, 0, 0, 9},
@@ -116,7 +119,8 @@ static const DanaType object_UDPLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_UDPLib_bind_fields, 3},
 {TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_UDPLib_setBlocking_fields, 3},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UDPLib_unbind_fields, 2},
-{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UDPLib_createSelect_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_UDPLib_createSelect_fields, 2},
+{TYPE_FUNCTION, 0, 17, (DanaTypeField*) &function_UDPLib_setEventArrayLength_fields, 3},
 {TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_UDPLib_addSocket_fields, 4},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_UDPLib_remSocket_fields, 3},
 {TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_UDPLib_wait_fields, 3},
@@ -133,15 +137,16 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_UDPLib_functions_spec[7], "setBlocking", 11},
 {(DanaType*) &object_UDPLib_functions_spec[8], "unbind", 6},
 {(DanaType*) &object_UDPLib_functions_spec[9], "createSelect", 12},
-{(DanaType*) &object_UDPLib_functions_spec[10], "addSocket", 9},
-{(DanaType*) &object_UDPLib_functions_spec[11], "remSocket", 9},
-{(DanaType*) &object_UDPLib_functions_spec[12], "wait", 4},
-{(DanaType*) &object_UDPLib_functions_spec[13], "waitTime", 8},
-{(DanaType*) &object_UDPLib_functions_spec[14], "destroySelect", 13}};
+{(DanaType*) &object_UDPLib_functions_spec[10], "setEventArrayLength", 19},
+{(DanaType*) &object_UDPLib_functions_spec[11], "addSocket", 9},
+{(DanaType*) &object_UDPLib_functions_spec[12], "remSocket", 9},
+{(DanaType*) &object_UDPLib_functions_spec[13], "wait", 4},
+{(DanaType*) &object_UDPLib_functions_spec[14], "waitTime", 8},
+{(DanaType*) &object_UDPLib_functions_spec[15], "destroySelect", 13}};
 static const DanaTypeField intf_events_def[] = {
 };
 static const DanaType UDPLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 15},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 16},
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
@@ -160,6 +165,7 @@ static unsigned char op_bind_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_setBlocking_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_unbind_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_createSelect_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_setEventArrayLength_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_addSocket_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_remSocket_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_wait_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
@@ -178,6 +184,7 @@ static size_t interfaceFunctions[] = {
 (size_t) op_setBlocking_thread_spec,
 (size_t) op_unbind_thread_spec,
 (size_t) op_createSelect_thread_spec,
+(size_t) op_setEventArrayLength_thread_spec,
 (size_t) op_addSocket_thread_spec,
 (size_t) op_remSocket_thread_spec,
 (size_t) op_wait_thread_spec,
@@ -233,35 +240,40 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_unbind_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_unbind_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[8];
 ((VFrameHeader*) op_unbind_thread_spec) -> functionName = "unbind";
-((VFrameHeader*) op_createSelect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
-((VFrameHeader*) op_createSelect_thread_spec) -> formalParamsCount = 0;
+((VFrameHeader*) op_createSelect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
+((VFrameHeader*) op_createSelect_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_createSelect_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_createSelect_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[9];
 ((VFrameHeader*) op_createSelect_thread_spec) -> functionName = "createSelect";
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 17;
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[10];
+((VFrameHeader*) op_setEventArrayLength_thread_spec) -> functionName = "setEventArrayLength";
 ((VFrameHeader*) op_addSocket_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_addSocket_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_addSocket_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_addSocket_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[10];
+((VFrameHeader*) op_addSocket_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[11];
 ((VFrameHeader*) op_addSocket_thread_spec) -> functionName = "addSocket";
 ((VFrameHeader*) op_remSocket_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_remSocket_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_remSocket_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_remSocket_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[11];
+((VFrameHeader*) op_remSocket_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[12];
 ((VFrameHeader*) op_remSocket_thread_spec) -> functionName = "remSocket";
 ((VFrameHeader*) op_wait_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_wait_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_wait_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_wait_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[12];
+((VFrameHeader*) op_wait_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[13];
 ((VFrameHeader*) op_wait_thread_spec) -> functionName = "wait";
 ((VFrameHeader*) op_waitTime_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_waitTime_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_waitTime_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_waitTime_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[13];
+((VFrameHeader*) op_waitTime_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[14];
 ((VFrameHeader*) op_waitTime_thread_spec) -> functionName = "waitTime";
 ((VFrameHeader*) op_destroySelect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_destroySelect_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_destroySelect_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_destroySelect_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[14];
+((VFrameHeader*) op_destroySelect_thread_spec) -> localsDef = (size_t) &object_UDPLib_functions_spec[15];
 ((VFrameHeader*) op_destroySelect_thread_spec) -> functionName = "destroySelect";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
@@ -285,6 +297,7 @@ static Fable interfaceMappings[] = {
 {"setBlocking", (VFrameHeader*) op_setBlocking_thread_spec},
 {"unbind", (VFrameHeader*) op_unbind_thread_spec},
 {"createSelect", (VFrameHeader*) op_createSelect_thread_spec},
+{"setEventArrayLength", (VFrameHeader*) op_setEventArrayLength_thread_spec},
 {"addSocket", (VFrameHeader*) op_addSocket_thread_spec},
 {"remSocket", (VFrameHeader*) op_remSocket_thread_spec},
 {"wait", (VFrameHeader*) op_wait_thread_spec},
