@@ -296,6 +296,9 @@ INSTRUCTION_DEF op_set_blocking(FrameData* cframe)
 	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	#ifdef WINDOWS
+	int socket = xs;
+	u_long on = 1;
+	ioctlsocket(socket, FIONBIO, &on);
 	#endif
 	#ifdef LINUX
 	int socket = xs;
@@ -654,7 +657,7 @@ INSTRUCTION_DEF op_wait_time(FrameData* cframe)
 	int n = kevent(state -> fd, NULL, 0, state -> events, state -> eventLength, &timeout);
 	#endif
 
-	int i = 0
+	int i = 0;
 	for (i = 0; i < n; i++)
 		{
 		#ifndef OSX

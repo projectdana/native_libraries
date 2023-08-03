@@ -483,6 +483,9 @@ INSTRUCTION_DEF op_set_blocking(FrameData* cframe)
 	memcpy(&xs, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	#ifdef WINDOWS
+	int socket = xs;
+	u_long on = 1;
+	ioctlsocket(socket, FIONBIO, &on);
 	#endif
 	#ifdef LINUX
 	int socket = xs;
@@ -658,7 +661,7 @@ INSTRUCTION_DEF op_tcp_recv_nb(FrameData *cframe)
 			
 			unsigned char k = 0;
 			#ifdef WINDOWS
-			if (errno == WSAEWOULDBLOCK)
+			if (WSAGetLastError() == WSAEWOULDBLOCK)
 				{
 				k = 1;
 				}
@@ -763,11 +766,11 @@ INSTRUCTION_DEF op_tcp_send_nb(FrameData* cframe)
 			
 			unsigned char k = 0;
 			#ifdef WINDOWS
-			if (errno == WSAEWOULDBLOCK)
+			if (WSAGetLastError() == WSAEWOULDBLOCK)
 				{
 				k = 1;
 				}
-				else if (errno == WSAECONNRESET)
+				else if (WSAGetLastError() == WSAECONNRESET)
 				{
 				k = 0;
 				}
