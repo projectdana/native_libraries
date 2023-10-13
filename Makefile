@@ -72,6 +72,7 @@ else
 		PLATFORM = deb
 		CLIPBOARD_LIBS = -lX11
 		SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a ~/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lm -lfreetype
+		OPENGL_LIBS = -lGL
 		SDL_INCLUDE = -I ~/libs/SDL2_gfx -I /usr/local/include/SDL2/
     endif
     ifeq ($(UNAME_S),Darwin)
@@ -90,6 +91,12 @@ else
     endif
     ifneq ($(UNAME_S),Darwin)
         UNAME_P := $(shell uname -p)
+		ifeq ($(UNAME_P),unknown)
+			$(warning Host chipset could not be detected; defaulting to x686 (64-bit Intel).)
+            CCFLAGS += -DMACHINE_64
+            CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
+            CHIP = x64
+        endif
         ifeq ($(UNAME_P),x86_64)
             CCFLAGS += -DMACHINE_64
             CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
