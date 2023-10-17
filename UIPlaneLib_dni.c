@@ -90,6 +90,21 @@ static const DanaTypeField FontMetrics_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)+sizeof(size_t)+sizeof(size_t)}};
 static const DanaType FontMetrics_def = 
 {TYPE_DATA, 0, 32, (DanaTypeField*) FontMetrics_fields, 4};
+static const DanaType int4_def = 
+{TYPE_LITERAL, 0, 4, NULL, 0};
+static const DanaTypeField FlowEvent_fields[] = {
+{(DanaType*) &int4_def, NULL, 0, 0, 0},
+{(DanaType*) &int4_def, NULL, 0, 0, 0+4},
+{(DanaType*) &int4_def, NULL, 0, 0, 0+4+4},
+{(DanaType*) &int4_def, NULL, 0, 0, 0+4+4+4},
+{(DanaType*) &int4_def, NULL, 0, 0, 0+4+4+4+4},
+{(DanaType*) &int4_def, NULL, 0, 0, 0+4+4+4+4+4}};
+static const DanaType FlowEvent_def = 
+{TYPE_DATA, 0, 24, (DanaTypeField*) FlowEvent_fields, 6};
+static const DanaTypeField FlowEvent_array_fields[] = {
+{(DanaType*) &FlowEvent_def, NULL, 0, 0, 0}};
+static const DanaType FlowEvent_array_def = 
+{TYPE_ARRAY, 0, 0, (DanaTypeField*) FlowEvent_array_fields, 1};
 static const DanaTypeField function_UIPlaneLib_clone_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
 static const DanaTypeField function_UIPlaneLib_equals_fields[] = {
@@ -329,6 +344,224 @@ static const DanaTypeField function_UIPlaneLib_getTextBitmapWith_fields[] = {
 {(DanaType*) &byte_def, NULL, 0, 0, 43}};
 static const DanaTypeField function_UIPlaneLib_unloadFont_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_initMediaLayer_fields[] = {
+{(DanaType*) &bool_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_makeWindow_fields[] = {
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &bool_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_setVisible_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &bool_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UIPlaneLib_flow_setFullScreen_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &bool_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UIPlaneLib_flow_setResizable_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &bool_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UIPlaneLib_flow_setPosition_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_setSize_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_setTitle_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &char_array_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UIPlaneLib_flow_setIcon_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &PixelMap_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UIPlaneLib_flow_setCursor_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &byte_def, NULL, 0, 0, 8},
+{(DanaType*) &Cursor_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_closeWindow_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_getEvents_fields[] = {
+{(DanaType*) &FlowEvent_array_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_renderBegin_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_renderEnd_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_wait_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_getPixels_fields[] = {
+{(DanaType*) &PixelMap_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_point_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &byte_def, NULL, 0, 0, 24},
+{(DanaType*) &byte_def, NULL, 0, 0, 25},
+{(DanaType*) &byte_def, NULL, 0, 0, 26},
+{(DanaType*) &byte_def, NULL, 0, 0, 27}};
+static const DanaTypeField function_UIPlaneLib_flow_line_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &int_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 48},
+{(DanaType*) &byte_def, NULL, 0, 0, 49},
+{(DanaType*) &byte_def, NULL, 0, 0, 50},
+{(DanaType*) &byte_def, NULL, 0, 0, 51},
+{(DanaType*) &bool_def, NULL, 0, 0, 52}};
+static const DanaTypeField function_UIPlaneLib_flow_curve_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &Point_array_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &byte_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 41},
+{(DanaType*) &byte_def, NULL, 0, 0, 42},
+{(DanaType*) &byte_def, NULL, 0, 0, 43},
+{(DanaType*) &bool_def, NULL, 0, 0, 44}};
+static const DanaTypeField function_UIPlaneLib_flow_rect_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &byte_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 41},
+{(DanaType*) &byte_def, NULL, 0, 0, 42},
+{(DanaType*) &byte_def, NULL, 0, 0, 43}};
+static const DanaTypeField function_UIPlaneLib_flow_ellipse_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &byte_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 41},
+{(DanaType*) &byte_def, NULL, 0, 0, 42},
+{(DanaType*) &byte_def, NULL, 0, 0, 43}};
+static const DanaTypeField function_UIPlaneLib_flow_ellipseOutline_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &int_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 48},
+{(DanaType*) &byte_def, NULL, 0, 0, 49},
+{(DanaType*) &byte_def, NULL, 0, 0, 50},
+{(DanaType*) &byte_def, NULL, 0, 0, 51}};
+static const DanaTypeField function_UIPlaneLib_flow_arc_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &int_def, NULL, 0, 0, 40},
+{(DanaType*) &int_def, NULL, 0, 0, 48},
+{(DanaType*) &int_def, NULL, 0, 0, 56},
+{(DanaType*) &byte_def, NULL, 0, 0, 64},
+{(DanaType*) &byte_def, NULL, 0, 0, 65},
+{(DanaType*) &byte_def, NULL, 0, 0, 66},
+{(DanaType*) &byte_def, NULL, 0, 0, 67},
+{(DanaType*) &bool_def, NULL, 0, 0, 68}};
+static const DanaTypeField function_UIPlaneLib_flow_pie_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &int_def, NULL, 0, 0, 40},
+{(DanaType*) &int_def, NULL, 0, 0, 48},
+{(DanaType*) &bool_def, NULL, 0, 0, 56},
+{(DanaType*) &byte_def, NULL, 0, 0, 57},
+{(DanaType*) &byte_def, NULL, 0, 0, 58},
+{(DanaType*) &byte_def, NULL, 0, 0, 59},
+{(DanaType*) &byte_def, NULL, 0, 0, 60}};
+static const DanaTypeField function_UIPlaneLib_flow_polygon_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &Point_array_def, NULL, 0, 0, 8},
+{(DanaType*) &byte_def, NULL, 0, 0, 24},
+{(DanaType*) &byte_def, NULL, 0, 0, 25},
+{(DanaType*) &byte_def, NULL, 0, 0, 26},
+{(DanaType*) &byte_def, NULL, 0, 0, 27}};
+static const DanaTypeField function_UIPlaneLib_flow_polygonOutline_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &Point_array_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &byte_def, NULL, 0, 0, 32},
+{(DanaType*) &byte_def, NULL, 0, 0, 33},
+{(DanaType*) &byte_def, NULL, 0, 0, 34},
+{(DanaType*) &byte_def, NULL, 0, 0, 35}};
+static const DanaTypeField function_UIPlaneLib_flow_polygonBezier_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &Point_array_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &byte_def, NULL, 0, 0, 32},
+{(DanaType*) &byte_def, NULL, 0, 0, 33},
+{(DanaType*) &byte_def, NULL, 0, 0, 34},
+{(DanaType*) &byte_def, NULL, 0, 0, 35}};
+static const DanaTypeField function_UIPlaneLib_flow_polygonBezierOutline_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &Point_array_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &byte_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 41},
+{(DanaType*) &byte_def, NULL, 0, 0, 42},
+{(DanaType*) &byte_def, NULL, 0, 0, 43}};
+static const DanaTypeField function_UIPlaneLib_flow_bitmap_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &PixelMap_def, NULL, 0, 0, 8},
+{(DanaType*) &Rect_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 40},
+{(DanaType*) &int_def, NULL, 0, 0, 48},
+{(DanaType*) &int_def, NULL, 0, 0, 56},
+{(DanaType*) &int_def, NULL, 0, 0, 64},
+{(DanaType*) &int_def, NULL, 0, 0, 72}};
+static const DanaTypeField function_UIPlaneLib_flow_textWith_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &char_array_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 56},
+{(DanaType*) &byte_def, NULL, 0, 0, 57},
+{(DanaType*) &byte_def, NULL, 0, 0, 58},
+{(DanaType*) &byte_def, NULL, 0, 0, 59}};
+static const DanaTypeField function_UIPlaneLib_flow_pushSurface_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 16},
+{(DanaType*) &int_def, NULL, 0, 0, 24},
+{(DanaType*) &int_def, NULL, 0, 0, 32},
+{(DanaType*) &int_def, NULL, 0, 0, 40},
+{(DanaType*) &int_def, NULL, 0, 0, 48},
+{(DanaType*) &byte_def, NULL, 0, 0, 56}};
+static const DanaTypeField function_UIPlaneLib_flow_popSurface_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+static const DanaTypeField function_UIPlaneLib_flow_loadFont_fields[] = {
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &char_array_def, NULL, 0, 0, 8},
+{(DanaType*) &int_def, NULL, 0, 0, 24}};
+static const DanaTypeField function_UIPlaneLib_flow_getTextWidth_fields[] = {
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 8},
+{(DanaType*) &char_array_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_getFontMetrics_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &FontMetrics_def, NULL, 0, 0, 8}};
+static const DanaTypeField function_UIPlaneLib_flow_getFontName_fields[] = {
+{(DanaType*) &char_array_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 16}};
+static const DanaTypeField function_UIPlaneLib_flow_isFontFixedWidth_fields[] = {
+{(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1}};
+static const DanaTypeField function_UIPlaneLib_flow_getTextBitmapWith_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0},
+{(DanaType*) &char_array_def, NULL, 0, 0, 8},
+{(DanaType*) &PixelMap_def, NULL, 0, 0, 24},
+{(DanaType*) &byte_def, NULL, 0, 0, 40},
+{(DanaType*) &byte_def, NULL, 0, 0, 41},
+{(DanaType*) &byte_def, NULL, 0, 0, 42},
+{(DanaType*) &byte_def, NULL, 0, 0, 43}};
+static const DanaTypeField function_UIPlaneLib_flow_unloadFont_fields[] = {
+{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaTypeField WindowEventData_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0},
 {(DanaType*) &int_def, NULL, 0, 0, 0+sizeof(size_t)},
@@ -412,7 +645,46 @@ static const DanaType object_UIPlaneLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_getFontName_fields, 2},
 {TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_UIPlaneLib_isFontFixedWidth_fields, 2},
 {TYPE_FUNCTION, 0, 44, (DanaTypeField*) &function_UIPlaneLib_getTextBitmapWith_fields, 8},
-{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_unloadFont_fields, 2}};
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_unloadFont_fields, 2},
+{TYPE_FUNCTION, 0, 1, (DanaTypeField*) &function_UIPlaneLib_flow_initMediaLayer_fields, 1},
+{TYPE_FUNCTION, 0, 17, (DanaTypeField*) &function_UIPlaneLib_flow_makeWindow_fields, 3},
+{TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_UIPlaneLib_flow_setVisible_fields, 3},
+{TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_UIPlaneLib_flow_setFullScreen_fields, 3},
+{TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_UIPlaneLib_flow_setResizable_fields, 3},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_setPosition_fields, 4},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_setSize_fields, 4},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_setTitle_fields, 3},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_setIcon_fields, 3},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_UIPlaneLib_flow_setCursor_fields, 4},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_flow_closeWindow_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_getEvents_fields, 2},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_flow_renderBegin_fields, 2},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_flow_renderEnd_fields, 2},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_flow_wait_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_getPixels_fields, 2},
+{TYPE_FUNCTION, 0, 28, (DanaTypeField*) &function_UIPlaneLib_flow_point_fields, 8},
+{TYPE_FUNCTION, 0, 53, (DanaTypeField*) &function_UIPlaneLib_flow_line_fields, 12},
+{TYPE_FUNCTION, 0, 45, (DanaTypeField*) &function_UIPlaneLib_flow_curve_fields, 10},
+{TYPE_FUNCTION, 0, 44, (DanaTypeField*) &function_UIPlaneLib_flow_rect_fields, 10},
+{TYPE_FUNCTION, 0, 44, (DanaTypeField*) &function_UIPlaneLib_flow_ellipse_fields, 10},
+{TYPE_FUNCTION, 0, 52, (DanaTypeField*) &function_UIPlaneLib_flow_ellipseOutline_fields, 11},
+{TYPE_FUNCTION, 0, 69, (DanaTypeField*) &function_UIPlaneLib_flow_arc_fields, 14},
+{TYPE_FUNCTION, 0, 61, (DanaTypeField*) &function_UIPlaneLib_flow_pie_fields, 13},
+{TYPE_FUNCTION, 0, 28, (DanaTypeField*) &function_UIPlaneLib_flow_polygon_fields, 7},
+{TYPE_FUNCTION, 0, 36, (DanaTypeField*) &function_UIPlaneLib_flow_polygonOutline_fields, 8},
+{TYPE_FUNCTION, 0, 36, (DanaTypeField*) &function_UIPlaneLib_flow_polygonBezier_fields, 8},
+{TYPE_FUNCTION, 0, 44, (DanaTypeField*) &function_UIPlaneLib_flow_polygonBezierOutline_fields, 9},
+{TYPE_FUNCTION, 0, 80, (DanaTypeField*) &function_UIPlaneLib_flow_bitmap_fields, 9},
+{TYPE_FUNCTION, 0, 60, (DanaTypeField*) &function_UIPlaneLib_flow_textWith_fields, 11},
+{TYPE_FUNCTION, 0, 57, (DanaTypeField*) &function_UIPlaneLib_flow_pushSurface_fields, 9},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_flow_popSurface_fields, 2},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_UIPlaneLib_flow_loadFont_fields, 3},
+{TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_UIPlaneLib_flow_getTextWidth_fields, 3},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_getFontMetrics_fields, 3},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_UIPlaneLib_flow_getFontName_fields, 2},
+{TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_UIPlaneLib_flow_isFontFixedWidth_fields, 2},
+{TYPE_FUNCTION, 0, 44, (DanaTypeField*) &function_UIPlaneLib_flow_getTextBitmapWith_fields, 8},
+{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_UIPlaneLib_flow_unloadFont_fields, 2}};
 static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_UIPlaneLib_functions_spec[0], "clone", 5},
 {(DanaType*) &object_UIPlaneLib_functions_spec[1], "equals", 6},
@@ -460,7 +732,46 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_UIPlaneLib_functions_spec[43], "getFontName", 11},
 {(DanaType*) &object_UIPlaneLib_functions_spec[44], "isFontFixedWidth", 16},
 {(DanaType*) &object_UIPlaneLib_functions_spec[45], "getTextBitmapWith", 17},
-{(DanaType*) &object_UIPlaneLib_functions_spec[46], "unloadFont", 10}};
+{(DanaType*) &object_UIPlaneLib_functions_spec[46], "unloadFont", 10},
+{(DanaType*) &object_UIPlaneLib_functions_spec[47], "flow_initMediaLayer", 19},
+{(DanaType*) &object_UIPlaneLib_functions_spec[48], "flow_makeWindow", 15},
+{(DanaType*) &object_UIPlaneLib_functions_spec[49], "flow_setVisible", 15},
+{(DanaType*) &object_UIPlaneLib_functions_spec[50], "flow_setFullScreen", 18},
+{(DanaType*) &object_UIPlaneLib_functions_spec[51], "flow_setResizable", 17},
+{(DanaType*) &object_UIPlaneLib_functions_spec[52], "flow_setPosition", 16},
+{(DanaType*) &object_UIPlaneLib_functions_spec[53], "flow_setSize", 12},
+{(DanaType*) &object_UIPlaneLib_functions_spec[54], "flow_setTitle", 13},
+{(DanaType*) &object_UIPlaneLib_functions_spec[55], "flow_setIcon", 12},
+{(DanaType*) &object_UIPlaneLib_functions_spec[56], "flow_setCursor", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[57], "flow_closeWindow", 16},
+{(DanaType*) &object_UIPlaneLib_functions_spec[58], "flow_getEvents", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[59], "flow_renderBegin", 16},
+{(DanaType*) &object_UIPlaneLib_functions_spec[60], "flow_renderEnd", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[61], "flow_wait", 9},
+{(DanaType*) &object_UIPlaneLib_functions_spec[62], "flow_getPixels", 14},
+{(DanaType*) &object_UIPlaneLib_functions_spec[63], "flow_point", 10},
+{(DanaType*) &object_UIPlaneLib_functions_spec[64], "flow_line", 9},
+{(DanaType*) &object_UIPlaneLib_functions_spec[65], "flow_curve", 10},
+{(DanaType*) &object_UIPlaneLib_functions_spec[66], "flow_rect", 9},
+{(DanaType*) &object_UIPlaneLib_functions_spec[67], "flow_ellipse", 12},
+{(DanaType*) &object_UIPlaneLib_functions_spec[68], "flow_ellipseOutline", 19},
+{(DanaType*) &object_UIPlaneLib_functions_spec[69], "flow_arc", 8},
+{(DanaType*) &object_UIPlaneLib_functions_spec[70], "flow_pie", 8},
+{(DanaType*) &object_UIPlaneLib_functions_spec[71], "flow_polygon", 12},
+{(DanaType*) &object_UIPlaneLib_functions_spec[72], "flow_polygonOutline", 19},
+{(DanaType*) &object_UIPlaneLib_functions_spec[73], "flow_polygonBezier", 18},
+{(DanaType*) &object_UIPlaneLib_functions_spec[74], "flow_polygonBezierOutline", 25},
+{(DanaType*) &object_UIPlaneLib_functions_spec[75], "flow_bitmap", 11},
+{(DanaType*) &object_UIPlaneLib_functions_spec[76], "flow_textWith", 13},
+{(DanaType*) &object_UIPlaneLib_functions_spec[77], "flow_pushSurface", 16},
+{(DanaType*) &object_UIPlaneLib_functions_spec[78], "flow_popSurface", 15},
+{(DanaType*) &object_UIPlaneLib_functions_spec[79], "flow_loadFont", 13},
+{(DanaType*) &object_UIPlaneLib_functions_spec[80], "flow_getTextWidth", 17},
+{(DanaType*) &object_UIPlaneLib_functions_spec[81], "flow_getFontMetrics", 19},
+{(DanaType*) &object_UIPlaneLib_functions_spec[82], "flow_getFontName", 16},
+{(DanaType*) &object_UIPlaneLib_functions_spec[83], "flow_isFontFixedWidth", 21},
+{(DanaType*) &object_UIPlaneLib_functions_spec[84], "flow_getTextBitmapWith", 22},
+{(DanaType*) &object_UIPlaneLib_functions_spec[85], "flow_unloadFont", 15}};
 static const DanaType object_UIPlaneLib_events_spec[] = {
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_ready_fields, 0},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_mouseUp_fields, 1},
@@ -486,7 +797,7 @@ static const DanaTypeField intf_events_def[] = {
 {(DanaType*) &object_UIPlaneLib_events_spec[9], "close", 5},
 {(DanaType*) &object_UIPlaneLib_events_spec[10], "post_shutdown", 13}};
 static const DanaType UIPlaneLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 47},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 86},
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 11},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
@@ -542,6 +853,45 @@ static unsigned char op_getFontName_thread_spec[sizeof(VFrameHeader)+sizeof(VFra
 static unsigned char op_isFontFixedWidth_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getTextBitmapWith_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_unloadFont_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_initMediaLayer_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_makeWindow_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setVisible_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setFullScreen_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setResizable_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setPosition_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setSize_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setTitle_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setIcon_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_setCursor_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_closeWindow_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_getEvents_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_renderBegin_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_renderEnd_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_wait_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_getPixels_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_point_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_line_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_curve_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_rect_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_ellipse_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_ellipseOutline_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_arc_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_pie_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_polygon_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_polygonOutline_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_polygonBezier_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_polygonBezierOutline_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_bitmap_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_textWith_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_pushSurface_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_popSurface_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_loadFont_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_getTextWidth_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_getFontMetrics_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_getFontName_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_isFontFixedWidth_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_getTextBitmapWith_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
+static unsigned char op_flow_unloadFont_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static SourceHeader header;
 static DanaComponent self;
 static size_t interfaceFunctions[] = {
@@ -591,7 +941,46 @@ static size_t interfaceFunctions[] = {
 (size_t) op_getFontName_thread_spec,
 (size_t) op_isFontFixedWidth_thread_spec,
 (size_t) op_getTextBitmapWith_thread_spec,
-(size_t) op_unloadFont_thread_spec};
+(size_t) op_unloadFont_thread_spec,
+(size_t) op_flow_initMediaLayer_thread_spec,
+(size_t) op_flow_makeWindow_thread_spec,
+(size_t) op_flow_setVisible_thread_spec,
+(size_t) op_flow_setFullScreen_thread_spec,
+(size_t) op_flow_setResizable_thread_spec,
+(size_t) op_flow_setPosition_thread_spec,
+(size_t) op_flow_setSize_thread_spec,
+(size_t) op_flow_setTitle_thread_spec,
+(size_t) op_flow_setIcon_thread_spec,
+(size_t) op_flow_setCursor_thread_spec,
+(size_t) op_flow_closeWindow_thread_spec,
+(size_t) op_flow_getEvents_thread_spec,
+(size_t) op_flow_renderBegin_thread_spec,
+(size_t) op_flow_renderEnd_thread_spec,
+(size_t) op_flow_wait_thread_spec,
+(size_t) op_flow_getPixels_thread_spec,
+(size_t) op_flow_point_thread_spec,
+(size_t) op_flow_line_thread_spec,
+(size_t) op_flow_curve_thread_spec,
+(size_t) op_flow_rect_thread_spec,
+(size_t) op_flow_ellipse_thread_spec,
+(size_t) op_flow_ellipseOutline_thread_spec,
+(size_t) op_flow_arc_thread_spec,
+(size_t) op_flow_pie_thread_spec,
+(size_t) op_flow_polygon_thread_spec,
+(size_t) op_flow_polygonOutline_thread_spec,
+(size_t) op_flow_polygonBezier_thread_spec,
+(size_t) op_flow_polygonBezierOutline_thread_spec,
+(size_t) op_flow_bitmap_thread_spec,
+(size_t) op_flow_textWith_thread_spec,
+(size_t) op_flow_pushSurface_thread_spec,
+(size_t) op_flow_popSurface_thread_spec,
+(size_t) op_flow_loadFont_thread_spec,
+(size_t) op_flow_getTextWidth_thread_spec,
+(size_t) op_flow_getFontMetrics_thread_spec,
+(size_t) op_flow_getFontName_thread_spec,
+(size_t) op_flow_isFontFixedWidth_thread_spec,
+(size_t) op_flow_getTextBitmapWith_thread_spec,
+(size_t) op_flow_unloadFont_thread_spec};
 static DanaType libType = {TYPE_OBJECT, 0, 0, (DanaTypeField*) intf_def, 3};
 static InterfaceDetails ids[] = {{"UIPlaneLib", 10, &libType}};
 static Interface objectInterfaces[] = {{&ids[0], {&self, NULL, NULL, interfaceFunctions, NULL, NULL}}		};
@@ -832,6 +1221,201 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_unloadFont_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_unloadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[46];
 ((VFrameHeader*) op_unloadFont_thread_spec) -> functionName = "unloadFont";
+((VFrameHeader*) op_flow_initMediaLayer_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 1;
+((VFrameHeader*) op_flow_initMediaLayer_thread_spec) -> formalParamsCount = 0;
+((VFrameHeader*) op_flow_initMediaLayer_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_initMediaLayer_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[47];
+((VFrameHeader*) op_flow_initMediaLayer_thread_spec) -> functionName = "flow_initMediaLayer";
+((VFrameHeader*) op_flow_makeWindow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 17;
+((VFrameHeader*) op_flow_makeWindow_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_makeWindow_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_makeWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[48];
+((VFrameHeader*) op_flow_makeWindow_thread_spec) -> functionName = "flow_makeWindow";
+((VFrameHeader*) op_flow_setVisible_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
+((VFrameHeader*) op_flow_setVisible_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_setVisible_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setVisible_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[49];
+((VFrameHeader*) op_flow_setVisible_thread_spec) -> functionName = "flow_setVisible";
+((VFrameHeader*) op_flow_setFullScreen_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
+((VFrameHeader*) op_flow_setFullScreen_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_setFullScreen_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setFullScreen_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[50];
+((VFrameHeader*) op_flow_setFullScreen_thread_spec) -> functionName = "flow_setFullScreen";
+((VFrameHeader*) op_flow_setResizable_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
+((VFrameHeader*) op_flow_setResizable_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_setResizable_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setResizable_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[51];
+((VFrameHeader*) op_flow_setResizable_thread_spec) -> functionName = "flow_setResizable";
+((VFrameHeader*) op_flow_setPosition_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_setPosition_thread_spec) -> formalParamsCount = 3;
+((VFrameHeader*) op_flow_setPosition_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setPosition_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[52];
+((VFrameHeader*) op_flow_setPosition_thread_spec) -> functionName = "flow_setPosition";
+((VFrameHeader*) op_flow_setSize_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_setSize_thread_spec) -> formalParamsCount = 3;
+((VFrameHeader*) op_flow_setSize_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setSize_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[53];
+((VFrameHeader*) op_flow_setSize_thread_spec) -> functionName = "flow_setSize";
+((VFrameHeader*) op_flow_setTitle_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_setTitle_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_setTitle_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setTitle_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[54];
+((VFrameHeader*) op_flow_setTitle_thread_spec) -> functionName = "flow_setTitle";
+((VFrameHeader*) op_flow_setIcon_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_setIcon_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_setIcon_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setIcon_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[55];
+((VFrameHeader*) op_flow_setIcon_thread_spec) -> functionName = "flow_setIcon";
+((VFrameHeader*) op_flow_setCursor_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
+((VFrameHeader*) op_flow_setCursor_thread_spec) -> formalParamsCount = 3;
+((VFrameHeader*) op_flow_setCursor_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_setCursor_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[56];
+((VFrameHeader*) op_flow_setCursor_thread_spec) -> functionName = "flow_setCursor";
+((VFrameHeader*) op_flow_closeWindow_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_flow_closeWindow_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_closeWindow_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_closeWindow_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[57];
+((VFrameHeader*) op_flow_closeWindow_thread_spec) -> functionName = "flow_closeWindow";
+((VFrameHeader*) op_flow_getEvents_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_getEvents_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_getEvents_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_getEvents_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[58];
+((VFrameHeader*) op_flow_getEvents_thread_spec) -> functionName = "flow_getEvents";
+((VFrameHeader*) op_flow_renderBegin_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_flow_renderBegin_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_renderBegin_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_renderBegin_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[59];
+((VFrameHeader*) op_flow_renderBegin_thread_spec) -> functionName = "flow_renderBegin";
+((VFrameHeader*) op_flow_renderEnd_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_flow_renderEnd_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_renderEnd_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_renderEnd_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[60];
+((VFrameHeader*) op_flow_renderEnd_thread_spec) -> functionName = "flow_renderEnd";
+((VFrameHeader*) op_flow_wait_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_flow_wait_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_wait_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_wait_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[61];
+((VFrameHeader*) op_flow_wait_thread_spec) -> functionName = "flow_wait";
+((VFrameHeader*) op_flow_getPixels_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_getPixels_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_getPixels_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_getPixels_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[62];
+((VFrameHeader*) op_flow_getPixels_thread_spec) -> functionName = "flow_getPixels";
+((VFrameHeader*) op_flow_point_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 28;
+((VFrameHeader*) op_flow_point_thread_spec) -> formalParamsCount = 7;
+((VFrameHeader*) op_flow_point_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_point_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[63];
+((VFrameHeader*) op_flow_point_thread_spec) -> functionName = "flow_point";
+((VFrameHeader*) op_flow_line_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 53;
+((VFrameHeader*) op_flow_line_thread_spec) -> formalParamsCount = 11;
+((VFrameHeader*) op_flow_line_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_line_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[64];
+((VFrameHeader*) op_flow_line_thread_spec) -> functionName = "flow_line";
+((VFrameHeader*) op_flow_curve_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 45;
+((VFrameHeader*) op_flow_curve_thread_spec) -> formalParamsCount = 9;
+((VFrameHeader*) op_flow_curve_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_curve_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[65];
+((VFrameHeader*) op_flow_curve_thread_spec) -> functionName = "flow_curve";
+((VFrameHeader*) op_flow_rect_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 44;
+((VFrameHeader*) op_flow_rect_thread_spec) -> formalParamsCount = 9;
+((VFrameHeader*) op_flow_rect_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_rect_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[66];
+((VFrameHeader*) op_flow_rect_thread_spec) -> functionName = "flow_rect";
+((VFrameHeader*) op_flow_ellipse_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 44;
+((VFrameHeader*) op_flow_ellipse_thread_spec) -> formalParamsCount = 9;
+((VFrameHeader*) op_flow_ellipse_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_ellipse_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[67];
+((VFrameHeader*) op_flow_ellipse_thread_spec) -> functionName = "flow_ellipse";
+((VFrameHeader*) op_flow_ellipseOutline_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 52;
+((VFrameHeader*) op_flow_ellipseOutline_thread_spec) -> formalParamsCount = 10;
+((VFrameHeader*) op_flow_ellipseOutline_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_ellipseOutline_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[68];
+((VFrameHeader*) op_flow_ellipseOutline_thread_spec) -> functionName = "flow_ellipseOutline";
+((VFrameHeader*) op_flow_arc_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 69;
+((VFrameHeader*) op_flow_arc_thread_spec) -> formalParamsCount = 13;
+((VFrameHeader*) op_flow_arc_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_arc_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[69];
+((VFrameHeader*) op_flow_arc_thread_spec) -> functionName = "flow_arc";
+((VFrameHeader*) op_flow_pie_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 61;
+((VFrameHeader*) op_flow_pie_thread_spec) -> formalParamsCount = 12;
+((VFrameHeader*) op_flow_pie_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_pie_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[70];
+((VFrameHeader*) op_flow_pie_thread_spec) -> functionName = "flow_pie";
+((VFrameHeader*) op_flow_polygon_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 28;
+((VFrameHeader*) op_flow_polygon_thread_spec) -> formalParamsCount = 6;
+((VFrameHeader*) op_flow_polygon_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_polygon_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[71];
+((VFrameHeader*) op_flow_polygon_thread_spec) -> functionName = "flow_polygon";
+((VFrameHeader*) op_flow_polygonOutline_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 36;
+((VFrameHeader*) op_flow_polygonOutline_thread_spec) -> formalParamsCount = 7;
+((VFrameHeader*) op_flow_polygonOutline_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_polygonOutline_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[72];
+((VFrameHeader*) op_flow_polygonOutline_thread_spec) -> functionName = "flow_polygonOutline";
+((VFrameHeader*) op_flow_polygonBezier_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 36;
+((VFrameHeader*) op_flow_polygonBezier_thread_spec) -> formalParamsCount = 7;
+((VFrameHeader*) op_flow_polygonBezier_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_polygonBezier_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[73];
+((VFrameHeader*) op_flow_polygonBezier_thread_spec) -> functionName = "flow_polygonBezier";
+((VFrameHeader*) op_flow_polygonBezierOutline_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 44;
+((VFrameHeader*) op_flow_polygonBezierOutline_thread_spec) -> formalParamsCount = 8;
+((VFrameHeader*) op_flow_polygonBezierOutline_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_polygonBezierOutline_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[74];
+((VFrameHeader*) op_flow_polygonBezierOutline_thread_spec) -> functionName = "flow_polygonBezierOutline";
+((VFrameHeader*) op_flow_bitmap_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 80;
+((VFrameHeader*) op_flow_bitmap_thread_spec) -> formalParamsCount = 8;
+((VFrameHeader*) op_flow_bitmap_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_bitmap_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[75];
+((VFrameHeader*) op_flow_bitmap_thread_spec) -> functionName = "flow_bitmap";
+((VFrameHeader*) op_flow_textWith_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 60;
+((VFrameHeader*) op_flow_textWith_thread_spec) -> formalParamsCount = 10;
+((VFrameHeader*) op_flow_textWith_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_textWith_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[76];
+((VFrameHeader*) op_flow_textWith_thread_spec) -> functionName = "flow_textWith";
+((VFrameHeader*) op_flow_pushSurface_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 57;
+((VFrameHeader*) op_flow_pushSurface_thread_spec) -> formalParamsCount = 8;
+((VFrameHeader*) op_flow_pushSurface_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_pushSurface_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[77];
+((VFrameHeader*) op_flow_pushSurface_thread_spec) -> functionName = "flow_pushSurface";
+((VFrameHeader*) op_flow_popSurface_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_flow_popSurface_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_popSurface_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_popSurface_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[78];
+((VFrameHeader*) op_flow_popSurface_thread_spec) -> functionName = "flow_popSurface";
+((VFrameHeader*) op_flow_loadFont_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
+((VFrameHeader*) op_flow_loadFont_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_loadFont_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_loadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[79];
+((VFrameHeader*) op_flow_loadFont_thread_spec) -> functionName = "flow_loadFont";
+((VFrameHeader*) op_flow_getTextWidth_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
+((VFrameHeader*) op_flow_getTextWidth_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_getTextWidth_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_getTextWidth_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[80];
+((VFrameHeader*) op_flow_getTextWidth_thread_spec) -> functionName = "flow_getTextWidth";
+((VFrameHeader*) op_flow_getFontMetrics_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_getFontMetrics_thread_spec) -> formalParamsCount = 2;
+((VFrameHeader*) op_flow_getFontMetrics_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_getFontMetrics_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[81];
+((VFrameHeader*) op_flow_getFontMetrics_thread_spec) -> functionName = "flow_getFontMetrics";
+((VFrameHeader*) op_flow_getFontName_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
+((VFrameHeader*) op_flow_getFontName_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_getFontName_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_getFontName_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[82];
+((VFrameHeader*) op_flow_getFontName_thread_spec) -> functionName = "flow_getFontName";
+((VFrameHeader*) op_flow_isFontFixedWidth_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 9;
+((VFrameHeader*) op_flow_isFontFixedWidth_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_isFontFixedWidth_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_isFontFixedWidth_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[83];
+((VFrameHeader*) op_flow_isFontFixedWidth_thread_spec) -> functionName = "flow_isFontFixedWidth";
+((VFrameHeader*) op_flow_getTextBitmapWith_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 44;
+((VFrameHeader*) op_flow_getTextBitmapWith_thread_spec) -> formalParamsCount = 7;
+((VFrameHeader*) op_flow_getTextBitmapWith_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_getTextBitmapWith_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[84];
+((VFrameHeader*) op_flow_getTextBitmapWith_thread_spec) -> functionName = "flow_getTextBitmapWith";
+((VFrameHeader*) op_flow_unloadFont_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_flow_unloadFont_thread_spec) -> formalParamsCount = 1;
+((VFrameHeader*) op_flow_unloadFont_thread_spec) -> sub = NULL;
+((VFrameHeader*) op_flow_unloadFont_thread_spec) -> localsDef = (size_t) &object_UIPlaneLib_functions_spec[85];
+((VFrameHeader*) op_flow_unloadFont_thread_spec) -> functionName = "flow_unloadFont";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
 objectInterfaces[0].lbp.spec = &objects[0];
@@ -890,7 +1474,46 @@ static Fable interfaceMappings[] = {
 {"getFontName", (VFrameHeader*) op_getFontName_thread_spec},
 {"isFontFixedWidth", (VFrameHeader*) op_isFontFixedWidth_thread_spec},
 {"getTextBitmapWith", (VFrameHeader*) op_getTextBitmapWith_thread_spec},
-{"unloadFont", (VFrameHeader*) op_unloadFont_thread_spec}};
+{"unloadFont", (VFrameHeader*) op_unloadFont_thread_spec},
+{"flow_initMediaLayer", (VFrameHeader*) op_flow_initMediaLayer_thread_spec},
+{"flow_makeWindow", (VFrameHeader*) op_flow_makeWindow_thread_spec},
+{"flow_setVisible", (VFrameHeader*) op_flow_setVisible_thread_spec},
+{"flow_setFullScreen", (VFrameHeader*) op_flow_setFullScreen_thread_spec},
+{"flow_setResizable", (VFrameHeader*) op_flow_setResizable_thread_spec},
+{"flow_setPosition", (VFrameHeader*) op_flow_setPosition_thread_spec},
+{"flow_setSize", (VFrameHeader*) op_flow_setSize_thread_spec},
+{"flow_setTitle", (VFrameHeader*) op_flow_setTitle_thread_spec},
+{"flow_setIcon", (VFrameHeader*) op_flow_setIcon_thread_spec},
+{"flow_setCursor", (VFrameHeader*) op_flow_setCursor_thread_spec},
+{"flow_closeWindow", (VFrameHeader*) op_flow_closeWindow_thread_spec},
+{"flow_getEvents", (VFrameHeader*) op_flow_getEvents_thread_spec},
+{"flow_renderBegin", (VFrameHeader*) op_flow_renderBegin_thread_spec},
+{"flow_renderEnd", (VFrameHeader*) op_flow_renderEnd_thread_spec},
+{"flow_wait", (VFrameHeader*) op_flow_wait_thread_spec},
+{"flow_getPixels", (VFrameHeader*) op_flow_getPixels_thread_spec},
+{"flow_point", (VFrameHeader*) op_flow_point_thread_spec},
+{"flow_line", (VFrameHeader*) op_flow_line_thread_spec},
+{"flow_curve", (VFrameHeader*) op_flow_curve_thread_spec},
+{"flow_rect", (VFrameHeader*) op_flow_rect_thread_spec},
+{"flow_ellipse", (VFrameHeader*) op_flow_ellipse_thread_spec},
+{"flow_ellipseOutline", (VFrameHeader*) op_flow_ellipseOutline_thread_spec},
+{"flow_arc", (VFrameHeader*) op_flow_arc_thread_spec},
+{"flow_pie", (VFrameHeader*) op_flow_pie_thread_spec},
+{"flow_polygon", (VFrameHeader*) op_flow_polygon_thread_spec},
+{"flow_polygonOutline", (VFrameHeader*) op_flow_polygonOutline_thread_spec},
+{"flow_polygonBezier", (VFrameHeader*) op_flow_polygonBezier_thread_spec},
+{"flow_polygonBezierOutline", (VFrameHeader*) op_flow_polygonBezierOutline_thread_spec},
+{"flow_bitmap", (VFrameHeader*) op_flow_bitmap_thread_spec},
+{"flow_textWith", (VFrameHeader*) op_flow_textWith_thread_spec},
+{"flow_pushSurface", (VFrameHeader*) op_flow_pushSurface_thread_spec},
+{"flow_popSurface", (VFrameHeader*) op_flow_popSurface_thread_spec},
+{"flow_loadFont", (VFrameHeader*) op_flow_loadFont_thread_spec},
+{"flow_getTextWidth", (VFrameHeader*) op_flow_getTextWidth_thread_spec},
+{"flow_getFontMetrics", (VFrameHeader*) op_flow_getFontMetrics_thread_spec},
+{"flow_getFontName", (VFrameHeader*) op_flow_getFontName_thread_spec},
+{"flow_isFontFixedWidth", (VFrameHeader*) op_flow_isFontFixedWidth_thread_spec},
+{"flow_getTextBitmapWith", (VFrameHeader*) op_flow_getTextBitmapWith_thread_spec},
+{"flow_unloadFont", (VFrameHeader*) op_flow_unloadFont_thread_spec}};
 void setInterfaceFunction(char *name, void *ptr){
 int i = 0;
 for (i = 0; i < sizeof(interfaceMappings) / sizeof(Fable); i ++){
@@ -912,6 +1535,10 @@ static Ex dataMappings[] = {
 {"DropEventData", &DropEventData_def
 },
 {"WindowEventData", &WindowEventData_def
+},
+{"FlowEvent", &FlowEvent_def
+},
+{"FlowEvent[]", &FlowEvent_array_def
 },
 {"FontMetrics", &FontMetrics_def
 },

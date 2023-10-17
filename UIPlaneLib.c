@@ -63,6 +63,9 @@ We can either link with -L/opt/vc/lib -lbcm_host, or we can use ./configure --di
 
 #include <SDL2_rotozoom.h>
 #include <SDL2_gfxPrimitives.h>
+#include <SDL2_framerate.h>
+
+#include <SDL2/SDL_opengl.h>
 
 #include <limits.h>
 
@@ -172,6 +175,8 @@ static GlobalTypeLink *whGT = NULL;
 static GlobalTypeLink *integerGT = NULL;
 static GlobalTypeLink *windowDataGT = NULL;
 static GlobalTypeLink *dropDataGT = NULL;
+static GlobalTypeLink *flowEventArrayGT = NULL;
+static GlobalTypeLink *flowEventGT = NULL;
 
 //the graphics buffer:
 typedef struct _point{
@@ -3941,7 +3946,7 @@ INSTRUCTION_DEF op_get_pixels(FrameData* cframe)
 		#endif
 		#endif
 
-		//TODO: create the return value (a byte array)
+		//create the return value (a byte array)
 		DanaEl* el = api -> makeData(pixelMapGT);
 		DanaEl* elWH = api -> makeData(whGT);
 
@@ -4220,7 +4225,7 @@ INSTRUCTION_DEF op_unload_font(FrameData* cframe)
 
 INSTRUCTION_DEF op_init_media_layer(FrameData* cframe)
 	{
-	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC) != 0)
+	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC) != 0)
 	//if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 		{
 		printf("SDL INIT FAILED\n");
@@ -4313,6 +4318,1518 @@ INSTRUCTION_DEF op_shutdown(FrameData* cframe)
 	return RETURN_OK;
 	}
 
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+/* ******************************* Direct Render API ****************************** */
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+/* ******************************************************************************** */
+
+const int MAX_EVENTS = 128;
+
+typedef struct _surf_el {
+	SDL_Texture* surface;
+	size_t xPos;
+	size_t yPos;
+	size_t xScroll;
+	size_t yScroll;
+	struct _surf_el* next;
+} SurfaceElement;
+
+typedef struct {
+	SDL_Window *win;
+	SDL_Renderer *renderer;
+
+	FPSmanager fpsManager;
+
+	SDL_GLContext glContext;
+
+	SDL_Cursor* currentCursor;
+	
+	bool visible;
+	bool fullScreen;
+
+	int windowWidth;
+	int windowHeight;
+
+	DanaEl* eventList;
+	DanaEl** eventElements;
+	unsigned char** eventContents;
+
+	SurfaceElement* surfaces;
+
+	size_t xScroll;
+	size_t yScroll;
+
+	bool mode3D;
+
+} FlowInstance;
+
+INSTRUCTION_DEF op_flow_init_media_layer(FrameData* cframe)
+	{
+	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC) != 0)
+		{
+		api -> throwException(cframe, "SDL initialisation failed");
+		return RETURN_OK;
+		}
+
+	if (TTF_Init() != 0)
+		{
+		api -> throwException(cframe, "TTF initialisation failed");
+		return RETURN_OK;
+		}
+	
+	unsigned char ok = 1;
+	api -> returnRaw(cframe, &ok, 1);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_make_window(FrameData* cframe)
+	{
+	FlowInstance* instance = malloc(sizeof(FlowInstance));
+	memset(instance, 0, sizeof(FlowInstance));
+
+	size_t framerate = api -> getParamInt(cframe, 0);
+
+	instance -> windowWidth = 640;
+	instance -> windowHeight = 480;
+
+	instance -> mode3D = api -> getParamRaw(cframe, 1)[0];
+
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	instance -> win = SDL_CreateWindow("Dana UI", 100, 100, instance -> windowWidth, instance -> windowHeight, SDL_WINDOW_HIDDEN);
+	
+	if (instance -> win == NULL){
+		api -> throwException(cframe, "SDL window creation failed");
+		return RETURN_OK;
+	}
+
+	if (!instance -> mode3D)
+		{
+		//attempt to create our preferred renderer
+		instance -> renderer = SDL_CreateRenderer(instance -> win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+
+		if (instance -> renderer == NULL)
+			{
+			//couldn't find a renderer matching our above preferences, so fall back on any available renderer
+			//(this sometimes achieves highly suspect results - could be argued that we should just fail here instead...)
+			instance -> renderer = SDL_CreateRenderer(instance -> win, -1, 0);
+			}
+
+		if (instance -> renderer == NULL)
+			{
+			api -> throwException(cframe, "SDL renderer creation failed");
+			return RETURN_OK;
+			}
+		}
+		else
+		{
+		instance -> glContext = SDL_GL_CreateContext(instance -> win);
+		}
+	
+	if (framerate != 0)
+		{
+		SDL_initFramerate(&instance -> fpsManager);
+		SDL_setFramerate(&instance -> fpsManager, framerate);
+		}
+	
+	//instantiate & populate our event array, which we continuously re-use the instances of
+	instance -> eventList = api -> makeArray(flowEventArrayGT, MAX_EVENTS, NULL);
+	instance -> eventElements = malloc(sizeof(DanaEl*) * MAX_EVENTS);
+	instance -> eventContents = malloc(sizeof(unsigned char*) * MAX_EVENTS);
+	int i = 0;
+	for (i = 0; i < MAX_EVENTS; i++)
+		{
+		DanaEl* ev = api -> makeData(flowEventGT);
+		api -> setArrayCellEl(instance -> eventList, i, ev);
+		instance -> eventElements[i] = ev;
+		instance -> eventContents[i] = api -> getDataContent(ev);
+		}
+	
+	api -> returnRaw(cframe, (unsigned char*) &instance, sizeof(void*));
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_visible(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	unsigned char v = api -> getParamRaw(cframe, 1)[0];
+	
+	if (v)
+		{
+		SDL_ShowWindow(instance -> win);
+		}
+		else
+		{
+		SDL_HideWindow(instance -> win);
+		}
+	
+	instance -> visible = v;
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_resizable(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	unsigned char v = api -> getParamRaw(cframe, 1)[0];
+
+	SDL_SetWindowResizable(instance -> win, v);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_position(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+
+	SDL_SetWindowPosition(instance -> win, x, y);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_size(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t w = api -> getParamInt(cframe, 1);
+	size_t h = api -> getParamInt(cframe, 2);
+
+	SDL_SetWindowSize(instance -> win, w, h);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_fullscreen(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	unsigned char v = api -> getParamRaw(cframe, 1)[0];
+
+	if (v)
+		{
+		//SDL_DisplayMode DM;
+		//SDL_GetCurrentDisplayMode(0, &DM);
+		
+		//instance -> windowWidth = DM.w;
+		//instance -> windowHeight = DM.h;
+
+		#ifdef LINUX
+		//TODO: for some reason this hide/show needed on Linux to allow rendering into the now-fullscreen window area
+		//TODO: try removing this workaround in newer SDL releases, and retest visual/FullScreen.o to see if it works any better
+		if (instance -> visible)
+			{
+			SDL_HideWindow(instance -> win);
+			}
+		#endif
+
+		SDL_SetWindowFullscreen(instance -> win, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		
+		#ifdef LINUX
+		if (instance -> visible)
+			{
+			SDL_ShowWindow(instance -> win);
+			}
+		#endif
+		
+		instance -> fullScreen = true;
+		}
+		else
+		{
+		//wi -> windowWidth = wi -> windowedWidth;
+		//wi -> windowHeight = wi -> windowedHeight;
+		
+		SDL_SetWindowFullscreen(instance -> win, 0);
+		
+		instance -> fullScreen = false;
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_title(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	char *str = x_getParam_char_array(api, cframe, 1);
+
+	SDL_SetWindowTitle(instance -> win, str);
+
+	free(str);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_icon(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl *pixelMap = api -> getParamEl(cframe, 1);
+	
+	SDL_Surface *surface = pixelMapToSurface(pixelMap);
+	
+	SDL_SetWindowIcon(instance -> win, surface);
+	
+	SDL_FreeSurface(surface);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_set_cursor(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	unsigned char cursorType = api -> getParamRaw(cframe, 1)[0];
+	DanaEl* customCursor = api -> getParamEl(cframe, 2);
+
+	SDL_Cursor* nc = NULL;
+
+	if (cursorType == 0)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+		}
+		else if (cursorType == 1)
+		{
+		SDL_ShowCursor(SDL_DISABLE);
+		}
+		else if (cursorType == 2)
+		{
+		//a custom-provided image, with an x/y hotpoint
+		DanaEl* pixelMap = api -> getDataFieldEl(customCursor, 0);
+		SDL_Surface *surface = pixelMapToSurface(pixelMap);
+
+		nc = SDL_CreateColorCursor(surface, api -> getDataFieldInt(customCursor, 1), api -> getDataFieldInt(customCursor, 2));
+
+		SDL_FreeSurface(surface);
+		}
+		else if (cursorType == 3)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
+		}
+		else if (cursorType == 4)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
+		}
+		else if (cursorType == 5)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAIT);
+		}
+		else if (cursorType == 6)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
+		}
+		else if (cursorType == 7)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
+		}
+		else if (cursorType == 8)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);
+		}
+		else if (cursorType == 9)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
+		}
+		else if (cursorType == 10)
+		{
+		nc = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
+		}
+	
+	if (cursorType != 1)
+		{
+		SDL_ShowCursor(SDL_ENABLE);
+		}
+	
+	/*
+	SDL_SYSTEM_CURSOR_CROSSHAIR
+	SDL_SYSTEM_CURSOR_WAITARROW
+	SDL_SYSTEM_CURSOR_NO
+	*/
+	
+	if (nc != NULL)
+		{
+		SDL_SetCursor(nc);
+
+		//if there's a cursor already set (and about to no longer be user), we need to use SDL_FreeCursor on that one
+		if (instance -> currentCursor != NULL)
+			{
+			SDL_FreeCursor(instance -> currentCursor);
+			}
+		
+		instance -> currentCursor = nc;
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_close_window(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+	
+	SDL_DestroyRenderer(instance -> renderer);
+	SDL_DestroyWindow(instance -> win);
+
+	return RETURN_OK;
+	}
+
+const int EV_TYPE_QUIT = 1;
+const int EV_TYPE_WINDOW = 2;
+const int EV_TYPE_MOUSE = 3;
+const int EV_TYPE_KEYBOARD = 4;
+
+const int EV_MOUSE_DOWN = 1;
+const int EV_MOUSE_UP = 2;
+const int EV_MOUSE_MOVE = 3;
+const int EV_MOUSE_WHEEL = 4;
+
+const int EV_KEY_DOWN = 1;
+const int EV_KEY_UP = 2;
+
+const int EV_WINDOW_RESIZE = 1;
+const int EV_WINDOW_MOVE = 2;
+
+static void copyUint32(unsigned char* dest, unsigned char* src)
+	{
+	#ifdef MACHINE_ENDIAN_LITTLE
+	dest[0] = src[3];
+	dest[1] = src[2];
+	dest[2] = src[1];
+	dest[3] = src[0];
+	#else
+	dest[0] = src[0];
+	dest[1] = src[1];
+	dest[2] = src[2];
+	dest[3] = src[3];
+	#endif
+	}
+
+INSTRUCTION_DEF op_flow_get_events(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	int i = 0;
+	SDL_Event e;
+	while (SDL_PollEvent(&e))
+		{
+		DanaEl* el = instance -> eventElements[i];
+		unsigned char* content = instance -> eventContents[i];
+
+		i ++;
+
+		if (e.type == SDL_QUIT)
+			{
+			content[3] = EV_TYPE_QUIT;
+			}
+			else if (e.type == SDL_RENDER_TARGETS_RESET || e.type == SDL_RENDER_DEVICE_RESET)
+			{
+			//
+			}
+			else if (e.type == SDL_WINDOWEVENT)
+			{
+			if (e.window.event == SDL_WINDOWEVENT_CLOSE)
+				{
+				content[3] = EV_TYPE_QUIT;
+				}
+				else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+				{
+				content[3] = EV_TYPE_WINDOW;
+				content[7] = EV_WINDOW_RESIZE;
+
+				Uint32 w = e.window.data1;
+				Uint32 h = e.window.data2;
+
+				copyUint32(&content[8], (unsigned char*) &w);
+				copyUint32(&content[12], (unsigned char*) &h);
+				}
+				else if (e.window.event == SDL_WINDOWEVENT_MOVED)
+				{
+				content[3] = EV_TYPE_WINDOW;
+				content[7] = EV_WINDOW_MOVE;
+
+				Uint32 x = e.window.data1;
+				Uint32 y = e.window.data2;
+
+				copyUint32(&content[8], (unsigned char*) &x);
+				copyUint32(&content[12], (unsigned char*) &y);
+				}
+			}
+			else if (e.type == SDL_MOUSEBUTTONDOWN)
+			{
+			content[3] = EV_TYPE_MOUSE;
+			content[7] = EV_MOUSE_DOWN;
+
+			Uint32 screenX = e.button.x;
+			Uint32 screenY = e.button.y;
+			
+			unsigned char button = 0;
+			
+			if (e.button.button == SDL_BUTTON_LEFT)
+				button = 1;
+				else if (e.button.button == SDL_BUTTON_RIGHT)
+				button = 2;
+				
+			content[11] = button;
+			
+			copyUint32(&content[12], (unsigned char*) &screenX);
+			copyUint32(&content[16], (unsigned char*) &screenY);
+			}
+			else if (e.type == SDL_MOUSEBUTTONUP)
+			{
+			content[3] = EV_TYPE_MOUSE;
+			content[7] = EV_MOUSE_UP;
+
+			Uint32 screenX = e.button.x;
+			Uint32 screenY = e.button.y;
+			
+			unsigned char button = 0;
+			
+			if (e.button.button == SDL_BUTTON_LEFT)
+				button = 1;
+				else if (e.button.button == SDL_BUTTON_RIGHT)
+				button = 2;
+				
+			content[11] = button;
+
+			copyUint32(&content[12], (unsigned char*) &screenX);
+			copyUint32(&content[16], (unsigned char*) &screenY);
+			}
+			else if (e.type == SDL_MOUSEMOTION)
+			{
+			content[3] = EV_TYPE_MOUSE;
+			content[7] = EV_MOUSE_MOVE;
+
+			if (e.motion.x < 0) e.motion.x = 0;
+			if (e.motion.y < 0) e.motion.y = 0;
+
+			Uint32 screenX = e.motion.x;
+			Uint32 screenY = e.motion.y;
+
+			copyUint32(&content[8], (unsigned char*) &screenX);
+			copyUint32(&content[12], (unsigned char*) &screenY);
+			}
+			else if (e.type == SDL_MOUSEWHEEL)
+			{
+			content[3] = EV_TYPE_MOUSE;
+			content[7] = EV_MOUSE_WHEEL;
+
+			int deltaX = e.wheel.x;
+			int deltaY = e.wheel.y;
+
+			size_t xAdd = 0;
+			size_t xSub = 0;
+			size_t yAdd = 0;
+			size_t ySub = 0;
+
+			if (deltaX < 0)
+				xSub = deltaX * -1;
+				else
+				xAdd = deltaX;
+			
+			if (deltaY < 0)
+				ySub = deltaY * -1;
+				else
+				yAdd = deltaY;
+			
+			copyUint32(&content[8], (unsigned char*) &xSub);
+			copyUint32(&content[12], (unsigned char*) &xAdd);
+			copyUint32(&content[16], (unsigned char*) &ySub);
+			copyUint32(&content[20], (unsigned char*) &yAdd);
+			}
+			else if (e.type == SDL_KEYDOWN)
+			{
+			content[3] = EV_TYPE_KEYBOARD;
+			content[7] = EV_KEY_DOWN;
+
+			Uint32 keyID = e.key.keysym.scancode;
+
+			copyUint32(&content[8], (unsigned char*) &keyID);
+			}
+			else if (e.type == SDL_KEYUP)
+			{
+			content[3] = EV_TYPE_KEYBOARD;
+			content[7] = EV_KEY_UP;
+
+			Uint32 keyID = e.key.keysym.scancode;
+
+			copyUint32(&content[8], (unsigned char*) &keyID);
+			}
+			else if (e.type == SDL_DROPFILE)
+			{
+			//
+			}
+
+		if (i + 1 >= MAX_EVENTS)
+			break;
+		}
+	
+	api -> setArrayLength(instance -> eventList, i);
+
+	api -> returnEl(cframe, instance -> eventList);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_render_begin(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+	
+	if (!instance -> mode3D)
+		{
+		SDL_SetRenderDrawColor(instance -> renderer, 0, 0, 0, 255);
+		
+		SDL_SetRenderDrawBlendMode(instance -> renderer, SDL_BLENDMODE_BLEND);
+		
+		SDL_RenderClear(instance -> renderer);
+		
+		SDL_SetRenderTarget(instance -> renderer, NULL);
+		}
+		else
+		{
+		//glViewport(0, 0, instance -> windowWidth, instance -> windowHeight);
+    	//glClearColor(1.f, 0.f, 1.f, 0.f);
+    	//glClear(GL_COLOR_BUFFER_BIT);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_render_end(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+	
+	if (!instance -> mode3D)
+		{
+		SDL_RenderPresent(instance -> renderer);
+		}
+		else
+		{
+		//SDL_GL_SwapWindow(instance -> win);
+		}
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_wait(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+	
+	SDL_framerateDelay(&instance -> fpsManager);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_get_pixels(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	int w, h;
+	SDL_GetWindowSize(instance -> win, &w, &h);
+
+	DanaEl* el = api -> makeData(pixelMapGT);
+	DanaEl* elWH = api -> makeData(whGT);
+
+	unsigned char* content = NULL;
+	DanaEl* array = api -> makeArray(charArrayGT, w * h * 4, &content);
+
+	api -> setDataFieldInt(elWH, 0, w);
+	api -> setDataFieldInt(elWH, 1, h);
+
+	api -> setDataFieldEl(el, 0, elWH);
+	api -> setDataFieldEl(el, 1, array);
+
+	/*
+	SDL_Texture* testTexture = SDL_CreateTexture(instance -> renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+	SDL_QueryTexture(testTexture, NULL, NULL, &w, &h);
+	SDL_DestroyTexture(testTexture);
+	*/
+	
+	SDL_Rect dst;
+	dst.x = 0;
+	dst.y = 0;
+	dst.w = w;
+	dst.h = h;
+
+	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+	SDL_RenderReadPixels(instance -> renderer, &dst, SDL_PIXELFORMAT_ABGR8888, surface -> pixels, surface -> pitch);
+	memcpy(content, surface -> pixels, w * h * 4);
+	SDL_FreeSurface(surface);
+
+	api -> returnEl(cframe, el);
+
+	return RETURN_OK;
+	}
+
+// -- 2D drawing commands --
+
+INSTRUCTION_DEF op_flow_point(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	unsigned char r = api -> getParamRaw(cframe, 3)[0];
+	unsigned char g = api -> getParamRaw(cframe, 4)[0];
+	unsigned char b = api -> getParamRaw(cframe, 5)[0];
+	unsigned char a = api -> getParamRaw(cframe, 6)[0];
+
+	SDL_SetRenderDrawColor(instance -> renderer, r, g, b, a);
+	SDL_RenderDrawPoint(instance -> renderer, x - instance -> xScroll, y - instance -> yScroll);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_line(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t x1 = api -> getParamInt(cframe, 1);
+	size_t y1 = api -> getParamInt(cframe, 2);
+	size_t x2 = api -> getParamInt(cframe, 3);
+	size_t y2 = api -> getParamInt(cframe, 4);
+	size_t thickness = api -> getParamInt(cframe, 5);
+	unsigned char r = api -> getParamRaw(cframe, 6)[0];
+	unsigned char g = api -> getParamRaw(cframe, 7)[0];
+	unsigned char b = api -> getParamRaw(cframe, 8)[0];
+	unsigned char a = api -> getParamRaw(cframe, 9)[0];
+
+	thickLineRGBA(instance -> renderer, x1, y1, x2, y2, thickness, r, g, b, a);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_rect(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+	
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	size_t w = api -> getParamInt(cframe, 3);
+	size_t h = api -> getParamInt(cframe, 4);
+	unsigned char r = api -> getParamRaw(cframe, 5)[0];
+	unsigned char g = api -> getParamRaw(cframe, 6)[0];
+	unsigned char b = api -> getParamRaw(cframe, 7)[0];
+	unsigned char a = api -> getParamRaw(cframe, 8)[0];
+
+	SDL_Rect rect;
+	rect.x = x - instance -> xScroll;
+	rect.y = y - instance -> yScroll;
+	rect.w = w;
+	rect.h = h;
+
+	SDL_SetRenderDrawColor(instance -> renderer, r, g, b, a);
+	SDL_RenderFillRect(instance -> renderer, &rect);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_curve(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* points = api -> getParamEl(cframe, 1);
+	size_t isteps = api -> getParamInt(cframe, 2);
+	size_t thickness = api -> getParamInt(cframe, 3);
+	unsigned char r = api -> getParamRaw(cframe, 4)[0];
+	unsigned char g = api -> getParamRaw(cframe, 5)[0];
+	unsigned char b = api -> getParamRaw(cframe, 6)[0];
+	unsigned char a = api -> getParamRaw(cframe, 7)[0];
+
+	size_t nPoints = api -> getArrayLength(points);
+
+	double* xPoints = malloc(sizeof(double) * nPoints);
+	double* yPoints = malloc(sizeof(double) * nPoints);
+
+	short int* xPoints_si = malloc(sizeof(short int) * nPoints);
+	short int* yPoints_si = malloc(sizeof(short int) * nPoints);
+
+	int i = 0;
+	for (i = 0; i < nPoints; i++)
+		{
+		DanaEl* it = api -> getArrayCellEl(points, i);
+
+		xPoints[i] = api -> getDataFieldInt(it, 0);
+		yPoints[i] = api -> getDataFieldInt(it, 1);
+
+		xPoints_si[i] = api -> getDataFieldInt(it, 0);
+		yPoints_si[i] = api -> getDataFieldInt(it, 1);
+		}
+
+	aaBezierRGBA(instance -> renderer, xPoints, yPoints, nPoints, isteps, thickness, r, g, b, a);
+
+	free(xPoints);
+	free(yPoints);
+
+	free(xPoints_si);
+	free(yPoints_si);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_ellipse(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	size_t w = api -> getParamInt(cframe, 3);
+	size_t h = api -> getParamInt(cframe, 4);
+	unsigned char r = api -> getParamRaw(cframe, 5)[0];
+	unsigned char g = api -> getParamRaw(cframe, 6)[0];
+	unsigned char b = api -> getParamRaw(cframe, 7)[0];
+	unsigned char a = api -> getParamRaw(cframe, 8)[0];
+
+	aaFilledEllipseRGBA(instance -> renderer, x, y, w, h, r, g, b, a);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_ellipse_outline(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	size_t w = api -> getParamInt(cframe, 3);
+	size_t h = api -> getParamInt(cframe, 4);
+	size_t thickness = api -> getParamInt(cframe, 5);
+	unsigned char r = api -> getParamRaw(cframe, 6)[0];
+	unsigned char g = api -> getParamRaw(cframe, 7)[0];
+	unsigned char b = api -> getParamRaw(cframe, 8)[0];
+	unsigned char a = api -> getParamRaw(cframe, 9)[0];
+
+	if (thickness == 1)
+		{
+		aaellipseRGBA(instance -> renderer, x, y, w, h, r, g, b, a);
+		}
+		else
+		{
+		//thickEllipseRGBA(instance -> renderer, poly -> rect.x, poly -> rect.y, poly -> rect.w, poly -> rect.h, poly -> r, poly -> g, poly -> b, poly -> a, poly -> thickness);
+
+		aaArcRGBA(instance -> renderer, x, y, w, h, 0.0, 360.0, thickness, r, g, b, a);
+		}
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_arc(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	bool antiAlias = false;
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	size_t w = api -> getParamInt(cframe, 3);
+	size_t h = api -> getParamInt(cframe, 4);
+	size_t start = api -> getParamInt(cframe, 5);
+	size_t end = api -> getParamInt(cframe, 6);
+	size_t thickness = api -> getParamInt(cframe, 7);
+	unsigned char r = api -> getParamRaw(cframe, 8)[0];
+	unsigned char g = api -> getParamRaw(cframe, 9)[0];
+	unsigned char b = api -> getParamRaw(cframe, 10)[0];
+	unsigned char a = api -> getParamRaw(cframe, 11)[0];
+
+	if (antiAlias)
+		aaArcRGBA(instance -> renderer, x, y, w, h, start + 270, end + 270, thickness, r, g, b, a);
+		else
+		thickArcRGBA(instance -> renderer, x, y, w, start + 270, end + 270, r, g, b, a, thickness);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_pie(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	size_t w = api -> getParamInt(cframe, 3);
+	size_t h = api -> getParamInt(cframe, 4);
+	size_t start = api -> getParamInt(cframe, 5);
+	size_t end = api -> getParamInt(cframe, 6);
+	unsigned char chord = api -> getParamRaw(cframe, 7)[0];
+	unsigned char r = api -> getParamRaw(cframe, 8)[0];
+	unsigned char g = api -> getParamRaw(cframe, 9)[0];
+	unsigned char b = api -> getParamRaw(cframe, 10)[0];
+	unsigned char a = api -> getParamRaw(cframe, 11)[0];
+
+	aaFilledPieRGBA(instance -> renderer, x, y, w, h, start + 270, end + 270, chord, r, g, b, a);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_polygon(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* points = api -> getParamEl(cframe, 1);
+
+	unsigned char r = api -> getParamRaw(cframe, 2)[0];
+	unsigned char g = api -> getParamRaw(cframe, 3)[0];
+	unsigned char b = api -> getParamRaw(cframe, 4)[0];
+	unsigned char a = api -> getParamRaw(cframe, 5)[0];
+
+	size_t nPoints = api -> getArrayLength(points);
+
+	double* xPoints = malloc(sizeof(double) * nPoints);
+	double* yPoints = malloc(sizeof(double) * nPoints);
+
+	int i = 0;
+	for (i = 0; i < nPoints; i++)
+		{
+		DanaEl* it = api -> getArrayCellEl(points, i);
+
+		xPoints[i] = api -> getDataFieldInt(it, 0);
+		yPoints[i] = api -> getDataFieldInt(it, 1);
+		}
+
+	aaFilledPolygonRGBA(instance -> renderer, xPoints, yPoints, nPoints, r, g, b, a);
+
+	free(xPoints);
+	free(yPoints);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_polygon_outline(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* points = api -> getParamEl(cframe, 1);
+	size_t thickness = api -> getParamInt(cframe, 2);
+	unsigned char r = api -> getParamRaw(cframe, 3)[0];
+	unsigned char g = api -> getParamRaw(cframe, 4)[0];
+	unsigned char b = api -> getParamRaw(cframe, 5)[0];
+	unsigned char a = api -> getParamRaw(cframe, 6)[0];
+
+	size_t nPoints = api -> getArrayLength(points);
+
+	double* xPoints = malloc(sizeof(double) * nPoints);
+	double* yPoints = malloc(sizeof(double) * nPoints);
+
+	short int* xPoints_si = malloc(sizeof(short int) * nPoints);
+	short int* yPoints_si = malloc(sizeof(short int) * nPoints);
+
+	int i = 0;
+	for (i = 0; i < nPoints; i++)
+		{
+		DanaEl* it = api -> getArrayCellEl(points, i);
+
+		xPoints[i] = api -> getDataFieldInt(it, 0);
+		yPoints[i] = api -> getDataFieldInt(it, 1);
+
+		xPoints_si[i] = api -> getDataFieldInt(it, 0);
+		yPoints_si[i] = api -> getDataFieldInt(it, 1);
+		}
+	
+	if (thickness == 1)
+		{
+		aapolygonRGBA(instance -> renderer, xPoints_si, yPoints_si, nPoints, r, g, b, a);
+		}
+		else
+		{
+		//TODO.
+		}
+	
+	free(xPoints);
+	free(yPoints);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_polygon_bezier(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* points = api -> getParamEl(cframe, 1);
+	size_t isteps = api -> getParamInt(cframe, 2);
+	unsigned char r = api -> getParamRaw(cframe, 3)[0];
+	unsigned char g = api -> getParamRaw(cframe, 4)[0];
+	unsigned char b = api -> getParamRaw(cframe, 5)[0];
+	unsigned char a = api -> getParamRaw(cframe, 6)[0];
+
+	size_t nPoints = api -> getArrayLength(points);
+
+	double* xPoints = malloc(sizeof(double) * nPoints);
+	double* yPoints = malloc(sizeof(double) * nPoints);
+
+	short int* xPoints_si = malloc(sizeof(short int) * nPoints);
+	short int* yPoints_si = malloc(sizeof(short int) * nPoints);
+
+	int i = 0;
+	for (i = 0; i < nPoints; i++)
+		{
+		DanaEl* it = api -> getArrayCellEl(points, i);
+
+		xPoints[i] = api -> getDataFieldInt(it, 0);
+		yPoints[i] = api -> getDataFieldInt(it, 1);
+
+		xPoints_si[i] = api -> getDataFieldInt(it, 0);
+		yPoints_si[i] = api -> getDataFieldInt(it, 1);
+		}
+
+	aaFilledPolyBezierRGBA(instance -> renderer, xPoints, yPoints, nPoints, isteps, r, g, b, a);
+
+	free(xPoints);
+	free(yPoints);
+
+	free(xPoints_si);
+	free(yPoints_si);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_polygon_bezier_outline(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* points = api -> getParamEl(cframe, 1);
+	/*
+	size_t isteps = api -> getParamInt(cframe, 2);
+	size_t thickness = api -> getParamInt(cframe, 3);
+	unsigned char r = api -> getParamRaw(cframe, 4)[0];
+	unsigned char g = api -> getParamRaw(cframe, 5)[0];
+	unsigned char b = api -> getParamRaw(cframe, 6)[0];
+	unsigned char a = api -> getParamRaw(cframe, 7)[0];
+	*/
+
+	size_t nPoints = api -> getArrayLength(points);
+
+	double* xPoints = malloc(sizeof(double) * nPoints);
+	double* yPoints = malloc(sizeof(double) * nPoints);
+
+	short int* xPoints_si = malloc(sizeof(short int) * nPoints);
+	short int* yPoints_si = malloc(sizeof(short int) * nPoints);
+
+	int i = 0;
+	for (i = 0; i < nPoints; i++)
+		{
+		DanaEl* it = api -> getArrayCellEl(points, i);
+
+		xPoints[i] = api -> getDataFieldInt(it, 0);
+		yPoints[i] = api -> getDataFieldInt(it, 1);
+
+		xPoints_si[i] = api -> getDataFieldInt(it, 0);
+		yPoints_si[i] = api -> getDataFieldInt(it, 1);
+		}
+	
+	free(xPoints);
+	free(yPoints);
+
+	free(xPoints_si);
+	free(yPoints_si);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_bitmap(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* bitmapData = api -> getParamEl(cframe, 1);
+		
+	if (bitmapData == NULL)
+		{
+		api -> throwException(cframe, "null pointer");
+		return RETURN_OK;
+		}
+	
+	DanaEl *whData = api -> getDataFieldEl(bitmapData, 0);
+	DanaEl *pixelArrayH = api -> getDataFieldEl(bitmapData, 1);
+	
+	if (whData == NULL || pixelArrayH == NULL || api -> getArrayContent(pixelArrayH) == NULL)
+		{
+		api -> throwException(cframe, "null pointer");
+		return RETURN_OK;
+		}
+
+	size_t x = api -> getParamInt(cframe, 3);
+	size_t y = api -> getParamInt(cframe, 4);
+	size_t sWidth = api -> getParamInt(cframe, 5);
+	size_t sHeight = api -> getParamInt(cframe, 6);
+	size_t rotation = api -> getParamInt(cframe, 7);
+
+	SDL_Surface *primarySurface = pixelMapToSurface(bitmapData);
+				
+	SDL_Surface *finalSurface = NULL;
+	
+	if (sWidth != primarySurface -> w || sHeight != primarySurface -> h)
+		{
+		//printf("rescaling %u/%u...\n", data -> scaledWidth, data -> scaledHeight);
+		float zoomX = (float) sWidth / (float) primarySurface -> w;
+		float zoomY = (float) sHeight / (float) primarySurface -> h;
+
+		finalSurface = zoomSurface(primarySurface, zoomX, zoomY, SMOOTHING_ON);
+		SDL_FreeSurface(primarySurface);
+		}
+		else
+		{
+		finalSurface = primarySurface;
+		}
+	
+	SDL_Texture *texture = SDL_CreateTextureFromSurface(instance -> renderer, finalSurface);
+
+	renderTexture(texture, instance -> renderer, x, y, rotation);
+	SDL_DestroyTexture(texture);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_text_with(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	FontHolder* fontInstance = NULL;
+	memcpy(&fontInstance, api -> getParamRaw(cframe, 1), sizeof(void*));
+
+	size_t x = api -> getParamInt(cframe, 2);
+	size_t y = api -> getParamInt(cframe, 3);
+	size_t rotation = api -> getParamInt(cframe, 4);
+	DanaEl* array = api -> getParamEl(cframe, 5);
+	size_t r = api -> getParamRaw(cframe, 6)[0];
+	size_t g = api -> getParamRaw(cframe, 7)[0];
+	size_t b = api -> getParamRaw(cframe, 8)[0];
+	size_t a = api -> getParamRaw(cframe, 9)[0];
+
+	size_t tlen = api -> getArrayLength(array);
+
+	if (tlen > 0)
+		{
+		char* text = malloc(tlen + 1);
+		memset(text, '\0', tlen + 1);
+		memcpy(text, api -> getArrayContent(array), tlen);
+
+		SDL_Color color;
+		color.r = r;
+		color.g = g;
+		color.b = b;
+		color.a = a;
+
+		SDL_Texture *image = renderText(text, fontInstance -> font, color, instance -> renderer);
+		if (image != NULL)
+			{
+			renderTextureRZ(image, instance -> renderer, x, y, rotation);
+			SDL_DestroyTexture(image);
+			}
+		}
+	
+	return RETURN_OK;
+	}
+
+// flow font loading
+
+INSTRUCTION_DEF op_flow_load_font(FrameData* cframe)
+	{
+	char* path = x_getParam_char_array(api, cframe, 0);
+
+	size_t fontSize = api -> getParamInt(cframe, 1);
+
+	char *fontPath = malloc(2048);
+	memset(fontPath, '\0', 2048);
+
+	if (!findFont(path, fontPath, 2048))
+		{
+		api -> throwException(cframe, "open font error: could not find font");
+		free(fontPath);
+		free(path);
+		return RETURN_OK;
+		}
+		else
+		{
+		free(path);
+		}
+	
+	TTF_Font *font = TTF_OpenFont(fontPath, fontSize);
+	if (font == NULL)
+		{
+		//printf("open font error: %s [%s]\n", SDL_GetError(), TTF_GetError());
+		api -> throwException(cframe, "open font error: could not load font");
+		return RETURN_OK;
+		}
+	
+	free(fontPath);
+
+	//note: we could support font styles, like:
+	//TTF_SetFontStyle(font, TTF_STYLE_BOLD);
+	
+	FontHolder *fhold = malloc(sizeof(FontHolder));
+	fhold -> refCount = 1;
+	fhold -> font = font;
+
+	api -> returnRaw(cframe, (unsigned char*) &fhold, sizeof(void*));
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_unload_font(FrameData* cframe)
+	{
+	FontHolder* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	TTF_CloseFont(instance -> font);
+	free(instance);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_get_text_width_with(FrameData* cframe)
+	{
+	FontHolder* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* array = api -> getParamEl(cframe, 1);
+
+	size_t tlen = api -> getArrayLength(array);
+
+	size_t width = 0;
+
+	if (tlen > 0)
+		{
+		//note: we could avoid this malloc if we wrote an extra SDL_ttf function which took the (UTF-8) string length as a parameter...
+		char *text = (char*) malloc(tlen + 1);
+		memset(text, '\0', tlen + 1);
+		memcpy(text, api -> getArrayContent(array), tlen);
+
+		int count = 0;
+		int pixels = 0;
+		TTF_MeasureUTF8(instance -> font, text, INT_MAX, &pixels, &count);
+
+		api -> returnInt(cframe, pixels);
+
+		free(text);
+
+		return RETURN_OK;
+		}
+	
+	api -> returnInt(cframe, width);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_get_text_bitmap_with(FrameData* cframe)
+	{
+	FontHolder* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* array = api -> getParamEl(cframe, 1);
+
+	size_t tlen = api -> getArrayLength(array);
+	
+	DanaEl* pixelcnt = api -> getParamEl(cframe, 2);
+
+	size_t r = api -> getParamRaw(cframe, 3)[0];
+
+	size_t g = api -> getParamRaw(cframe, 4)[0];
+
+	size_t b = api -> getParamRaw(cframe, 5)[0];
+
+	size_t a = api -> getParamRaw(cframe, 6)[0];
+
+	if (tlen > 0)
+		{
+		SDL_Color color;
+		color.r = r;
+		color.g = g;
+		color.b = b;
+		color.a = a;
+
+		char *text = (char*) malloc(tlen + 1);
+		memset(text, '\0', tlen + 1);
+		memcpy(text, api -> getArrayContent(array), tlen);
+
+		DanaEl *bitmapData = pixelcnt;
+		DanaEl *whData = api -> getDataFieldEl(bitmapData, 0);
+		
+		//printf("rendering text with color %u:%u:%u:%u\n", data -> color.r, data -> color.g, data -> color.b, data -> color.a);
+
+		SDL_Surface *surf = TTF_RenderText_Blended(instance -> font, text, color);
+		if (surf == NULL)
+			{
+			printf("SDL surface error from RT for '%s': %s\n", text, SDL_GetError());
+			}
+
+		size_t w = surf -> w;
+		size_t h = surf -> h;
+
+		size_t totalPixels = w * h;
+		size_t sz = 4;
+		
+		api -> setDataFieldInt(whData, 0, w);
+		api -> setDataFieldInt(whData, 1, h);
+		
+		//set up the pixel array
+	
+		size_t asz = totalPixels * sz;
+		
+		unsigned char* pixelArray = NULL;
+		DanaEl* pixelArrayH = api -> makeArray(charArrayGT, asz, &pixelArray);
+		
+		api -> setDataFieldEl(bitmapData, 1, pixelArrayH);
+		
+		//printf("size: %u | %u\n", totalPixels, ((StructuredType*) pixelArrayH -> gtLink -> typeLink -> definition.content) -> size);
+
+		//printf(" -- generate bitmap -- %u pixels in %u:%u --\n", pixelArrayH -> length, w, h);
+
+		SDL_PixelFormat *fmt;
+		fmt = surf -> format;
+
+		SDL_LockSurface(surf);
+
+		int i = 0;
+		int j = 0;
+		int ndx = 0;
+		for  (i = 0; i < h; i++)
+			{
+			for (j = 0; j < w; j++)
+				{
+				//read the next pixel
+				unsigned char red;
+				unsigned char green;
+				unsigned char blue;
+				unsigned char alpha;
+
+				Uint32 pixel = 0;
+				Uint32 temp = 0;
+
+				pixel = ((Uint32*) surf -> pixels)[(i*w)+j];
+
+				temp = pixel & fmt->Rmask;
+				temp = temp >> fmt->Rshift;
+				temp = temp << fmt->Rloss;
+				red = (Uint8) temp;
+
+				temp = pixel & fmt->Gmask;
+				temp = temp >> fmt->Gshift;
+				temp = temp << fmt->Gloss;
+				green = (Uint8) temp;
+
+				temp = pixel & fmt->Bmask;
+				temp = temp >> fmt->Bshift;
+				temp = temp << fmt->Bloss;
+				blue = (Uint8) temp;
+
+				temp = pixel & fmt->Amask;
+				temp = temp >> fmt->Ashift;
+				temp = temp << fmt->Aloss;
+				alpha = (Uint8) temp;
+
+				//printf("pixel %u is %u:%u:%u:%u\n", (i*w)+j, red, green, blue, alpha);
+
+				unsigned char *cdata = &pixelArray[ndx];
+
+				cdata[0] = red;
+				cdata[1] = green;
+				cdata[2] = blue;
+				cdata[3] = alpha;
+
+				ndx += 4;
+				}
+			}
+
+		SDL_UnlockSurface(surf);
+
+		SDL_FreeSurface(surf);
+
+		free(text);
+		}
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_get_font_name(FrameData* cframe)
+	{
+	FontHolder* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	char *val = TTF_FontFaceFamilyName(instance -> font);
+
+	if (val != NULL)
+		{
+		returnByteArray(cframe, (unsigned char*) strdup(val), strlen(val));
+    	}
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_is_font_fixed_width(FrameData* cframe)
+	{
+	FontHolder* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	unsigned char is = TTF_FontFaceIsFixedWidth(instance -> font) == 0 ? 0 : 1;
+	api -> returnRaw(cframe, &is, 1);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_get_font_metrics(FrameData* cframe)
+	{
+	FontHolder* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	DanaEl* mdata = api -> getParamEl(cframe, 1);
+
+	int sdl_x;
+
+	sdl_x = TTF_FontHeight(instance -> font);
+	
+	api -> setDataFieldInt(mdata, 0, sdl_x);
+	
+	sdl_x = TTF_FontAscent(instance -> font);
+	
+	api -> setDataFieldInt(mdata, 1, sdl_x);
+
+	sdl_x = TTF_FontDescent(instance -> font);
+	
+	api -> setDataFieldInt(mdata, 2, sdl_x * -1);
+
+	sdl_x = TTF_FontLineSkip(instance -> font);
+	
+	api -> setDataFieldInt(mdata, 3, sdl_x);
+	
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_push_surface(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	SurfaceElement* surface = malloc(sizeof(SurfaceElement));
+	memset(surface, '\0', sizeof(SurfaceElement));
+
+	surface -> next = instance -> surfaces;
+
+	instance -> surfaces = surface;
+
+	// --
+
+	size_t x = api -> getParamInt(cframe, 1);
+	size_t y = api -> getParamInt(cframe, 2);
+	size_t w = api -> getParamInt(cframe, 3);
+	size_t h = api -> getParamInt(cframe, 4);
+	size_t xs = api -> getParamInt(cframe, 5);
+	size_t ys = api -> getParamInt(cframe, 6);
+	size_t a = api -> getParamRaw(cframe, 7)[0];
+
+	// --
+
+	SDL_Texture *st = SDL_CreateTexture(instance -> renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+	SDL_SetRenderTarget(instance -> renderer, st);
+
+	surface -> surface = st;
+
+	surface -> xPos = x;
+	surface -> yPos = y;
+
+	surface -> xScroll = xs;
+	surface -> yScroll = ys;
+
+	instance -> xScroll = xs;
+	instance -> yScroll = ys;
+			
+	//NOTE: when using transparency, if we blend the background colour here (at alpha zero) against the SAME colour of text (white for white text), we get nice text; if the background colour is opposite (white for black text) we get horrible text rendering
+	// - if we take the alpha channel away, blending is fine in all cases
+	// - see https://discourse.libsdl.org/t/bad-text-quality-on-transparent-texture/23098
+	// - a workaround is to require surfaces to have a solid background colour, and only offer to apply alpha to the whole surface (i.e., to the texture after all contents are rendered)
+	// - we currently push this responsibility to Dana components, which should always render a solid background on a surface before rendering any contents
+	SDL_SetTextureBlendMode(st, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(instance -> renderer, 255, 255, 255, 0);
+	SDL_RenderClear(instance -> renderer);
+
+	return RETURN_OK;
+	}
+
+INSTRUCTION_DEF op_flow_pop_surface(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	//SDL_SetTextureAlphaMod(st, poly -> a);
+
+	SurfaceElement* surface = instance -> surfaces;
+	instance -> surfaces = surface -> next;
+
+	if (instance -> surfaces != NULL)
+		{
+		SDL_SetRenderTarget(instance -> renderer, instance -> surfaces -> surface);
+		instance -> xScroll = instance -> surfaces -> xScroll;
+		instance -> yScroll = instance -> surfaces -> yScroll;
+		}
+		else
+		{
+		SDL_SetRenderTarget(instance -> renderer, NULL);
+		instance -> xScroll = 0;
+		instance -> yScroll = 0;
+		}
+
+	renderTexture(surface -> surface, instance -> renderer, surface -> xPos, surface -> yPos, 0);
+	SDL_DestroyTexture(surface -> surface);
+	
+	free(surface);
+	
+	return RETURN_OK;
+	}
+
+//3D
+
+INSTRUCTION_DEF op_flow_vertices(FrameData* cframe)
+	{
+	FlowInstance* instance = NULL;
+	memcpy(&instance, api -> getParamRaw(cframe, 0), sizeof(void*));
+
+	/*
+	DanaEl* array = api -> getParamEl(cframe, 1);
+	size_t r = api -> getParamRaw(cframe, 2)[0];
+	size_t g = api -> getParamRaw(cframe, 3)[0];
+	size_t b = api -> getParamRaw(cframe, 4)[0];
+	size_t a = api -> getParamRaw(cframe, 5)[0];
+	*/
+
+
+	return RETURN_OK;
+	}
+
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
@@ -4324,6 +5841,11 @@ Interface* load(CoreAPI *capi)
 	dropDataGT = api -> resolveGlobalTypeMapping(getTypeDefinition("DropEventData"));
 	pixelMapGT = api -> resolveGlobalTypeMapping(getTypeDefinition("PixelMap"));
 	whGT = api -> resolveGlobalTypeMapping(getTypeDefinition("WH"));
+
+	flowEventGT = api -> resolveGlobalTypeMapping(getTypeDefinition("FlowEvent"));
+	flowEventArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("FlowEvent[]"));
+
+	//Desktop UI function bindings
 	
 	setInterfaceFunction("makeWindow", op_make_window);
 	setInterfaceFunction("addRect", op_add_rect);
@@ -4370,6 +5892,54 @@ Interface* load(CoreAPI *capi)
 	setInterfaceFunction("isFontFixedWidth", op_is_font_fixed_width);
 	setInterfaceFunction("getTextBitmapWith", op_get_text_bitmap_with);
 	setInterfaceFunction("unloadFont", op_unload_font);
+
+	//flow function bindings
+	setInterfaceFunction("flow_initMediaLayer", op_flow_init_media_layer);
+	setInterfaceFunction("flow_makeWindow", op_flow_make_window);
+	setInterfaceFunction("flow_setVisible", op_flow_set_visible);
+	setInterfaceFunction("flow_setResizable", op_flow_set_resizable);
+	setInterfaceFunction("flow_setSize", op_flow_set_size);
+	setInterfaceFunction("flow_setPosition", op_flow_set_position);
+	setInterfaceFunction("flow_setFullScreen", op_flow_set_fullscreen);
+	setInterfaceFunction("flow_setTitle", op_flow_set_title);
+	setInterfaceFunction("flow_setIcon", op_flow_set_icon);
+	setInterfaceFunction("flow_setCursor", op_flow_set_cursor);
+	setInterfaceFunction("flow_closeWindow", op_flow_close_window);
+
+	setInterfaceFunction("flow_getEvents", op_flow_get_events);
+	setInterfaceFunction("flow_renderBegin", op_flow_render_begin);
+	setInterfaceFunction("flow_renderEnd", op_flow_render_end);
+	setInterfaceFunction("flow_wait", op_flow_wait);
+	setInterfaceFunction("flow_getPixels", op_flow_get_pixels);
+
+	setInterfaceFunction("flow_point", op_flow_point);
+	setInterfaceFunction("flow_line", op_flow_line);
+	setInterfaceFunction("flow_rect", op_flow_rect);
+	setInterfaceFunction("flow_curve", op_flow_curve);
+	setInterfaceFunction("flow_ellipse", op_flow_ellipse);
+	setInterfaceFunction("flow_ellipseOutline", op_flow_ellipse_outline);
+	setInterfaceFunction("flow_arc", op_flow_arc);
+	setInterfaceFunction("flow_pie", op_flow_pie);
+	setInterfaceFunction("flow_polygon", op_flow_polygon);
+	setInterfaceFunction("flow_polygonOutline", op_flow_polygon_outline);
+	setInterfaceFunction("flow_polygonBezier", op_flow_polygon_bezier);
+	setInterfaceFunction("flow_polygonBezierOutline", op_flow_polygon_bezier_outline);
+	setInterfaceFunction("flow_bitmap", op_flow_bitmap);
+	setInterfaceFunction("flow_textWith", op_flow_text_with);
+
+	setInterfaceFunction("flow_loadFont", op_flow_load_font);
+	setInterfaceFunction("flow_getTextWidth", op_flow_get_text_width_with);
+	setInterfaceFunction("flow_getFontMetrics", op_flow_get_font_metrics);
+	setInterfaceFunction("flow_getFontName", op_flow_get_font_name);
+	setInterfaceFunction("flow_isFontFixedWidth", op_flow_is_font_fixed_width);
+	setInterfaceFunction("flow_getTextBitmapWith", op_flow_get_text_bitmap_with);
+	setInterfaceFunction("flow_unloadFont", op_flow_unload_font);
+
+	setInterfaceFunction("flow_pushSurface", op_flow_push_surface);
+	setInterfaceFunction("flow_popSurface", op_flow_pop_surface);
+
+	// flow 3D
+	//setInterfaceFunction("flow_vertices", op_flow_vertices);
 	
 	#ifdef WINDOWS
 	InitializeCriticalSection(&measureTextLock);
