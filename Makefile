@@ -91,14 +91,11 @@ else
     endif
     ifneq ($(UNAME_S),Darwin)
         UNAME_P := $(shell uname -p)
-        UNAME_N := $(shell uname -n)
-        ifeq ($(UNAME_P),unknown)
-         ifeq ($(filter %raspberrypi,$(UNAME_N)),)
-            $(warning Host chipset could not be detected; defaulting to x686 (64-bit Intel).)
+		ifeq ($(UNAME_P),unknown)
+			$(warning Host chipset could not be detected; defaulting to x686 (64-bit Intel).)
             CCFLAGS += -DMACHINE_64
             CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
             CHIP = x64
-         endif
         endif
         ifeq ($(UNAME_P),x86_64)
             CCFLAGS += -DMACHINE_64
@@ -113,6 +110,7 @@ else
         ifneq ($(filter arm%,$(UNAME_P)),)
             CCFLAGS += -DARM
         endif
+        UNAME_N := $(shell uname -n)
         ifneq ($(filter %raspberrypi,$(UNAME_N)),)
             CCFLAGS += -DMACHINE_32
             CCFLAGS += -DLIB_CHIP_NAME=\"armv6\"
