@@ -1,17 +1,18 @@
 #include "dana_lib_defs.h"
 #include <string.h>
+#include <stdio.h>
 DanaType emptyType = {TYPE_PATTERN, 0, 0, NULL, 0};
 #define ADDRESS_ALIGN true
 #define ADDRESS_WIDTH sizeof(size_t)
 static const DanaType bool_def = 
-{TYPE_LITERAL, 0, 1, NULL, 0};
+{TYPE_LITERAL, 0x1, 1, NULL, 0};
 static const DanaType Object_def;
 static const DanaTypeField function_Object_clone_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
 static const DanaTypeField function_Object_equals_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &Object_def, NULL, 0, 1, 8}};
 static const DanaType char_def = 
-{TYPE_LITERAL, 0, 1, NULL, 0};
+{TYPE_LITERAL, 0x2, 1, NULL, 0};
 static const DanaTypeField char_array_fields[] = {
 {(DanaType*) &char_def, NULL, 0, 0, 0}};
 static const DanaType char_array_def = 
@@ -21,10 +22,10 @@ static const DanaTypeField function_Object_toString_fields[] = {
 static const DanaTypeField function_Object_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
 static const DanaType Object_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Object_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Object_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Object_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Object_getID_fields, 1}};
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Object_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Object_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Object_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Object_getID_fields, 1}};
 static const DanaTypeField Object_functions_spec_fields[] = {
 {(DanaType*) &Object_functions_spec[0], "clone", 5},
 {(DanaType*) &Object_functions_spec[1], "equals", 6},
@@ -71,21 +72,21 @@ static const DanaTypeField function_Source_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
 static const DanaTypeField Format_fields[] = {
 {(DanaType*) &byte_def, NULL, 0, 0, 0},
-{(DanaType*) &int_def, NULL, 0, 0, 0},
-{(DanaType*) &int_def, NULL, 0, 0, 0}};
+{(DanaType*) &int_def, NULL, 0, 0, 0+1},
+{(DanaType*) &int_def, NULL, 0, 0, 0+1+sizeof(size_t)}};
 static const DanaType Format_def = 
 {TYPE_DATA, 0, 17, (DanaTypeField*) Format_fields, 3};
 static const DanaTypeField function_Source_Source_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &byte_array_def, NULL, 0, 0, 8},
-{(DanaType*) &Format_def, NULL, 0, 0, 48}};
+{(DanaType*) &Format_def, NULL, 0, 0, 24}};
 static const DanaTypeField function_Source_getLength_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaType Source_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Source_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Source_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Source_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Source_getID_fields, 1},
-{TYPE_FUNCTION, 0, 88, (DanaTypeField*) function_Source_Source_fields, 3},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Source_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Source_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Source_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Source_getID_fields, 1},
+{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Source_Source_fields, 3},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) function_Source_getLength_fields, 1}};
 static const DanaTypeField Source_functions_spec_fields[] = {
 {(DanaType*) &Source_functions_spec[0], "clone", 5},
@@ -124,11 +125,11 @@ static const DanaTypeField function_Track_setPosMS_fields[] = {
 static const DanaTypeField function_Track_getPosMS_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaType Track_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Track_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Track_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Track_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) function_Track_getID_fields, 1},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) function_Track_Track_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Track_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Track_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Track_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) function_Track_getID_fields, 1},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) function_Track_Track_fields, 2},
 {TYPE_FUNCTION, 0, 1, (DanaTypeField*) function_Track_setFinishEvent_fields, 2},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) function_Track_setVolume_fields, 2},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) function_Track_getLengthFrames_fields, 1},
@@ -164,9 +165,9 @@ static const DanaTypeField Track_spec_fields[] = {
 static const DanaType Track_def = {TYPE_OBJECT, 0, 0, (DanaTypeField*) Track_spec_fields, 3};
 static const DanaTypeField DeviceInfo_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0},
-{(DanaType*) &char_array_def, NULL, 0, 0, 0}};
+{(DanaType*) &char_array_def, NULL, 0, 0, 0+sizeof(size_t)}};
 static const DanaType DeviceInfo_def = 
-{TYPE_DATA, 0, 48, (DanaTypeField*) DeviceInfo_fields, 2};
+{TYPE_DATA, 0, 24, (DanaTypeField*) DeviceInfo_fields, 2};
 static const DanaTypeField DeviceInfo_array_fields[] = {
 {(DanaType*) &DeviceInfo_def, NULL, 0, 0, 0}};
 static const DanaType DeviceInfo_array_def = 
@@ -182,13 +183,13 @@ static const DanaTypeField function_AudioLib_getID_fields[] = {
 static const DanaTypeField function_AudioLib_decoderLoad_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &byte_def, NULL, 0, 0, 8},
 {(DanaType*) &byte_array_def, NULL, 0, 0, 16},
-{(DanaType*) &byte_def, NULL, 0, 0, 56},
-{(DanaType*) &int_def, NULL, 0, 0, 57},
-{(DanaType*) &int_def, NULL, 0, 0, 65}};
+{(DanaType*) &byte_def, NULL, 0, 0, 32},
+{(DanaType*) &int_def, NULL, 0, 0, 33},
+{(DanaType*) &int_def, NULL, 0, 0, 41}};
 static const DanaTypeField function_AudioLib_decoderGetLengthFrames_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 8}};
 static const DanaTypeField function_AudioLib_decoderGetRawData_fields[] = {
-{(DanaType*) &byte_array_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 40}};
+{(DanaType*) &byte_array_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 16}};
 static const DanaTypeField function_AudioLib_decoderDestroy_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_AudioLib_trackLoad_fields[] = {
@@ -217,11 +218,11 @@ static const DanaTypeField function_AudioLib_deviceSetDevice_fields[] = {
 static const DanaTypeField function_AudioLib_devicePlay_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
 {(DanaType*) &Track_def, NULL, 0, 0, 16},
-{(DanaType*) &int_def, NULL, 0, 0, 56}};
+{(DanaType*) &int_def, NULL, 0, 0, 32}};
 static const DanaTypeField function_AudioLib_deviceLoop_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
 {(DanaType*) &Track_def, NULL, 0, 0, 16},
-{(DanaType*) &int_def, NULL, 0, 0, 56}};
+{(DanaType*) &int_def, NULL, 0, 0, 32}};
 static const DanaTypeField function_AudioLib_deviceStop_fields[] = {
 {(DanaType*) &bool_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 1},
 {(DanaType*) &int_def, NULL, 0, 0, 9}};
@@ -236,17 +237,17 @@ static const DanaTypeField function_AudioLib_getCaptureDevices_fields[] = {
 static const DanaTypeField TrackInfo_fields[] = {
 {(DanaType*) &Track_def, NULL, 0, 0, 0}};
 static const DanaType TrackInfo_def = 
-{TYPE_DATA, 0, 40, (DanaTypeField*) TrackInfo_fields, 1};
+{TYPE_DATA, 0, 16, (DanaTypeField*) TrackInfo_fields, 1};
 static const DanaTypeField event_AudioLib_trackFinished_fields[] = {
 {(DanaType*) &TrackInfo_def, NULL, 0, 0, 0}};
 static const DanaType object_AudioLib_functions_spec[] = {
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_AudioLib_clone_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_AudioLib_equals_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_AudioLib_toString_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_AudioLib_getID_fields, 1},
-{TYPE_FUNCTION, 0, 73, (DanaTypeField*) &function_AudioLib_decoderLoad_fields, 6},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_AudioLib_clone_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_AudioLib_equals_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_AudioLib_toString_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_AudioLib_getID_fields, 1},
+{TYPE_FUNCTION, 0, 49, (DanaTypeField*) &function_AudioLib_decoderLoad_fields, 6},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_AudioLib_decoderGetLengthFrames_fields, 2},
-{TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_AudioLib_decoderGetRawData_fields, 2},
+{TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_AudioLib_decoderGetRawData_fields, 2},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_AudioLib_decoderDestroy_fields, 2},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_AudioLib_trackLoad_fields, 2},
 {TYPE_FUNCTION, 0, 17, (DanaTypeField*) &function_AudioLib_trackSetVolume_fields, 3},
@@ -256,13 +257,13 @@ static const DanaType object_AudioLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_AudioLib_trackDestroy_fields, 2},
 {TYPE_FUNCTION, 0, 33, (DanaTypeField*) &function_AudioLib_deviceInit_fields, 5},
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_AudioLib_deviceSetDevice_fields, 3},
-{TYPE_FUNCTION, 0, 64, (DanaTypeField*) &function_AudioLib_devicePlay_fields, 4},
-{TYPE_FUNCTION, 0, 64, (DanaTypeField*) &function_AudioLib_deviceLoop_fields, 4},
+{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_AudioLib_devicePlay_fields, 4},
+{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_AudioLib_deviceLoop_fields, 4},
 {TYPE_FUNCTION, 0, 17, (DanaTypeField*) &function_AudioLib_deviceStop_fields, 3},
 {TYPE_FUNCTION, 0, 9, (DanaTypeField*) &function_AudioLib_deviceStopAll_fields, 2},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_AudioLib_deviceDestroy_fields, 2},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_AudioLib_getPlaybackDevices_fields, 1},
-{TYPE_FUNCTION, 0, 40, (DanaTypeField*) &function_AudioLib_getCaptureDevices_fields, 1}};
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_AudioLib_getPlaybackDevices_fields, 1},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_AudioLib_getCaptureDevices_fields, 1}};
 static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_AudioLib_functions_spec[0], "clone", 5},
 {(DanaType*) &object_AudioLib_functions_spec[1], "equals", 6},
@@ -355,27 +356,27 @@ static InterfaceDetails ids[] = {{"AudioLib", 8, &libType}};
 static Interface objectInterfaces[] = {{&ids[0], {&self, NULL, NULL, interfaceFunctions, NULL, NULL}}		};
 static ObjectSpec objects[] = {{objectInterfaces, 1, 0, 1, 0, (size_t) &bool_def, (size_t) &emptyType}};
 Interface* getPublicInterface(){
-((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
+((VFrameHeader*) op_clone_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_clone_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_clone_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_clone_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[0];
 ((VFrameHeader*) op_clone_thread_spec) -> functionName = "clone";
-((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
+((VFrameHeader*) op_equals_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_equals_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_equals_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_equals_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[1];
 ((VFrameHeader*) op_equals_thread_spec) -> functionName = "equals";
-((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
+((VFrameHeader*) op_toString_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_toString_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_toString_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_toString_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[2];
 ((VFrameHeader*) op_toString_thread_spec) -> functionName = "toString";
-((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
+((VFrameHeader*) op_getID_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getID_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getID_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[3];
 ((VFrameHeader*) op_getID_thread_spec) -> functionName = "getID";
-((VFrameHeader*) op_decoderLoad_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 73;
+((VFrameHeader*) op_decoderLoad_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 49;
 ((VFrameHeader*) op_decoderLoad_thread_spec) -> formalParamsCount = 5;
 ((VFrameHeader*) op_decoderLoad_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_decoderLoad_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[4];
@@ -385,7 +386,7 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_decoderGetLengthFrames_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_decoderGetLengthFrames_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[5];
 ((VFrameHeader*) op_decoderGetLengthFrames_thread_spec) -> functionName = "decoderGetLengthFrames";
-((VFrameHeader*) op_decoderGetRawData_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
+((VFrameHeader*) op_decoderGetRawData_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_decoderGetRawData_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_decoderGetRawData_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_decoderGetRawData_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[6];
@@ -435,12 +436,12 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_deviceSetDevice_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_deviceSetDevice_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[15];
 ((VFrameHeader*) op_deviceSetDevice_thread_spec) -> functionName = "deviceSetDevice";
-((VFrameHeader*) op_devicePlay_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 64;
+((VFrameHeader*) op_devicePlay_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_devicePlay_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_devicePlay_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_devicePlay_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[16];
 ((VFrameHeader*) op_devicePlay_thread_spec) -> functionName = "devicePlay";
-((VFrameHeader*) op_deviceLoop_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 64;
+((VFrameHeader*) op_deviceLoop_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_deviceLoop_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_deviceLoop_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_deviceLoop_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[17];
@@ -460,12 +461,12 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_deviceDestroy_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_deviceDestroy_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[20];
 ((VFrameHeader*) op_deviceDestroy_thread_spec) -> functionName = "deviceDestroy";
-((VFrameHeader*) op_getPlaybackDevices_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
+((VFrameHeader*) op_getPlaybackDevices_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getPlaybackDevices_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getPlaybackDevices_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getPlaybackDevices_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[21];
 ((VFrameHeader*) op_getPlaybackDevices_thread_spec) -> functionName = "getPlaybackDevices";
-((VFrameHeader*) op_getCaptureDevices_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
+((VFrameHeader*) op_getCaptureDevices_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getCaptureDevices_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getCaptureDevices_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getCaptureDevices_thread_spec) -> localsDef = (size_t) &object_AudioLib_functions_spec[22];
@@ -542,6 +543,7 @@ if (strcmp(dataMappings[i].name, name) == 0){
 return dataMappings[i].dataType;
 }
 }
+printf("Exception::type '%s' is not referenced by associated Dana interface '%s' of native library", name, ids[0].name);
 return NULL;
 }
 

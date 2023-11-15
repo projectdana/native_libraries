@@ -1594,7 +1594,7 @@ static void render_thread()
 				else if (e.type == SDL_DROPFILE)
 				{
 				char* dropped_filedir = e.drop.file;
-				
+
 				WindowInstance *myInstance = findWindow(e.drop.windowID);
 				
 				if (myInstance != NULL)
@@ -1612,6 +1612,21 @@ static void render_thread()
 				
 				SDL_free(dropped_filedir);
 				}
+				/*
+				else if (e.type == SDL_DROPTEXT)
+				{
+				char* dropped_filedir = e.drop.file;
+
+				WindowInstance *myInstance = findWindow(e.drop.windowID);
+				
+				if (myInstance != NULL)
+					{
+					printf("text: %s\n", dropped_filedir);
+					}
+				
+				SDL_free(dropped_filedir);
+				}
+				*/
 				else if (e.type == DX_NEW_WINDOW_EVENT)
 				{
 				WindowInstance *nw = createNewWindow();
@@ -5833,6 +5848,7 @@ INSTRUCTION_DEF op_flow_vertices(FrameData* cframe)
 Interface* load(CoreAPI *capi)
 	{
 	api = capi;
+	
 	// grab global type mappings for anything that we generate here
 	charArrayGT = api -> resolveGlobalTypeMapping(getTypeDefinition("char[]"));
 	integerGT = api -> resolveGlobalTypeMapping(&intType);

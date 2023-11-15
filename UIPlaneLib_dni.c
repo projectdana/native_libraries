@@ -1,5 +1,6 @@
 #include "dana_lib_defs.h"
 #include <string.h>
+#include <stdio.h>
 DanaType emptyType = {TYPE_PATTERN, 0, 0, NULL, 0};
 #define ADDRESS_ALIGN true
 #define ADDRESS_WIDTH sizeof(size_t)
@@ -1565,6 +1566,7 @@ if (strcmp(dataMappings[i].name, name) == 0){
 return dataMappings[i].dataType;
 }
 }
+printf("Exception::type '%s' is not referenced by associated Dana interface '%s' of native library", name, ids[0].name);
 return NULL;
 }
 
