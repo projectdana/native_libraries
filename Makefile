@@ -9,7 +9,7 @@ INSTALL_PATH=
 CP_CMD=
 CHIP=
 PLATFORM=
-ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib x509_lib audio rwlock semaphore clockhd
+ALL_RULES = calendar cmdln iofile iotcp ioudp dns sysinfo timer run math mysql_lib uiplane png jpg zlib clipboard ssl_lib sha_lib cipher_lib x509_lib audio rwlock semaphore clockhd opencl
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -DWINDOWS
@@ -19,7 +19,7 @@ ifeq ($(OS),Windows_NT)
 	CP_CMD = copy
 	PLATFORM = win
 	CCFLAGS += -shared
-	NET_LIBS = wepoll/wepoll.c -lws2_32
+	NET_LIBS = C:/libs/wepoll/wepoll.c -lws2_32 -I C:/libs/
 	MYSQL_CONCPP_DIR= "C:/libs/MySQL Connector C 6.1"
 	MYSQL_INCLUDE = -I $(MYSQL_CONCPP_DIR)/include -L $(MYSQL_CONCPP_DIR)/lib
 	MYSQL_LIBS = -lmysql
@@ -33,6 +33,8 @@ ifeq ($(OS),Windows_NT)
 	SSL_LIBS = C:/libs/openssl-3.1.1/libssl.a C:/libs/openssl-3.1.1/libcrypto.a -lws2_32 -lgdi32 -lADVAPI32 -luser32
 	AUDIO_INCLUDE = -I "C:/libs/miniaudio"
 	AUDIO_LIBS = -lm -lpthread
+	OPENCL_LIBS = C:/libs/opencl-icd/lib/OpenCL.lib
+	OPENCL_INCLUDE = -I C:/libs/opencl-icd/include/
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CCFLAGS += -DMACHINE_64
 		CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
@@ -66,6 +68,8 @@ else
 	JPG_LIBS = ~/libs/jpeg_lib/libjpeg.a
 	PNG_INCLUDE = -I ~/libs/png_lib/include/libpng16
 	PNG_LIBS = ~/libs/png_lib/libpng.a -lz -lm
+	OPENCL_LIBS = ~/libs/opencl-icd/lib/libOpenCL.a
+	OPENCL_INCLUDE = -I ~/libs/opencl-icd/khronos-headers
     ifeq ($(UNAME_S),Linux)
         CCFLAGS += -DLINUX
 		CCFLAGS += -DLIB_PLATFORM_NAME=\"deb\"
@@ -88,6 +92,7 @@ else
 		MYSQL_INCLUDE = -I /usr/local/mysql-8.0.12-macos10.13-x86_64/include/
 		MYSQL_LIBS = /usr/local/lib/libcrypto.a /usr/local/lib/libssl.a /usr/local/mysql/lib/libmysqlclient.a -lpthread -lz -lm -ldl -lstdc++
 		CLIPBOARD_LIBS = -framework ApplicationServices -x objective-c -ObjC -std=c99
+		OPENCL_LIBS = -framework OpenCL
     endif
     ifneq ($(UNAME_S),Darwin)
         UNAME_P := $(shell uname -p)
@@ -115,6 +120,9 @@ else
             CCFLAGS += -DMACHINE_32
             CCFLAGS += -DLIB_CHIP_NAME=\"armv6\"
             CHIP = armv6
+# this is a temporary workaround; opencl will be built for Pi in the future
+			FILTER_RULES := $(filter-out opencl,$(ALL_RULES))
+			ALL_RULES := $(FILTER_RULES)
 			SDL_LIBS = /usr/local/lib/libSDL2main.a /usr/local/lib/libSDL2.a /usr/local/lib/libSDL2_ttf.a ~/libs/SDL2_gfx/.libs/libSDL2_gfx.a -lm -lfreetype -L/opt/vc/lib -lbcm_host
         endif
     endif
@@ -219,5 +227,9 @@ semaphore:
 clockhd:
 	$(CC) -Os -s ClockHDLib_dni.c $(API_PATH)/vmi_util.c ClockHDLib.c -o ClockHDLib[$(PLATFORM).$(CHIP)].dnl $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) ClockHDLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
+
+opencl:
+	$(CC) -g -s OpenCLLib_dni.c $(API_PATH)/vmi_util.c OpenCLLib.c -o OpenCLLib[$(PLATFORM).$(CHIP)].dnl $(OPENCL_LIBS) $(OPENCL_INCLUDE) $(STD_INCLUDE) $(CCFLAGS)
+	$(CP_CMD) OpenCLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 all: $(ALL_RULES)
