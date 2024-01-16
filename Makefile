@@ -96,8 +96,8 @@ else
     endif
     ifneq ($(UNAME_S),Darwin)
         UNAME_P := $(shell uname -p)
-		ifeq ($(UNAME_P),unknown)
-			$(warning Host chipset could not be detected; defaulting to x686 (64-bit Intel).)
+        ifeq ($(UNAME_P),unknown)
+            $(warning Host chipset could not be detected; defaulting to x686 (64-bit Intel).)
             CCFLAGS += -DMACHINE_64
             CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
             CHIP = x64

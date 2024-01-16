@@ -1,5 +1,6 @@
 #include "dana_lib_defs.h"
 #include <string.h>
+#include <stdio.h>
 DanaType emptyType = {TYPE_PATTERN, 0, 0, NULL, 0};
 #define ADDRESS_ALIGN true
 #define ADDRESS_WIDTH sizeof(size_t)
@@ -592,6 +593,8 @@ static const DanaTypeField event_UIPlaneLib_keyUp_fields[] = {
 {(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
 static const DanaTypeField event_UIPlaneLib_resize_fields[] = {
 {(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
+static const DanaTypeField event_UIPlaneLib_move_fields[] = {
+{(DanaType*) &WindowEventData_def, NULL, 0, 0, 0}};
 static const DanaTypeField event_UIPlaneLib_drop_fields[] = {
 {(DanaType*) &DropEventData_def, NULL, 0, 0, 0}};
 static const DanaTypeField event_UIPlaneLib_close_fields[] = {
@@ -781,6 +784,7 @@ static const DanaType object_UIPlaneLib_events_spec[] = {
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_keyDown_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_keyUp_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_resize_fields, 1},
+{TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_move_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_drop_fields, 1},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_close_fields, 0},
 {TYPE_EVENTSOURCE, 0, 0, (DanaTypeField*) &event_UIPlaneLib_post_shutdown_fields, 0}};
@@ -793,12 +797,13 @@ static const DanaTypeField intf_events_def[] = {
 {(DanaType*) &object_UIPlaneLib_events_spec[5], "keyDown", 7},
 {(DanaType*) &object_UIPlaneLib_events_spec[6], "keyUp", 5},
 {(DanaType*) &object_UIPlaneLib_events_spec[7], "resize", 6},
-{(DanaType*) &object_UIPlaneLib_events_spec[8], "drop", 4},
-{(DanaType*) &object_UIPlaneLib_events_spec[9], "close", 5},
-{(DanaType*) &object_UIPlaneLib_events_spec[10], "post_shutdown", 13}};
+{(DanaType*) &object_UIPlaneLib_events_spec[8], "move", 4},
+{(DanaType*) &object_UIPlaneLib_events_spec[9], "drop", 4},
+{(DanaType*) &object_UIPlaneLib_events_spec[10], "close", 5},
+{(DanaType*) &object_UIPlaneLib_events_spec[11], "post_shutdown", 13}};
 static const DanaType UIPlaneLib_object_spec[] = {
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 86},
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 11},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 12},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
 static const DanaTypeField intf_def[] = {
@@ -1565,6 +1570,7 @@ if (strcmp(dataMappings[i].name, name) == 0){
 return dataMappings[i].dataType;
 }
 }
+printf("Exception::type '%s' is not referenced by associated Dana interface '%s' of native library", name, ids[0].name);
 return NULL;
 }
 

@@ -1446,7 +1446,7 @@ static void render_thread()
 					else if (e.window.event == SDL_WINDOWEVENT_CLOSE)
 					{
 					WindowInstance *myInstance = findWindow(e.window.windowID);
-					pushEvent(myInstance, 9);
+					pushEvent(myInstance, 10);
 					}
 					else if (e.window.event == SDL_WINDOWEVENT_RESIZED)
 					{
@@ -1478,8 +1478,14 @@ static void render_thread()
 						
 						if (x < 0) x = 0;
 						if (y < 0) y = 0;
+
+						#ifdef LINUX
+						int top, bottom, left, right;
+						SDL_GetWindowBordersSize(myInstance -> win, &top, &left, &bottom, &right);
+						if (y > top) y -= top;
+						#endif
 						
-						//pushMouseEvent(myInstance, 5, 0, x, y);
+						pushMouseEvent(myInstance, 8, 0, x, y, 0, 0);
 						}
 					
 					newFrame = true;
@@ -3523,7 +3529,7 @@ static void pushDropEvent(WindowInstance *w, char* path, size_t x, size_t y)
 	
 	api -> setDataFieldEl(nd, 2, na);
 	
-	api -> pushEvent(w -> eqObject, 0, 8, nd);
+	api -> pushEvent(w -> eqObject, 0, 9, nd);
 	}
 
 static void pushEvent(WindowInstance *w, size_t type)
