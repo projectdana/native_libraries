@@ -1,5 +1,6 @@
 #include "dana_lib_defs.h"
 #include <string.h>
+#include <stdio.h>
 DanaType emptyType = {TYPE_PATTERN, 0, 0, NULL, 0};
 #define ADDRESS_ALIGN true
 #define ADDRESS_WIDTH sizeof(size_t)
@@ -142,7 +143,7 @@ static const DanaTypeField function_SSLLib_read_nb_fields[] = {
 static const DanaTypeField function_SSLLib_closeSSL_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_SSLLib_closeSSL_nb_fields[] = {
-{(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
+{(DanaType*) &int_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 8}};
 static const DanaTypeField function_SSLLib_freeSSL_fields[] = {
 {(DanaType*) &void_def, NULL, 0, 0, 0},{(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaType object_SSLLib_functions_spec[] = {
@@ -172,7 +173,7 @@ static const DanaType object_SSLLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 32, (DanaTypeField*) &function_SSLLib_read_fields, 3},
 {TYPE_FUNCTION, 0, 48, (DanaTypeField*) &function_SSLLib_read_nb_fields, 4},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_SSLLib_closeSSL_fields, 2},
-{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_SSLLib_closeSSL_nb_fields, 2},
+{TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_SSLLib_closeSSL_nb_fields, 2},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_SSLLib_freeSSL_fields, 2}};
 static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_SSLLib_functions_spec[0], "clone", 5},
@@ -409,7 +410,7 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_closeSSL_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_closeSSL_thread_spec) -> localsDef = (size_t) &object_SSLLib_functions_spec[25];
 ((VFrameHeader*) op_closeSSL_thread_spec) -> functionName = "closeSSL";
-((VFrameHeader*) op_closeSSL_nb_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
+((VFrameHeader*) op_closeSSL_nb_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_closeSSL_nb_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_closeSSL_nb_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_closeSSL_nb_thread_spec) -> localsDef = (size_t) &object_SSLLib_functions_spec[26];
@@ -496,6 +497,7 @@ if (strcmp(dataMappings[i].name, name) == 0){
 return dataMappings[i].dataType;
 }
 }
+printf("Exception::type '%s' is not referenced by associated Dana interface '%s' of native library", name, ids[0].name);
 return NULL;
 }
 

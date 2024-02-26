@@ -45,7 +45,7 @@ static GlobalTypeLink* intMatrixGT = NULL;
 static GlobalTypeLink* decMatrixGT = NULL;
 static GlobalTypeLink* decArrayGT = NULL;
 
-static uint8_t alreadyInitFlag = 0;
+static bool initOK = false;
 
 /*
  * these global variables are set in init()
@@ -205,6 +205,12 @@ INSTRUCTION_DEF printLogs(FrameData *cframe) {
 }
 
 INSTRUCTION_DEF createContextSpace(FrameData *cframe) {
+    if (numofPlatforms == 0)
+        {
+        api->returnInt(cframe, 0);
+        return RETURN_OK;
+        }
+    
     DANA_COMP* dana_component_id = (DANA_COMP*) malloc(sizeof(DANA_COMP));
     dana_component_id->contexts = NULL;
     api->returnInt(cframe, (size_t) dana_component_id);
@@ -226,20 +232,16 @@ INSTRUCTION_DEF createContextSpace(FrameData *cframe) {
  * that manages calls to this native library on behalf
  * of other components
  */
-INSTRUCTION_DEF init(FrameData *cframe) {
+static void initOpenCL()
+    {
     cl_int CL_err = CL_SUCCESS;
-
-    if (alreadyInitFlag) {
-        return RETURN_OK;
-    }
-
-    globalClPlatforms = (cl_platform_id*) malloc(sizeof(cl_platform_id)*MAX_PLATFORMS);
     
+    globalClPlatforms = (cl_platform_id*) malloc(sizeof(cl_platform_id)*MAX_PLATFORMS);
+
     CL_err = clGetPlatformIDs( MAX_PLATFORMS, globalClPlatforms, &numofPlatforms );
     if (CL_err != CL_SUCCESS) {
-        printf("no opencl implimentation found\n");
-        api->returnInt(cframe, (size_t) 1);
-        return RETURN_OK;
+        numofPlatforms = 0;
+        return;
     }
 
     devices = (cl_device_id**) malloc(sizeof(cl_device_id*)*numofPlatforms);
@@ -250,17 +252,13 @@ INSTRUCTION_DEF init(FrameData *cframe) {
         *(devices+i) = (cl_device_id*) malloc(sizeof(cl_device_id)*MAX_DEVICES);
         CL_err = clGetDeviceIDs(*(globalClPlatforms+i), CL_DEVICE_TYPE_ALL, MAX_DEVICES, *(devices+i), &returnNumOfDevices);
         if (CL_err != CL_SUCCESS) {
-            printf("error in clGetDeviceIDs: %d\n", CL_err);
+            printf("Error in clGetDeviceIDs: %d\n", CL_err);
         }
         *(numOfDevicesPerPlatform+i) = returnNumOfDevices;
     }
 
-    alreadyInitFlag = 1;
-
-    api->returnInt(cframe, (size_t) 0);
-
-    return RETURN_OK;
-}
+    initOK = true;
+    }
 
 /* Returns to the caller all the device IDs
  * available to the system from the global state
@@ -271,7 +269,7 @@ INSTRUCTION_DEF init(FrameData *cframe) {
 INSTRUCTION_DEF getComputeDeviceIDs(FrameData *cframe) {
     //cl_int CL_err = CL_SUCCESS;
 
-    if (devices == NULL) {
+    if (numofPlatforms == 0) {
         //return empty array
         DanaEl* newArray = api->makeArray(stringArrayGT, 0, NULL);
         api->returnEl(cframe, newArray);
@@ -318,7 +316,7 @@ INSTRUCTION_DEF getComputeDeviceIDs(FrameData *cframe) {
  */
 INSTRUCTION_DEF getComputeDevices(FrameData *cframe) {
     cl_int CL_err = CL_SUCCESS;
-    if (devices == NULL) {
+    if (numofPlatforms == 0) {
         //return empty array
         DanaEl* newArray = api->makeArray(stringArrayGT, 0, NULL);
         api->returnEl(cframe, newArray);
@@ -1033,10 +1031,11 @@ INSTRUCTION_DEF findPlatforms(void) {
 Interface* load(CoreAPI* capi) {
     api = capi;
 
+    initOpenCL();
+
     setInterfaceFunction("findPlatforms", findPlatforms);
     setInterfaceFunction("getComputeDeviceIDs", getComputeDeviceIDs);
     setInterfaceFunction("getComputeDevices", getComputeDevices);
-    setInterfaceFunction("init", init);
     setInterfaceFunction("createContext", createContext);
     setInterfaceFunction("createAsynchQueue", createAsynchQueue);
     setInterfaceFunction("createSynchQueue", createSynchQueue);

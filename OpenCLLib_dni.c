@@ -80,8 +80,6 @@ static const DanaTypeField function_OpenCLLib_toString_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_OpenCLLib_getID_fields[] = {
 {(DanaType*) &char_array_def, NULL, 0, 0, 0}};
-static const DanaTypeField function_OpenCLLib_init_fields[] = {
-{(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_OpenCLLib_createContextSpace_fields[] = {
 {(DanaType*) &int_def, NULL, 0, 0, 0}};
 static const DanaTypeField function_OpenCLLib_findPlatforms_fields[] = {
@@ -170,7 +168,6 @@ static const DanaType object_OpenCLLib_functions_spec[] = {
 {TYPE_FUNCTION, 0, 24, (DanaTypeField*) &function_OpenCLLib_equals_fields, 2},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_OpenCLLib_toString_fields, 1},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_OpenCLLib_getID_fields, 1},
-{TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_OpenCLLib_init_fields, 1},
 {TYPE_FUNCTION, 0, 8, (DanaTypeField*) &function_OpenCLLib_createContextSpace_fields, 1},
 {TYPE_FUNCTION, 0, 0, (DanaTypeField*) &function_OpenCLLib_findPlatforms_fields, 1},
 {TYPE_FUNCTION, 0, 16, (DanaTypeField*) &function_OpenCLLib_getComputeDeviceIDs_fields, 1},
@@ -201,36 +198,35 @@ static const DanaTypeField intf_functions_def[] = {
 {(DanaType*) &object_OpenCLLib_functions_spec[1], "equals", 6},
 {(DanaType*) &object_OpenCLLib_functions_spec[2], "toString", 8},
 {(DanaType*) &object_OpenCLLib_functions_spec[3], "getID", 5},
-{(DanaType*) &object_OpenCLLib_functions_spec[4], "init", 4},
-{(DanaType*) &object_OpenCLLib_functions_spec[5], "createContextSpace", 18},
-{(DanaType*) &object_OpenCLLib_functions_spec[6], "findPlatforms", 13},
-{(DanaType*) &object_OpenCLLib_functions_spec[7], "getComputeDeviceIDs", 19},
-{(DanaType*) &object_OpenCLLib_functions_spec[8], "getComputeDevices", 17},
-{(DanaType*) &object_OpenCLLib_functions_spec[9], "createContext", 13},
-{(DanaType*) &object_OpenCLLib_functions_spec[10], "createAsynchQueue", 17},
-{(DanaType*) &object_OpenCLLib_functions_spec[11], "createSynchQueue", 16},
-{(DanaType*) &object_OpenCLLib_functions_spec[12], "createArray", 11},
-{(DanaType*) &object_OpenCLLib_functions_spec[13], "createMatrix", 12},
-{(DanaType*) &object_OpenCLLib_functions_spec[14], "destroyMemoryArea", 17},
-{(DanaType*) &object_OpenCLLib_functions_spec[15], "createProgram", 13},
-{(DanaType*) &object_OpenCLLib_functions_spec[16], "writeIntArray", 13},
-{(DanaType*) &object_OpenCLLib_functions_spec[17], "readIntArray", 12},
-{(DanaType*) &object_OpenCLLib_functions_spec[18], "writeFloatArray", 15},
-{(DanaType*) &object_OpenCLLib_functions_spec[19], "readFloatArray", 14},
-{(DanaType*) &object_OpenCLLib_functions_spec[20], "writeIntMatrix", 14},
-{(DanaType*) &object_OpenCLLib_functions_spec[21], "readIntMatrix", 13},
-{(DanaType*) &object_OpenCLLib_functions_spec[22], "writeFloatMatrix", 16},
-{(DanaType*) &object_OpenCLLib_functions_spec[23], "readFloatMatrix", 15},
-{(DanaType*) &object_OpenCLLib_functions_spec[24], "prepareKernel", 13},
-{(DanaType*) &object_OpenCLLib_functions_spec[25], "runKernel", 9},
-{(DanaType*) &object_OpenCLLib_functions_spec[26], "destroyContextSpace", 19},
-{(DanaType*) &object_OpenCLLib_functions_spec[27], "destroyQueue", 12},
-{(DanaType*) &object_OpenCLLib_functions_spec[28], "destroyProgram", 14},
-{(DanaType*) &object_OpenCLLib_functions_spec[29], "printLogs", 9}};
+{(DanaType*) &object_OpenCLLib_functions_spec[4], "createContextSpace", 18},
+{(DanaType*) &object_OpenCLLib_functions_spec[5], "findPlatforms", 13},
+{(DanaType*) &object_OpenCLLib_functions_spec[6], "getComputeDeviceIDs", 19},
+{(DanaType*) &object_OpenCLLib_functions_spec[7], "getComputeDevices", 17},
+{(DanaType*) &object_OpenCLLib_functions_spec[8], "createContext", 13},
+{(DanaType*) &object_OpenCLLib_functions_spec[9], "createAsynchQueue", 17},
+{(DanaType*) &object_OpenCLLib_functions_spec[10], "createSynchQueue", 16},
+{(DanaType*) &object_OpenCLLib_functions_spec[11], "createArray", 11},
+{(DanaType*) &object_OpenCLLib_functions_spec[12], "createMatrix", 12},
+{(DanaType*) &object_OpenCLLib_functions_spec[13], "destroyMemoryArea", 17},
+{(DanaType*) &object_OpenCLLib_functions_spec[14], "createProgram", 13},
+{(DanaType*) &object_OpenCLLib_functions_spec[15], "writeIntArray", 13},
+{(DanaType*) &object_OpenCLLib_functions_spec[16], "readIntArray", 12},
+{(DanaType*) &object_OpenCLLib_functions_spec[17], "writeFloatArray", 15},
+{(DanaType*) &object_OpenCLLib_functions_spec[18], "readFloatArray", 14},
+{(DanaType*) &object_OpenCLLib_functions_spec[19], "writeIntMatrix", 14},
+{(DanaType*) &object_OpenCLLib_functions_spec[20], "readIntMatrix", 13},
+{(DanaType*) &object_OpenCLLib_functions_spec[21], "writeFloatMatrix", 16},
+{(DanaType*) &object_OpenCLLib_functions_spec[22], "readFloatMatrix", 15},
+{(DanaType*) &object_OpenCLLib_functions_spec[23], "prepareKernel", 13},
+{(DanaType*) &object_OpenCLLib_functions_spec[24], "runKernel", 9},
+{(DanaType*) &object_OpenCLLib_functions_spec[25], "destroyContextSpace", 19},
+{(DanaType*) &object_OpenCLLib_functions_spec[26], "destroyQueue", 12},
+{(DanaType*) &object_OpenCLLib_functions_spec[27], "destroyProgram", 14},
+{(DanaType*) &object_OpenCLLib_functions_spec[28], "printLogs", 9}};
 static const DanaTypeField intf_events_def[] = {
 };
 static const DanaType OpenCLLib_object_spec[] = {
-{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 30},
+{TYPE_DATA, 0, 0, (DanaTypeField*) intf_functions_def, 29},
 {TYPE_DATA, 0, 0, (DanaTypeField*) intf_events_def, 0},
 {TYPE_DATA, 0, 0, NULL, 0}
 };
@@ -243,7 +239,6 @@ static unsigned char op_clone_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_equals_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_toString_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getID_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
-static unsigned char op_init_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_createContextSpace_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_findPlatforms_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
 static unsigned char op_getComputeDeviceIDs_thread_spec[sizeof(VFrameHeader)+sizeof(VFrame)];
@@ -276,7 +271,6 @@ static size_t interfaceFunctions[] = {
 (size_t) op_equals_thread_spec,
 (size_t) op_toString_thread_spec,
 (size_t) op_getID_thread_spec,
-(size_t) op_init_thread_spec,
 (size_t) op_createContextSpace_thread_spec,
 (size_t) op_findPlatforms_thread_spec,
 (size_t) op_getComputeDeviceIDs_thread_spec,
@@ -327,135 +321,130 @@ Interface* getPublicInterface(){
 ((VFrameHeader*) op_getID_thread_spec) -> sub = NULL;
 ((VFrameHeader*) op_getID_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[3];
 ((VFrameHeader*) op_getID_thread_spec) -> functionName = "getID";
-((VFrameHeader*) op_init_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
-((VFrameHeader*) op_init_thread_spec) -> formalParamsCount = 0;
-((VFrameHeader*) op_init_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_init_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[4];
-((VFrameHeader*) op_init_thread_spec) -> functionName = "init";
 ((VFrameHeader*) op_createContextSpace_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_createContextSpace_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_createContextSpace_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createContextSpace_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[5];
+((VFrameHeader*) op_createContextSpace_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[4];
 ((VFrameHeader*) op_createContextSpace_thread_spec) -> functionName = "createContextSpace";
 ((VFrameHeader*) op_findPlatforms_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 0;
 ((VFrameHeader*) op_findPlatforms_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_findPlatforms_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_findPlatforms_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[6];
+((VFrameHeader*) op_findPlatforms_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[5];
 ((VFrameHeader*) op_findPlatforms_thread_spec) -> functionName = "findPlatforms";
 ((VFrameHeader*) op_getComputeDeviceIDs_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getComputeDeviceIDs_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getComputeDeviceIDs_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getComputeDeviceIDs_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[7];
+((VFrameHeader*) op_getComputeDeviceIDs_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[6];
 ((VFrameHeader*) op_getComputeDeviceIDs_thread_spec) -> functionName = "getComputeDeviceIDs";
 ((VFrameHeader*) op_getComputeDevices_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 16;
 ((VFrameHeader*) op_getComputeDevices_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_getComputeDevices_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_getComputeDevices_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[8];
+((VFrameHeader*) op_getComputeDevices_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[7];
 ((VFrameHeader*) op_getComputeDevices_thread_spec) -> functionName = "getComputeDevices";
 ((VFrameHeader*) op_createContext_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 32;
 ((VFrameHeader*) op_createContext_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_createContext_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createContext_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[9];
+((VFrameHeader*) op_createContext_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[8];
 ((VFrameHeader*) op_createContext_thread_spec) -> functionName = "createContext";
 ((VFrameHeader*) op_createAsynchQueue_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_createAsynchQueue_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_createAsynchQueue_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createAsynchQueue_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[10];
+((VFrameHeader*) op_createAsynchQueue_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[9];
 ((VFrameHeader*) op_createAsynchQueue_thread_spec) -> functionName = "createAsynchQueue";
 ((VFrameHeader*) op_createSynchQueue_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 24;
 ((VFrameHeader*) op_createSynchQueue_thread_spec) -> formalParamsCount = 2;
 ((VFrameHeader*) op_createSynchQueue_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createSynchQueue_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[11];
+((VFrameHeader*) op_createSynchQueue_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[10];
 ((VFrameHeader*) op_createSynchQueue_thread_spec) -> functionName = "createSynchQueue";
 ((VFrameHeader*) op_createArray_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_createArray_thread_spec) -> formalParamsCount = 4;
 ((VFrameHeader*) op_createArray_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[12];
+((VFrameHeader*) op_createArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[11];
 ((VFrameHeader*) op_createArray_thread_spec) -> functionName = "createArray";
 ((VFrameHeader*) op_createMatrix_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_createMatrix_thread_spec) -> formalParamsCount = 5;
 ((VFrameHeader*) op_createMatrix_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[13];
+((VFrameHeader*) op_createMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[12];
 ((VFrameHeader*) op_createMatrix_thread_spec) -> functionName = "createMatrix";
 ((VFrameHeader*) op_destroyMemoryArea_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_destroyMemoryArea_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_destroyMemoryArea_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_destroyMemoryArea_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[14];
+((VFrameHeader*) op_destroyMemoryArea_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[13];
 ((VFrameHeader*) op_destroyMemoryArea_thread_spec) -> functionName = "destroyMemoryArea";
 ((VFrameHeader*) op_createProgram_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_createProgram_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_createProgram_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_createProgram_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[15];
+((VFrameHeader*) op_createProgram_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[14];
 ((VFrameHeader*) op_createProgram_thread_spec) -> functionName = "createProgram";
 ((VFrameHeader*) op_writeIntArray_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_writeIntArray_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_writeIntArray_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_writeIntArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[16];
+((VFrameHeader*) op_writeIntArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[15];
 ((VFrameHeader*) op_writeIntArray_thread_spec) -> functionName = "writeIntArray";
 ((VFrameHeader*) op_readIntArray_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_readIntArray_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_readIntArray_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_readIntArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[17];
+((VFrameHeader*) op_readIntArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[16];
 ((VFrameHeader*) op_readIntArray_thread_spec) -> functionName = "readIntArray";
 ((VFrameHeader*) op_writeFloatArray_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_writeFloatArray_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_writeFloatArray_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_writeFloatArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[18];
+((VFrameHeader*) op_writeFloatArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[17];
 ((VFrameHeader*) op_writeFloatArray_thread_spec) -> functionName = "writeFloatArray";
 ((VFrameHeader*) op_readFloatArray_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_readFloatArray_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_readFloatArray_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_readFloatArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[19];
+((VFrameHeader*) op_readFloatArray_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[18];
 ((VFrameHeader*) op_readFloatArray_thread_spec) -> functionName = "readFloatArray";
 ((VFrameHeader*) op_writeIntMatrix_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_writeIntMatrix_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_writeIntMatrix_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_writeIntMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[20];
+((VFrameHeader*) op_writeIntMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[19];
 ((VFrameHeader*) op_writeIntMatrix_thread_spec) -> functionName = "writeIntMatrix";
 ((VFrameHeader*) op_readIntMatrix_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_readIntMatrix_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_readIntMatrix_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_readIntMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[21];
+((VFrameHeader*) op_readIntMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[20];
 ((VFrameHeader*) op_readIntMatrix_thread_spec) -> functionName = "readIntMatrix";
 ((VFrameHeader*) op_writeFloatMatrix_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_writeFloatMatrix_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_writeFloatMatrix_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_writeFloatMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[22];
+((VFrameHeader*) op_writeFloatMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[21];
 ((VFrameHeader*) op_writeFloatMatrix_thread_spec) -> functionName = "writeFloatMatrix";
 ((VFrameHeader*) op_readFloatMatrix_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 48;
 ((VFrameHeader*) op_readFloatMatrix_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_readFloatMatrix_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_readFloatMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[23];
+((VFrameHeader*) op_readFloatMatrix_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[22];
 ((VFrameHeader*) op_readFloatMatrix_thread_spec) -> functionName = "readFloatMatrix";
 ((VFrameHeader*) op_prepareKernel_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 56;
 ((VFrameHeader*) op_prepareKernel_thread_spec) -> formalParamsCount = 4;
 ((VFrameHeader*) op_prepareKernel_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_prepareKernel_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[24];
+((VFrameHeader*) op_prepareKernel_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[23];
 ((VFrameHeader*) op_prepareKernel_thread_spec) -> functionName = "prepareKernel";
 ((VFrameHeader*) op_runKernel_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 40;
 ((VFrameHeader*) op_runKernel_thread_spec) -> formalParamsCount = 3;
 ((VFrameHeader*) op_runKernel_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_runKernel_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[25];
+((VFrameHeader*) op_runKernel_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[24];
 ((VFrameHeader*) op_runKernel_thread_spec) -> functionName = "runKernel";
 ((VFrameHeader*) op_destroyContextSpace_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_destroyContextSpace_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_destroyContextSpace_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_destroyContextSpace_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[26];
+((VFrameHeader*) op_destroyContextSpace_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[25];
 ((VFrameHeader*) op_destroyContextSpace_thread_spec) -> functionName = "destroyContextSpace";
 ((VFrameHeader*) op_destroyQueue_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_destroyQueue_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_destroyQueue_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_destroyQueue_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[27];
+((VFrameHeader*) op_destroyQueue_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[26];
 ((VFrameHeader*) op_destroyQueue_thread_spec) -> functionName = "destroyQueue";
 ((VFrameHeader*) op_destroyProgram_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 8;
 ((VFrameHeader*) op_destroyProgram_thread_spec) -> formalParamsCount = 1;
 ((VFrameHeader*) op_destroyProgram_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_destroyProgram_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[28];
+((VFrameHeader*) op_destroyProgram_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[27];
 ((VFrameHeader*) op_destroyProgram_thread_spec) -> functionName = "destroyProgram";
 ((VFrameHeader*) op_printLogs_thread_spec) -> frameSize = sizeof(VFrame) + sizeof(VVarR) + 0;
 ((VFrameHeader*) op_printLogs_thread_spec) -> formalParamsCount = 0;
 ((VFrameHeader*) op_printLogs_thread_spec) -> sub = NULL;
-((VFrameHeader*) op_printLogs_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[29];
+((VFrameHeader*) op_printLogs_thread_spec) -> localsDef = (size_t) &object_OpenCLLib_functions_spec[28];
 ((VFrameHeader*) op_printLogs_thread_spec) -> functionName = "printLogs";
 memset(&self, '\0', sizeof(self));
 self.objects = objects; self.header = &header; self.header -> objectsCount = sizeof(objects) / sizeof(ObjectSpec);
@@ -473,7 +462,6 @@ static Fable interfaceMappings[] = {
 {"equals", (VFrameHeader*) op_equals_thread_spec},
 {"toString", (VFrameHeader*) op_toString_thread_spec},
 {"getID", (VFrameHeader*) op_getID_thread_spec},
-{"init", (VFrameHeader*) op_init_thread_spec},
 {"createContextSpace", (VFrameHeader*) op_createContextSpace_thread_spec},
 {"findPlatforms", (VFrameHeader*) op_findPlatforms_thread_spec},
 {"getComputeDeviceIDs", (VFrameHeader*) op_getComputeDeviceIDs_thread_spec},
