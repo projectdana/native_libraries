@@ -188,6 +188,8 @@ INSTRUCTION_DEF op_create_context(FrameData *cframe)
 	//enable "success" for a partial write, to match how our default TCP socket API works
 	SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
 	
+	//SSL_CTX_set_options(ctx, SSL_OP_IGNORE_UNEXPECTED_EOF);
+	
 	/*
 	if (serverMode)
 		{
@@ -652,8 +654,9 @@ INSTRUCTION_DEF op_connect(FrameData *cframe)
 	SSL_set_fd(ssl, socket);
 	
 	unsigned char res = 0;
+	int errCode = 0;
 	
-	if (SSL_connect(ssl) <= 0) {
+	if ((errCode = SSL_connect(ssl)) <= 0) {
 		api -> throwException(cframe, ERR_error_string(ERR_get_error(), NULL));
 		return RETURN_OK;
 		}
@@ -716,21 +719,36 @@ INSTRUCTION_DEF op_write(FrameData *cframe)
 	memcpy(&ssl, api -> getParamRaw(cframe, 0), sizeof(size_t));
 	
 	DanaEl* array = api -> getParamEl(cframe, 1);
+	unsigned char* content = api -> getArrayContent(array);
+	size_t totalWriteRequest = api -> getArrayLength(array);
 
-	//bool nonBlocking = api -> getParamRaw(cframe, 2)[0];
-	
-	int sz = 0;
+	size_t sz = 0;
+	size_t totalWritten = 0;
 	
 	if (array != NULL)
 		{
-		sz = SSL_write(ssl, (char*) api -> getArrayContent(array), api -> getArrayLength(array));
+		//OpenSSL will only end packets of up to 16KB, but will then return "success"
+		// - we therefore keep sending while success is true and we still have unsent bytes
+		int res = SSL_write_ex(ssl, (char*) content, totalWriteRequest, &sz);
+
+		totalWritten = sz;
+		totalWriteRequest -= totalWritten;
+		content = content + sz;
+
+		while (res == 1 && (totalWriteRequest > 0))
+			{
+			res = SSL_write_ex(ssl, (char*) content, totalWriteRequest, &sz);
+			content = content + sz;
+			totalWritten += sz;
+			totalWriteRequest -= sz;
+			}
 		}
 	
 	//return # bytes written
-	
-	if (sz > 0)
+
+	if (totalWritten > 0)
 		{
-		api -> returnInt(cframe, sz);
+		api -> returnInt(cframe, totalWritten);
 		}
 	
 	return RETURN_OK;
@@ -804,11 +822,11 @@ INSTRUCTION_DEF op_read(FrameData *cframe)
 	
 	int amt = 1;
 	size_t totalAmt = 0;
-	
+
 	while ((len > 0) && (amt != 0))
 		{
 		amt = SSL_read(ssl, (char*) (cnt + totalAmt), len);
-		
+
 		if (amt < 0)
 			{
 			int errC = ERR_get_error();

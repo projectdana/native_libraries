@@ -96,11 +96,14 @@ else
     endif
     ifneq ($(UNAME_S),Darwin)
         UNAME_P := $(shell uname -p)
+		UNAME_N := $(shell uname -n)
         ifeq ($(UNAME_P),unknown)
+			ifneq ($(UNAME_N),raspberrypi)
             $(warning Host chipset could not be detected; defaulting to x686 (64-bit Intel).)
             CCFLAGS += -DMACHINE_64
             CCFLAGS += -DLIB_CHIP_NAME=\"x64\"
             CHIP = x64
+			endif
         endif
         ifeq ($(UNAME_P),x86_64)
             CCFLAGS += -DMACHINE_64
@@ -115,7 +118,6 @@ else
         ifneq ($(filter arm%,$(UNAME_P)),)
             CCFLAGS += -DARM
         endif
-        UNAME_N := $(shell uname -n)
         ifneq ($(filter %raspberrypi,$(UNAME_N)),)
             CCFLAGS += -DMACHINE_32
             CCFLAGS += -DLIB_CHIP_NAME=\"armv6\"
@@ -229,7 +231,7 @@ clockhd:
 	$(CP_CMD) ClockHDLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 opencl:
-	$(CC) -g -s OpenCLLib_dni.c $(API_PATH)/vmi_util.c OpenCLLib.c -o OpenCLLib[$(PLATFORM).$(CHIP)].dnl $(OPENCL_LIBS) $(OPENCL_INCLUDE) $(STD_INCLUDE) $(CCFLAGS)
+	$(CC) -Os -s OpenCLLib_dni.c $(API_PATH)/vmi_util.c OpenCLLib.c -o OpenCLLib[$(PLATFORM).$(CHIP)].dnl $(OPENCL_LIBS) $(OPENCL_INCLUDE) $(STD_INCLUDE) $(CCFLAGS)
 	$(CP_CMD) OpenCLLib[$(PLATFORM).$(CHIP)].dnl "$(DANA_HOME)/components/resources-ext/"
 
 all: $(ALL_RULES)
